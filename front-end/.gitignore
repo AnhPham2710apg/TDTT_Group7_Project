@@ -1,0 +1,75 @@
+# ===========================
+# 1. GENERAL & OS FILES
+# ===========================
+.DS_Store
+Thumbs.db
+.idea
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ===========================
+# 2. PYTHON BACKEND (QUAN TRỌNG)
+# ===========================
+# Byte-compiled files (File dịch của Python, không cần commit)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments (Môi trường ảo - RẤT QUAN TRỌNG PHẢI IGNORE)
+# Nếu folder venv của bạn tên khác, hãy thêm vào đây
+venv/
+env/
+.env
+.venv/
+
+# Flask specific
+instance/
+.webassets-cache
+
+# ===========================
+# 3. DATABASE (SQLite)
+# ===========================
+# Không nên commit file DB động lên git để tránh conflict
+*.db
+*.sqlite3
+*.sqlite3-journal
+
+# (Tuỳ chọn) Nếu bạn muốn giữ lại file dữ liệu nhà hàng tĩnh, hãy bỏ comment dòng dưới:
+# !back-end/db/restaurants_hcmc.db
+
+# ===========================
+# 4. FRONTEND (Node/React/Vite)
+# ===========================
+# Dependencies
+node_modules/
+
+# Build Output
+dist
+dist-ssr
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Testing
+coverage/
+
+# ===========================
+# 5. ENVIRONMENT VARIABLES (BẢO MẬT)
+# ===========================
+# Chặn tất cả các file biến môi trường chứa key bí mật
+.env
+.env.*
+# Ngoại trừ file ví dụ (nếu có)
+! .env.example
+*.local
