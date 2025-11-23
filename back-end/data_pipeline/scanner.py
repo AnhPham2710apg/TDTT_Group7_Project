@@ -3,7 +3,7 @@
 import requests
 import time
 import config
-import database
+import db_raw_utils    # Đã đổi tên từ database -> db_raw_utils
 # import sys (Không cần nữa)
 from requests.exceptions import RequestException, HTTPError
 
@@ -21,11 +21,11 @@ def get_hcmc_grid():
         # --- Các quận trung tâm ---
         # {'name': 'Quận 1', 'lat': 10.7769, 'lon': 106.7009},
         # {'name': 'Quận 3', 'lat': 10.7828, 'lon': 106.6869},
-        {'name': 'Quận 4', 'lat': 10.7593, 'lon': 106.7023},
+        # {'name': 'Quận 4', 'lat': 10.7593, 'lon': 106.7023},
         # {'name': 'Quận 5', 'lat': 10.7547, 'lon': 106.6585},
         # {'name': 'Quận 6', 'lat': 10.7480, 'lon': 106.6346},
         # {'name': 'Quận 8', 'lat': 10.7225, 'lon': 106.6231},
-        # {'name': 'Quận 10', 'lat': 10.7702, 'lon': 106.6661},
+        {'name': 'Quận 10', 'lat': 10.7702, 'lon': 106.6661},
         # {'name': 'Quận 11', 'lat': 10.7623, 'lon': 106.6501},
         # {'name': 'Quận Phú Nhuận', 'lat': 10.7937, 'lon': 106.6891},
         # {'name': 'Quận Bình Thạnh', 'lat': 10.8016, 'lon': 106.7081},
@@ -158,12 +158,12 @@ def start_scan():
     """
     Bắt đầu quá trình quét toàn bộ TP.HCM để tìm quán ăn.
     """
-    conn = database.create_connection()
+    conn = db_raw_utils.create_connection()
     if conn is None:
         print("Không thể kết nối đến database. Đang dừng...")
         return
 
-    database.create_table(conn)
+    db_raw_utils.create_table(conn)
     
     session = requests.Session()
     grid = get_hcmc_grid()
@@ -242,7 +242,7 @@ def start_scan():
                 }
                 
                 if restaurant_data['goong_place_id'] and restaurant_data['name']:
-                    row_id = database.insert_restaurant(conn, restaurant_data)
+                    row_id = db_raw_utils.insert_restaurant(conn, restaurant_data)
                     if row_id:
                         total_new_places += 1
                         print(f"    -> Đã lưu: {restaurant_data['name']}")

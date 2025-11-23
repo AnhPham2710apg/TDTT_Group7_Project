@@ -1,9 +1,11 @@
 # database.py
-
+import os
 import sqlite3
 from sqlite3 import Error
 
-DB_FILE = 'db/restaurants_hcmc.db'
+# Lấy đường dẫn file này -> trỏ ra cha -> vào db
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_FILE = os.path.join(BASE_DIR, 'db', 'restaurants_hcmc.db')
 
 def create_connection():
     """ Tạo kết nối đến tệp database SQLite """

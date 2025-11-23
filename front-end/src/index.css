@@ -83,3 +83,13 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Ẩn Logo Goong/Mapbox */
+.mapboxgl-ctrl-logo {
+    display: none !important;
+}
+
+/* Ẩn dòng chữ bản quyền (nếu chưa tắt bằng JS) */
+.mapboxgl-ctrl-attrib {
+    display: none !important;
+}

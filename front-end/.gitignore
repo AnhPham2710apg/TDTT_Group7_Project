@@ -4,8 +4,7 @@
 .DS_Store
 Thumbs.db
 .idea
-.vscode/*
-!.vscode/extensions.json
+.vscode/
 *.suo
 *.ntvs*
 *.njsproj
@@ -13,63 +12,58 @@ Thumbs.db
 *.sw?
 
 # ===========================
-# 2. PYTHON BACKEND (QUAN TRỌNG)
+# 2. PYTHON BACKEND
 # ===========================
-# Byte-compiled files (File dịch của Python, không cần commit)
+# Byte-compiled / Caches
 __pycache__/
 *.py[cod]
 *$py.class
+.pytest_cache/
 
-# Virtual Environments (Môi trường ảo - RẤT QUAN TRỌNG PHẢI IGNORE)
-# Nếu folder venv của bạn tên khác, hãy thêm vào đây
+# Virtual Environments (Quan trọng: Chặn venv ở mọi thư mục con)
 venv/
 env/
 .env
 .venv/
 
-# Flask specific
+# Flask
 instance/
 .webassets-cache
 
 # ===========================
 # 3. DATABASE (SQLite)
 # ===========================
-# Không nên commit file DB động lên git để tránh conflict
+# Chặn tất cả file .db để tránh conflict và lộ dữ liệu
 *.db
 *.sqlite3
-*.sqlite3-journal
 
-# (Tuỳ chọn) Nếu bạn muốn giữ lại file dữ liệu nhà hàng tĩnh, hãy bỏ comment dòng dưới:
+# NGOẠI LỆ: Nếu bạn muốn giữ file data gốc (ví dụ file nhà hàng HCM), 
+# hãy bỏ comment dòng dưới (nhưng file không được quá 100MB):
 # !back-end/db/restaurants_hcmc.db
 
 # ===========================
-# 4. FRONTEND (Node/React/Vite)
+# 4. FRONTEND (React/Vite/Bun)
 # ===========================
 # Dependencies
 node_modules/
 
+# Bun lock file (NÊN commit file này, đừng ignore nó trừ khi có lý do đặc biệt)
+# bun.lockb 
+
 # Build Output
-dist
-dist-ssr
+dist/
+dist-ssr/
 
 # Logs
 logs
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
-
-# Testing
-coverage/
 
 # ===========================
-# 5. ENVIRONMENT VARIABLES (BẢO MẬT)
+# 5. ENVIRONMENT VARIABLES (BẢO MẬT TUYỆT ĐỐI)
 # ===========================
-# Chặn tất cả các file biến môi trường chứa key bí mật
 .env
 .env.*
-# Ngoại trừ file ví dụ (nếu có)
-! .env.example
-*.local
+!.env.example

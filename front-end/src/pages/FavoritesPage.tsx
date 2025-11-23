@@ -1,4 +1,5 @@
-/* eslint-disable react-hooks/exhaustive-deps */
+// src/pages/FavoritesPage.tsx
+
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import RestaurantCard from "@/components/RestaurantCard";
@@ -15,118 +16,86 @@ const FavoritesPage = () => {
     fetchFavorites();
   }, []);
 
-  // === BẮT ĐẦU SỬA HÀM NÀY ===
-
-  // Tạm thời định nghĩa "master list" nhà hàng ở đây
-  // Trong một app thật, bạn sẽ gọi một API khác để lấy chi tiết
-  const ALL_MOCK_RESTAURANTS: Restaurant[] = [
-    {
-      id: "1",
-      place_id: "place_1",
-      name: "Pho 24",
-      address: "123 Nguyen Hue St, District 1",
-      rating: 4.5,
-      price_level: 2,
-      lat: 10.7769,
-      lng: 106.7009,
-      is_favorite: false,
-    },
-    {
-      id: "2",
-      place_id: "place_2",
-      name: "The Deck Saigon",
-      address: "38 Nguyen U Di St, District 2",
-      rating: 4.7,
-      price_level: 3,
-      lat: 10.794,
-      lng: 106.7217,
-      is_favorite: false,
-    },
-    {
-      id: "3",
-      place_id: "place_3",
-      name: "Bánh Mì Huỳnh Hoa",
-      address: "26 Le Thi Rieng St, District 1",
-      rating: 4.6,
-      price_level: 1,
-      lat: 10.7681,
-      lng: 106.689,
-      is_favorite: false,
-    },
-  ];
-
   const fetchFavorites = async () => {
-    // setIsLoading(true); // Đã có ở useEffect
+    setIsLoading(true);
     try {
-      // 1. Lấy username
       const username = localStorage.getItem("username");
       if (!username) {
-        toast.error("Bạn cần đăng nhập để xem danh sách yêu thích");
+        // Nếu chưa đăng nhập, dừng lại
         setIsLoading(false);
         return;
       }
 
-      // 2. Gọi API để lấy danh sách place_id yêu thích
-      const response = await axios.get(
+      // Bước 1: Lấy danh sách place_id (VD: ["place_1", "place_5"])
+      const favResponse = await axios.get(
         `http://localhost:5000/api/favorite/${username}`
       );
+      const placeIds: string[] = favResponse.data.favorites || [];
 
-      // 3. Lấy danh sách ID (VD: ["place_1", "place_3"])
-      const favoritePlaceIds = new Set<string>(response.data.favorites || []);
+      if (placeIds.length === 0) {
+        setFavorites([]);
+        setIsLoading(false);
+        return;
+      }
 
-      // 4. Lọc "master list" để lấy chi tiết nhà hàng
-      const favoriteRestaurants = ALL_MOCK_RESTAURANTS.filter(
-        (restaurant) => favoritePlaceIds.has(restaurant.place_id)
-      ).map((restaurant) => ({
-        ...restaurant,
-        is_favorite: true, // Vì đây là trang favorite, nó luôn là true
-      }));
+      // Bước 2: Từ place_id, gọi API lấy chi tiết từng nhà hàng
+      // Chúng ta dùng Promise.all để gọi nhiều request cùng lúc
+      const detailPromises = placeIds.map(async (id) => {
+        try {
+            // Gọi vào API chi tiết nhà hàng bạn đã có
+            const res = await axios.get(`http://localhost:5000/api/restaurant/${id}`);
+            return res.data;
+        } catch (error) {
+            console.error(`Không tải được chi tiết cho ID: ${id}`, error);
+            return null; // Trả về null nếu lỗi
+        }
+      });
 
-      setFavorites(favoriteRestaurants);
+      // Chờ tất cả request hoàn thành
+      const restaurantsRaw = await Promise.all(detailPromises);
+
+      // Lọc bỏ những cái bị null và gán is_favorite = true
+      const validRestaurants = restaurantsRaw
+        .filter((r) => r !== null)
+        .map((r) => ({ ...r, is_favorite: true }));
+
+      setFavorites(validRestaurants);
+
     } catch (error) {
       console.error("Lỗi tải favorites:", error);
-      toast.error("Failed to load favorites");
+      toast.error("Không thể tải danh sách yêu thích");
     } finally {
       setIsLoading(false);
     }
   };
-// === KẾT THÚC SỬA HÀM NÀY ===
 
-  // === BẮT ĐẦU SỬA HÀM NÀY ===
   const handleRemoveFavorite = async (restaurant: Restaurant) => {
-    // 1. Lấy username
     const username = localStorage.getItem("username");
     if (!username) {
-      toast.error("Bạn cần đăng nhập để thực hiện việc này");
+      toast.error("Bạn cần đăng nhập");
       return;
     }
 
-    // 2. Lưu lại state cũ để "hoàn tác" nếu API lỗi
-    const oldFavorites = favorites;
+    // 1. Optimistic Update (Cập nhật giao diện trước cho mượt)
+    const previousFavorites = favorites;
+    setFavorites((prev) => prev.filter((f) => f.id !== restaurant.id));
 
-    // 3. Cập nhật Giao diện ngay lập tức (Optimistic Update)
-    //    Xóa nhà hàng này khỏi danh sách trên UI
-    setFavorites(oldFavorites.filter((f) => f.id !== restaurant.id));
-
-    // 4. Gọi API DELETE
+    // 2. Gọi API Xóa
     try {
       await axios.delete("http://localhost:5000/api/favorite", {
         data: {
           username: username,
-          place_id: restaurant.place_id, // Gửi place_id
+          place_id: restaurant.place_id, // Lưu ý dùng place_id
         },
       });
-      toast.success("Đã xóa khỏi yêu thích");
+      toast.success(`Đã xóa ${restaurant.name} khỏi yêu thích`);
     } catch (error) {
-      console.error("Lỗi khi xóa favorite:", error);
-      toast.error("Xóa thất bại, vui lòng thử lại");
-
-      // 5. Hoàn tác lại (Rollback)
-      //    Nếu API lỗi, trả lại danh sách như cũ
-      setFavorites(oldFavorites);
+      console.error("Lỗi xóa favorite:", error);
+      toast.error("Xóa thất bại, đang hoàn tác...");
+      // Rollback nếu lỗi
+      setFavorites(previousFavorites);
     }
   };
-  // === KẾT THÚC SỬA HÀM NÀY ===
 
   if (isLoading) {
     return (
@@ -147,10 +116,10 @@ const FavoritesPage = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
             <Heart className="h-8 w-8 text-red-500 fill-red-500" />
-            My Favorites
+            Danh Sách Yêu Thích
           </h1>
           <p className="text-muted-foreground">
-            Your collection of favorite restaurants
+            Những quán ăn bạn đã lưu lại
           </p>
         </div>
 
@@ -160,6 +129,7 @@ const FavoritesPage = () => {
               <RestaurantCard
                 key={restaurant.id}
                 restaurant={restaurant}
+                // Truyền hàm xử lý xóa vào
                 onToggleFavorite={handleRemoveFavorite}
               />
             ))}
@@ -168,7 +138,7 @@ const FavoritesPage = () => {
           <div className="text-center py-12">
             <Heart className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
             <p className="text-muted-foreground text-lg">
-              No favorites yet. Start exploring and save your favorite restaurants!
+              Bạn chưa có quán yêu thích nào. Hãy tìm kiếm và thêm vào nhé!
             </p>
           </div>
         )}

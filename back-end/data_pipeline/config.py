@@ -1,7 +1,7 @@
 # config.py
 
 #!!! QUAN TRỌNG: Thay thế bằng REST API Key (Secret Key) của bạn 
-GOONG_API_KEY = "eHCYap0NHicISG3VPr8h0zKEFuqCeHX8HAL9t7jw"
+GOONG_API_KEY = "YOUR_SERVICE_API_KEY"
 
 # Base URL cho các dịch vụ REST API [3]
 BASE_URL = "https://rsapi.goong.io"

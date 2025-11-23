@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import RestaurantCard from "@/components/RestaurantCard";
 import { Button } from "@/components/ui/button";
 import { Restaurant } from "@/types";
-import { Route, Loader2 } from "lucide-react";
+import { Route, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios"; // 1. Import axios
 
@@ -12,95 +12,52 @@ const ResultsPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
-  const [selectedRestaurants, setSelectedRestaurants] = useState<Restaurant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    fetchResults();
-  }, []);
-
-  // SỬA HÀM NÀY
   const fetchResults = async () => {
-    // setIsLoading(true); // Bạn đã có setIsLoading(true) ở đầu rồi, nhưng để ở đây rõ ràng hơn
+    setIsLoading(true);
     try {
-      // 1. Lấy (mock) danh sách nhà hàng
-      // TODO: Replace with actual API call
-      // Mock data for now
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // 1. Lấy Query String trực tiếp từ URL hiện tại
+      // searchParams.toString() sẽ trả về dạng "keyword=pho&cuisine=viet..."
+      const queryString = searchParams.toString();
 
-      const mockData: Restaurant[] = [
-        {
-          id: "1",
-          place_id: "place_1",
-          name: "Pho 24",
-          address: "Phường 4, Quận 1, Ho Chi Minh City",
-          rating: 4.5,
-          price_level: 2,
-          lat: 10.7769,
-          lng: 106.7009,
-          is_favorite: false, // Giữ nguyên là false
-        },
-        {
-          id: "2",
-          place_id: "place_2",
-          name: "The Deck Saigon",
-          address: "Phường 6, Quận 3, Ho Chi Minh City",
-          rating: 4.7,
-          price_level: 3,
-          lat: 10.794,
-          lng: 106.7217,
-          is_favorite: false, // Giữ nguyên là false
-        },
-        {
-          id: "3",
-          place_id: "place_3",
-          name: "Bánh Mì Huỳnh Hoa",
-          address: "Phường 2, Quận 3, Ho Chi Minh City",
-          rating: 4.6,
-          price_level: 1,
-          lat: 10.7681,
-          lng: 106.689,
-          is_favorite: false, // Giữ nguyên là false
-        },
-      ];
+      // 2. Gọi API Search của Backend
+      const response = await axios.get(`http://localhost:5000/api/search?${queryString}`);
+      const apiResults: Restaurant[] = response.data;
 
-      // 2. Lấy danh sách favorite THỰC TẾ từ backend
+      // 3. (Optional) Đồng bộ với Favorites như code cũ của bạn
       const username = localStorage.getItem("username");
-      let favoritePlaceIds = new Set<string>(); // Dùng Set để tra cứu nhanh (O(1))
-
+      let favoritePlaceIds = new Set<string>();
+      
       if (username) {
-        try {
-          const response = await axios.get(
-            `http://localhost:5000/api/favorite/${username}`
-          );
-          // Backend trả về: { favorites: ["place_1", "place_3"] }
-          if (response.data && Array.isArray(response.data.favorites)) {
-            favoritePlaceIds = new Set(response.data.favorites);
-          }
-        } catch (favError) {
-          console.error("Không thể tải danh sách favorites:", favError);
-          // Nếu lỗi cũng không sao, chỉ là tim không được tô màu đúng
-        }
+         try {
+            const favRes = await axios.get(`http://localhost:5000/api/favorite/${username}`);
+            favoritePlaceIds = new Set(favRes.data.favorites);
+         } catch(e) {
+            console.error("Error fetching favorites:", e);
+         }
       }
 
-      // 3. Đồng bộ hóa mockData với danh sách favorite
-      // Duyệt qua từng nhà hàng, nếu place_id của nó có trong Set "favoritePlaceIds"
-      // thì set is_favorite = true
-      const syncedRestaurants = mockData.map((restaurant) => ({
-        ...restaurant,
-        is_favorite: favoritePlaceIds.has(restaurant.place_id), // Đây là điểm mấu chốt!
+      const syncedResults = apiResults.map(r => ({
+          ...r,
+          is_favorite: favoritePlaceIds.has(r.place_id)
       }));
 
-      // 4. Set state với data đã đồng bộ
-      setRestaurants(syncedRestaurants);
+      setRestaurants(syncedResults);
+
     } catch (error) {
-      console.error("Lỗi tải kết quả:", error); // Log lỗi chi tiết hơn
-      toast.error("Failed to load results");
+      console.error("Fetch error:", error);
+      toast.error("Không tìm thấy kết quả phù hợp.");
+      setRestaurants([]);
     } finally {
       setIsLoading(false);
     }
   };
-  // KẾT THÚC SỬA HÀM
+  
+  useEffect(() => {
+    fetchResults();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]); // Re-fetch khi URL thay đổi
 
   // === BẮT ĐẦU SỬA HÀM NÀY ===
   const handleToggleFavorite = async (restaurant: Restaurant) => {
@@ -155,47 +112,6 @@ const ResultsPage = () => {
   };
   // === KẾT THÚC SỬA HÀM NÀY ===
 
-  const handleSelectRestaurant = (restaurant: Restaurant) => {
-    setSelectedRestaurants((prev) => {
-      const isSelected = prev.some((r) => r.id === restaurant.id);
-      if (isSelected) {
-        return prev.filter((r) => r.id !== restaurant.id);
-      } else {
-        if (prev.length >= 5) {
-          toast.error("Maximum 5 restaurants can be selected");
-          return prev;
-        }
-        return [...prev, restaurant];
-      }
-    });
-  };
-
-  const handleOptimizeRoute = () => {
-    if (selectedRestaurants.length < 2) {
-      toast.error("Please select at least 2 restaurants");
-      return;
-    }
-    
-    // --- BẮT ĐẦU THAY ĐỔI ---
-    
-    // Chọn một ký tự phân tách an toàn (ít khả năng xuất hiện trong tên/địa chỉ)
-    const separator = "|||";
-
-    // 1. Lấy ĐỊA CHỈ (address) của nhà hàng
-    const placeAddresses = selectedRestaurants.map(r => r.address).join(separator);
-    
-    // 2. Lấy TÊN (name) của nhà hàng
-    const placeNames = selectedRestaurants.map(r => r.name).join(separator);
-
-    // 3. Mã hóa (encode) cả hai chuỗi
-    const encodedAddresses = encodeURIComponent(placeAddresses);
-    const encodedNames = encodeURIComponent(placeNames);
-    
-    // 4. Điều hướng với 2 tham số
-    navigate(`/optimize?addresses=${encodedAddresses}&names=${encodedNames}`);
-    
-    // --- KẾT THÚC THAY ĐỔI ---
-  };
 
   if (isLoading) {
     return (
@@ -214,31 +130,23 @@ const ResultsPage = () => {
       
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8 flex items-center justify-between">
+          {/* Tiêu đề */}
           <div>
-            <h1 className="text-3xl font-bold mb-2">Search Results</h1>
-            <p className="text-muted-foreground">
-              Found {restaurants.length} restaurants matching your preferences
-            </p>
+          <h1 className="text-3xl font-bold mb-2">Kết quả tìm kiếm</h1>
+          <p className="text-muted-foreground">Tìm thấy {restaurants.length} quán.</p>
           </div>
           
-          {selectedRestaurants.length > 0 && (
-            <Button
-              onClick={handleOptimizeRoute}
-              className="bg-hero-gradient hover:opacity-90"
-            >
-              <Route className="mr-2 h-5 w-5" />
-              Optimize Route ({selectedRestaurants.length})
+          {/* Nút hành động */}
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => navigate("/search")}>
+              <Search className="mr-2 h-4 w-4" /> Tìm kiếm khác
             </Button>
-          )}
-        </div>
-
-        {selectedRestaurants.length > 0 && (
-          <div className="mb-6 p-4 bg-primary/10 rounded-lg">
-            <p className="text-sm text-muted-foreground">
-              💡 Tip: Select 2-5 restaurants to create an optimized route
-            </p>
+            {/* Dẫn người dùng vào Cart để tối ưu */}
+            <Button onClick={() => navigate("/cart")} className="bg-primary/90">
+              Xem danh sách đã chọn
+            </Button>
           </div>
-        )}
+        </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {restaurants.map((restaurant) => (
@@ -246,8 +154,7 @@ const ResultsPage = () => {
               key={restaurant.id}
               restaurant={restaurant}
               onToggleFavorite={handleToggleFavorite}
-              onSelect={handleSelectRestaurant}
-              isSelected={selectedRestaurants.some((r) => r.id === restaurant.id)}
+              // Không truyền onSelect, isSelected nữa
             />
           ))}
         </div>

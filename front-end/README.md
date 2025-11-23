@@ -37,3 +37,17 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+
+# Backend configuration (Flask)
+# Open the file:
+backend/api/app.py
+
+# Replace:
+GOONG_SERVICE_KEY = "YOUR_SERVICE_API_KEY" 
+
+# Frontend configuration (React)
+# Open the file:
+frontend/src/components/RouteMap.tsx
+
+# Replace:
+const GOONG_MAP_KEY = "YOUR_MAP_API_KEY"; 

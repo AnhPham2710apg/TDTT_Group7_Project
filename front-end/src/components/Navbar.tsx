@@ -1,5 +1,7 @@
 // src/components/Navbar.tsx
-
+// Import thêm
+import { ShoppingCart } from "lucide-react";
+import { useCart } from "@/context/CartContext";
 import { Link, useNavigate } from "react-router-dom"; // 1. Xóa useLocation
 import { Button } from "./ui/button";
 import {
@@ -21,8 +23,8 @@ interface NavbarProps {
 
 const Navbar = ({ hideAuthButtons = false }: NavbarProps) => {
   const navigate = useNavigate();
-  // 4. Lấy state và hàm từ Context
   const { isLoggedIn, username, logout } = useAuth();
+  const { cartCount } = useCart(); // Lấy số lượng
 
   // 5. Xóa toàn bộ useEffect và handleLogout
 
@@ -32,7 +34,7 @@ const Navbar = ({ hideAuthButtons = false }: NavbarProps) => {
   };
 
   return (
-    <nav className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+    <nav className="border-b border-border bg-card/50 backdrop-blur-xl sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 group">
@@ -75,6 +77,21 @@ const Navbar = ({ hideAuthButtons = false }: NavbarProps) => {
                 >
                   <Info className="h-4 w-4" />
                   About
+                </Button>
+
+                {/* === NÚT CART (Luôn hiện hoặc chỉ hiện khi login tùy bạn) === */}
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="relative h-11 w-11 gap-2 rounded-full"
+                    onClick={() => navigate("/cart")}
+                  >
+                    <ShoppingCart className="h-5 w-5" />
+                    {cartCount > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white font-bold">
+                        {cartCount}
+                      </span>
+                    )}
                 </Button>
                 
                 {/* Dùng Popover từ code mẫu */}

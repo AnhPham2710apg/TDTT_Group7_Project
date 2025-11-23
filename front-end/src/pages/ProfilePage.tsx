@@ -10,16 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// 1. Xóa 'Loader2' nếu bạn không dùng màn hình loading (đã xóa ở dưới)
 import { Heart, MapPin, Star, User, Edit, Loader2 } from "lucide-react"; 
 import RestaurantCard from "@/components/RestaurantCard";
 import { Restaurant } from "@/types";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
-// 2. Xóa import 'motion'
-// import { motion } from "framer-motion"; 
+import axios from "axios"; // Import axios
 
-// Định nghĩa kiểu Route
+// Định nghĩa kiểu Route Mock (Route chưa có backend nên giữ mock hoặc sửa sau)
 interface MockRoute {
   id: string;
   name: string;
@@ -29,50 +27,82 @@ interface MockRoute {
 
 const ProfilePage = () => {
   const navigate = useNavigate();
-  // 3. Xóa 'isLoading' nếu bạn không muốn màn hình loading
-  //    Nhưng tôi sẽ giữ lại logic 'isLoading' vì nó quan trọng để sửa lỗi reload
-  const { isLoggedIn, username: authUsername, updateUsername, isLoading } = useAuth();
+  const { isLoggedIn, username: authUsername, updateUsername, isLoading: authLoading } = useAuth();
   
-  // (State local giữ nguyên)
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [bio, setBio] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState(""); // setAvatarUrl có thể dùng sau
   const [isEditing, setIsEditing] = useState(false);
-  const [stats] = useState({ favorites: 1, routes: 0, reviews: 8 });
+  
+  // Data
   const [favorites, setFavorites] = useState<Restaurant[]>([]);
   const [routes, setRoutes] = useState<MockRoute[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(false); // Loading riêng cho data profile
 
-  // 4. Xóa toàn bộ định nghĩa hiệu ứng (variants)
+  // Tính toán stats dựa trên dữ liệu thật
+  const stats = {
+    favorites: favorites.length,
+    routes: routes.length,
+    reviews: 0 // Chưa có tính năng review
+  };
 
-  // useEffect (giữ nguyên logic xử lý isLoading)
   useEffect(() => {
-    if (isLoading) {
-      return;
-    }
+    if (authLoading) return;
     
-    if (!isLoading && !isLoggedIn) { 
+    if (!isLoggedIn) { 
       toast.error("Bạn cần đăng nhập để xem trang này");
       navigate("/login");
       return;
     }
     
+    // Set thông tin user cơ bản
     setUsername(authUsername || "User");
     setEmail(authUsername ? `${authUsername}@example.com` : "user@example.com");
-    setBio("Yêu thích khám phá ẩm thực Việt Nam và các món ăn chay");
-    
-    // Tải mock data
-    setFavorites([
-      { id: "1", place_id: "place_1", name: "Quán Chay Hương Sen", address: "123 Đường Nguyễn Huệ, Quận 1", rating: 4.5, price_level: 2, photo_url: "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe", lat: 0, lng: 0, is_favorite: true },
-      { id: "2", place_id: "place_2", name: "Phở Hà Nội", address: "456 Đường Lê Lợi, Quận 1", rating: 4.8, price_level: 1, photo_url: "https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43", lat: 0, lng: 0, is_favorite: true }
-    ]);
+    setBio("Yêu thích khám phá ẩm thực Việt Nam");
+
+    // Gọi hàm lấy dữ liệu
+    fetchProfileData();
+
+    // Mock Routes (Giữ nguyên vì chưa có backend route)
     setRoutes([
       { id: "1", name: "Food Tour Quận 1", restaurantCount: 5, createdAt: "2024-01-15" },
       { id: "2", name: "Chợ Bến Thành Tour", restaurantCount: 4, createdAt: "2024-01-20" },
-      { id: "3", name: "Chay Tour", restaurantCount: 3, createdAt: "2024-02-01" }
     ]);
 
-  }, [isLoggedIn, authUsername, isLoading, navigate]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn, authUsername, authLoading, navigate]);
+
+  // === Hàm lấy dữ liệu thật ===
+  const fetchProfileData = async () => {
+    setIsLoadingData(true);
+    try {
+        const currentUsername = authUsername || localStorage.getItem("username");
+        if (!currentUsername) return;
+
+        // 1. Lấy danh sách ID yêu thích
+        const favResponse = await axios.get(`http://localhost:5000/api/favorite/${currentUsername}`);
+        const placeIds: string[] = favResponse.data.favorites || [];
+
+        // 2. Lấy chi tiết từng quán
+        const detailPromises = placeIds.map(async (id) => {
+            try {
+                const res = await axios.get(`http://localhost:5000/api/restaurant/${id}`);
+                return res.data;
+            } catch (e) { return null; }
+        });
+
+        const results = await Promise.all(detailPromises);
+        const validFavs = results.filter(r => r !== null).map(r => ({...r, is_favorite: true}));
+        
+        setFavorites(validFavs);
+
+    } catch (error) {
+        console.error("Lỗi tải profile data:", error);
+    } finally {
+        setIsLoadingData(false);
+    }
+  };
 
   const handleSave = () => {
     updateUsername(username); 
@@ -80,19 +110,31 @@ const ProfilePage = () => {
     setIsEditing(false);
   };
 
-  const handleToggleFavorite = (toggledRestaurant: Restaurant) => {
-    setFavorites(prevFavorites => 
-      prevFavorites.filter(fav => fav.id !== toggledRestaurant.id)
-    );
-    toast.success(`Đã xóa ${toggledRestaurant.name} khỏi yêu thích (demo)`);
+  // Xử lý xóa favorite ngay tại trang Profile
+  const handleRemoveFavorite = async (restaurant: Restaurant) => {
+    const currentUsername = authUsername || localStorage.getItem("username");
+    if(!currentUsername) return;
+
+    // Optimistic Update
+    const oldFavs = favorites;
+    setFavorites(prev => prev.filter(f => f.id !== restaurant.id));
+
+    try {
+        await axios.delete("http://localhost:5000/api/favorite", {
+            data: { username: currentUsername, place_id: restaurant.place_id }
+        });
+        toast.success("Đã xóa khỏi yêu thích");
+    } catch (error) {
+        toast.error("Lỗi khi xóa");
+        setFavorites(oldFavs);
+    }
   };
 
   const getAvatarFallback = () => {
     return username ? username.charAt(0).toUpperCase() : <User className="h-12 w-12" />;
   };
 
-  // Màn hình Loading (vẫn nên giữ lại)
-  if (isLoading) {
+  if (authLoading || isLoadingData) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -105,15 +147,10 @@ const ProfilePage = () => {
       <Navbar />
       
       <main className="container mx-auto px-4 py-8">
-        {/* Profile Header */}
-        {/* 5. Xóa 'overflow-hidden' */}
+        {/* Profile Header - Giữ nguyên UI cũ */}
         <Card className="mb-8">
           <CardContent className="pt-6">
-            {/* 6. Xóa thẻ 'motion.div' và props 'variants', 'initial', 'whileInView' */}
-            <div 
-              className="flex flex-col md:flex-row items-center md:items-start gap-6"
-            >
-              {/* 7. Xóa thẻ 'motion.div' bọc Avatar */}
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
               <div>
                 <Avatar className="h-32 w-32">
                   <AvatarImage src={avatarUrl} alt={username} />
@@ -123,7 +160,6 @@ const ProfilePage = () => {
                 </Avatar>
               </div>
               
-              {/* 8. Xóa thẻ 'motion.div' bọc nội dung */}
               <div className="flex-1 text-center md:text-left">
                 {isEditing ? (
                   <div className="space-y-4">
@@ -160,12 +196,8 @@ const ProfilePage = () => {
           </CardContent>
         </Card>
 
-        {/* Statistics */}
-        {/* 9. Xóa 'motion.div' bọc grid */}
-        <div 
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
-        >
-          {/* 10. Xóa 'motion.div' bọc Card */}
+        {/* Statistics - Hiển thị số liệu thật */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div>
             <Card>
               <CardContent className="pt-6">
@@ -175,7 +207,7 @@ const ProfilePage = () => {
                   </div>
                   <div>
                     <p className="text-3xl font-bold">{stats.favorites}</p>
-                    <p className="text-muted-foreground">Favorites</p>
+                    <p className="text-muted-foreground">Yêu thích</p>
                   </div>
                 </div>
               </CardContent>
@@ -190,7 +222,7 @@ const ProfilePage = () => {
                   </div>
                   <div>
                     <p className="text-3xl font-bold">{stats.routes}</p>
-                    <p className="text-muted-foreground">Routes</p>
+                    <p className="text-muted-foreground">Lộ trình</p>
                   </div>
                 </div>
               </CardContent>
@@ -205,7 +237,7 @@ const ProfilePage = () => {
                   </div>
                   <div>
                     <p className="text-3xl font-bold">{stats.reviews}</p>
-                    <p className="text-muted-foreground">Reviews</p>
+                    <p className="text-muted-foreground">Đánh giá</p>
                   </div>
                 </div>
               </CardContent>
@@ -215,7 +247,6 @@ const ProfilePage = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="favorites" className="w-full">
-          {/* 11. Xóa 'motion.div' bọc TabsList */}
           <div>
             <TabsList className="w-full justify-start rounded-3xl h-13 p-2">
               <TabsTrigger value="favorites" className="rounded-2xl text-base">
@@ -228,16 +259,12 @@ const ProfilePage = () => {
           </div>
 
           <TabsContent value="favorites" className="mt-6 min-h-[400px]">
-            {/* 12. Xóa 'motion.div' bọc grid */}
-            <div 
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-            >
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {favorites.map((restaurant) => (
-                // 13. Xóa 'motion.div' bọc RestaurantCard
                 <div key={restaurant.id}>
                   <RestaurantCard
                     restaurant={restaurant}
-                    onToggleFavorite={handleToggleFavorite}
+                    onToggleFavorite={handleRemoveFavorite}
                   />
                 </div>
               ))}
@@ -252,12 +279,8 @@ const ProfilePage = () => {
           </TabsContent>
 
           <TabsContent value="routes" className="mt-6 min-h-[400px]">
-            {/* 14. Xóa 'motion.div' bọc danh sách */}
-            <div 
-              className="space-y-4"
-            >
+            <div className="space-y-4">
               {routes.map((route) => (
-                // 15. Xóa 'motion.div' bọc Card
                 <div key={route.id}>
                   <Card>
                     <CardHeader>

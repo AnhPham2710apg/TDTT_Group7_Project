@@ -16,6 +16,8 @@ import NotFound from "./pages/NotFound";
 import AboutPage from "./pages/AboutPage"; // <-- Thêm
 import RestaurantDetailPage from "./pages/RestaurantDetailPage"; // <-- Thêm
 import ProfilePage from "./pages/ProfilePage";
+import { CartProvider } from "./context/CartContext";
+import CartPage from "./pages/CartPage";
 
 const queryClient = new QueryClient();
 
@@ -26,19 +28,22 @@ const App = () => (
       <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/search" element={<SearchPage />} />
-              <Route path="/results" element={<ResultsPage />} />
-              <Route path="/favorites" element={<FavoritesPage />} />
-              <Route path="/optimize" element={<OptimizeRoutePage />} />
-              <Route path="/about" element={<AboutPage />} /> 
-              <Route path="/restaurant/:id" element={<RestaurantDetailPage />} /> 
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <CartProvider>
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/search" element={<SearchPage />} />
+                <Route path="/results" element={<ResultsPage />} />
+                <Route path="/favorites" element={<FavoritesPage />} />
+                <Route path="/optimize" element={<OptimizeRoutePage />} />
+                <Route path="/cart" element={<CartPage />} />
+                <Route path="/about" element={<AboutPage />} /> 
+                <Route path="/restaurant/:id" element={<RestaurantDetailPage />} /> 
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </CartProvider>
           </AuthProvider>
         </BrowserRouter>
     </TooltipProvider>

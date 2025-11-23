@@ -11,19 +11,33 @@ import { Slider } from "@/components/ui/slider";
 import Navbar from "@/components/Navbar";
 import { Search } from "lucide-react";
 import { toast } from "sonner";
+import { SearchFilters } from "@/types"; // Import type
 
 const SearchPage = () => {
   const navigate = useNavigate();
+  // State mới khớp với SearchFilters
+  const [keyword, setKeyword] = useState("");
   const [foodType, setFoodType] = useState("both");
   const [beverageOrFood, setBeverageOrFood] = useState("both");
-  const [cuisine, setCuisine] = useState("");
+  const [cuisine, setCuisine] = useState<string[]>([]); // Array
   const [flavors, setFlavors] = useState<string[]>([]);
   const [courseType, setCourseType] = useState("both");
   const [minPrice, setMinPrice] = useState(0);
-  const [maxPrice, setMaxPrice] = useState(500000);
+  const [maxPrice, setMaxPrice] = useState(2000000);
   const [radius, setRadius] = useState([5]);
-  const [district, setDistrict] = useState("");
+  const [district, setDistrict] = useState<string[]>([]); // Array
+  const [ratingMin, setRatingMin] = useState(0);
+
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleCuisineChange = (val: string) => {
+     // Logic demo: Nếu UI vẫn là Select đơn, ta đưa vào mảng 1 phần tử
+     setCuisine([val]); 
+  };
+
+  const handleDistrictChange = (val: string) => {
+     setDistrict([val]);
+  };
 
   const handleFlavorChange = (flavor: string, checked: boolean) => {
     if (checked) {
@@ -35,33 +49,31 @@ const SearchPage = () => {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!cuisine || !district) {
-      toast.error("Vui lòng chọn ẩm thực và khu vực");
-      return;
-    }
-
     setIsLoading(true);
 
     try {
-      // TODO: Replace with actual API call when backend is ready
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Xây dựng Query Params
+      const params = new URLSearchParams();
+
+      if (keyword) params.append("keyword", keyword);
+      params.append("foodType", foodType);
+      params.append("beverageOrFood", beverageOrFood);
       
-      const params = new URLSearchParams({
-        foodType,
-        beverageOrFood,
-        cuisine,
-        flavors: flavors.join(','),
-        courseType,
-        minPrice: minPrice.toString(),
-        maxPrice: maxPrice.toString(),
-        radius: radius[0].toString(),
-        district
-      });
+      // Append mảng (cuisine=A&cuisine=B)
+      cuisine.forEach(c => params.append("cuisine", c));
+      district.forEach(d => params.append("district", d));
       
+      params.append("flavors", flavors.join(',')); // Backend sẽ split dấu phẩy
+      params.append("courseType", courseType);
+      params.append("minPrice", minPrice.toString());
+      params.append("maxPrice", maxPrice.toString());
+      params.append("radius", radius[0].toString());
+      params.append("ratingMin", ratingMin.toString());
+
+      // Navigate sang trang kết quả với params thực tế
       navigate(`/results?${params.toString()}`);
     } catch (error) {
-      toast.error("Tìm kiếm thất bại. Vui lòng thử lại.");
+      toast.error("Lỗi xử lý tìm kiếm.");
     } finally {
       setIsLoading(false);
     }
@@ -87,10 +99,19 @@ const SearchPage = () => {
 
           <Card className="p-8">
             <form onSubmit={handleSearch} className="space-y-8">
+              <div className="space-y-2">
+                <Label htmlFor="keyword">Từ khóa</Label>
+                <Input 
+                  id="keyword" 
+                  placeholder="Tên quán, món ăn..." 
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                />
+              </div>
               {/* Món của quốc gia nào */}
               <div className="space-y-2">
-                <Label htmlFor="cuisine">Ẩm thực *</Label>
-                <Select value={cuisine} onValueChange={setCuisine}>
+                <Label>Ẩm thực</Label>
+                <Select onValueChange={handleCuisineChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Chọn ẩm thực" />
                   </SelectTrigger>
@@ -274,7 +295,7 @@ const SearchPage = () => {
                   type="text"
                   placeholder="VD: Quận 1, Thủ Đức..."
                   value={district}
-                  onChange={(e) => setDistrict(e.target.value)}
+                  onChange={(e) => handleDistrictChange(e.target.value)}
                 />
               </div>
 

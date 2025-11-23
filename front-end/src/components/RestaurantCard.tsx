@@ -1,37 +1,51 @@
+import React from "react"; // 1. Import React
 import { Restaurant } from "@/types";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
-import { Heart, MapPin, Star, DollarSign, Eye } from "lucide-react";
+import { Heart, MapPin, Star, DollarSign, Eye, Plus, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useCart } from "@/context/CartContext";
 
+// 2. Định nghĩa Interface cho Props
 interface RestaurantCardProps {
   restaurant: Restaurant;
-  onToggleFavorite?: (restaurant: Restaurant) => void;
+  // Cập nhật type cho phép trả về Promise<void> hoặc void để linh hoạt
+  onToggleFavorite?: (restaurant: Restaurant) => void | Promise<void>;
   onSelect?: (restaurant: Restaurant) => void;
   isSelected?: boolean;
 }
 
-// === THÊM MỚI ===
-// Định nghĩa ánh xạ giá tiền ở đây
 const priceRangeMap: { [key: number]: string } = {
   1: "1.000đ – 100.000đ",
   2: "100.000đ – 500.000đ",
   3: "500.000đ – 2.000.000đ",
   4: "2.000.000đ trở lên",
 };
-// ================
 
-const RestaurantCard = ({
+const RestaurantCard: React.FC<RestaurantCardProps> = ({
   restaurant,
   onToggleFavorite,
-  onSelect,
-  isSelected,
-}: RestaurantCardProps) => {
+  // Bỏ onSelect và isSelected cũ đi vì ta dùng Context
+}) => {
   const navigate = useNavigate();
+  const { isInCart, addToCart, removeFromCart } = useCart(); // Dùng hook
+
+  const inCart = isInCart(restaurant.id); // Kiểm tra trạng thái
+
+  const handleCartAction = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (inCart) {
+      removeFromCart(restaurant.id);
+    } else {
+      addToCart(restaurant);
+    }
+  };
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onToggleFavorite?.(restaurant);
+    if (onToggleFavorite) {
+      onToggleFavorite(restaurant);
+    }
   };
 
   const handleViewDetails = (e: React.MouseEvent) => {
@@ -40,14 +54,8 @@ const RestaurantCard = ({
   };
 
   return (
-    <Card
-      className={`overflow-hidden hover:shadow-hover transition-all duration-300 cursor-pointer ${
-        isSelected ? "ring-2 ring-primary" : ""
-      }`}
-      onClick={() => onSelect?.(restaurant)}
-    >
+    <Card className="overflow-hidden hover:shadow-hover transition-all duration-300">
       <div className="relative h-48 bg-muted overflow-hidden">
-        {/* ... (Phần ảnh và nút yêu thích giữ nguyên) ... */}
         {restaurant.photo_url ? (
           <img
             src={restaurant.photo_url}
@@ -59,6 +67,8 @@ const RestaurantCard = ({
             <MapPin className="h-16 w-16 text-muted-foreground/30" />
           </div>
         )}
+        
+        {/* Kiểm tra onToggleFavorite tồn tại mới hiện nút tim */}
         {onToggleFavorite && (
           <Button
             size="icon"
@@ -93,35 +103,45 @@ const RestaurantCard = ({
             </div>
           )}
           
-          {/* === BẮT ĐẦU THAY ĐỔI === */}
           {restaurant.price_level && priceRangeMap[restaurant.price_level] && (
-            // Thêm 'gap-1' để có khoảng cách giữa các icon và văn bản
             <div className="flex items-center gap-1">
-              {/* Giữ nguyên logic render các icon */}
               <div className="flex items-center">
                 {Array.from({ length: restaurant.price_level }).map((_, i) => (
                   <DollarSign key={i} className="h-4 w-4 text-green-600" />
                 ))}
               </div>
-              {/* Thêm văn bản giá tiền */}
               <span className="text-xs text-muted-foreground ml-1">
                 ({priceRangeMap[restaurant.price_level]})
               </span>
             </div>
           )}
-          {/* === KẾT THÚC THAY ĐỔI === */}
+          {/* === PHẦN BUTTON ACTION MỚI === */}
+        
         </div>
+        <div className="flex gap-2 mt-4">
+          {/* Nút Add/Remove Cart */}
+          <Button
+            variant={inCart ? "destructive" : "secondary"} // Đỏ nếu xóa, Xám nếu thêm
+            size="sm"
+            className="w-12 px-0 flex-shrink-0" // Nút vuông nhỏ
+            onClick={handleCartAction}
+            title={inCart ? "Xóa khỏi danh sách" : "Thêm vào danh sách"}
+          >
+            {inCart ? <Trash2 className="h-4 w-4" /> : <Plus className="h-5 w-5" />}
+          </Button>
 
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full !mt-4"
-          onClick={handleViewDetails}
-        >
-          <Eye className="mr-2 h-4 w-4" />
-          Xem chi tiết
-        </Button>
-      </div>
+          {/* Nút Xem chi tiết */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            onClick={handleViewDetails}
+          >
+            <Eye className="mr-2 h-4 w-4" />
+            Xem chi tiết
+          </Button>
+        </div>
+      </div>  
     </Card>
   );
 };
