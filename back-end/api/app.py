@@ -1,23 +1,28 @@
 import sys
 import os
-import math
+
+# --- ĐOẠN CODE QUAN TRỌNG: PHẢI ĐẶT LÊN TRÊN CÙNG ---
+# Lấy đường dẫn của thư mục chứa file app.py hiện tại (tức là thư mục 'api')
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# Thêm thư mục 'api' vào danh sách tìm kiếm module của Python
+sys.path.append(current_dir)
+# Lấy đường dẫn thư mục cha (back-end) để config đường dẫn upload ảnh sau này
+backend_dir = os.path.dirname(current_dir)
+# ----------------------------------------------------
+
+# SAU KHI THÊM ĐOẠN TRÊN THÌ MỚI ĐƯỢC IMPORT CÁC FILE KHÁC
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from werkzeug.utils import secure_filename
 import json
 import requests
 import polyline
 import uuid
-from werkzeug.utils import secure_filename
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+import math
+
+# Bây giờ Python đã hiểu 'models' nằm ở đâu
 from models import db, bcrypt, User, Favorite, RouteHistory, Review
 from routes import restaurant_bp
-
-current_file_path = os.path.abspath(__file__)
-
-api_dir = os.path.dirname(current_file_path)
-
-backend_dir = os.path.dirname(api_dir)
-
-sys.path.append(api_dir)
 
 app = Flask(__name__, static_folder='../static')
 
