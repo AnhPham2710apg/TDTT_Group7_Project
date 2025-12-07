@@ -28,7 +28,7 @@ allowed_origins = [
     "http://localhost:5173",  # Vite Local
     "http://localhost:3000",  # React Local
     "http://localhost:8080",  # Port lạ (nếu có)
-    "https://tdtt-group7-project.vercel.app/", # <-- HÃY THAY LINK VERCEL THẬT CỦA BẠN VÀO ĐÂY
+    "https://tdtt-group7-project.vercel.app", # <-- HÃY THAY LINK VERCEL THẬT CỦA BẠN VÀO ĐÂY
 ]
 
 CORS(app, 
