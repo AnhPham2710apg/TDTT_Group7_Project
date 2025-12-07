@@ -1,16 +1,13 @@
 import sys
 import os
 
-# --- ĐOẠN CODE QUAN TRỌNG: PHẢI ĐẶT LÊN TRÊN CÙNG ---
-# Lấy đường dẫn của thư mục chứa file app.py hiện tại (tức là thư mục 'api')
+# --- 1. CẤU HÌNH ĐƯỜNG DẪN (QUAN TRỌNG: PHẢI ĐỂ ĐẦU TIÊN) ---
+# Giúp Python tìm thấy file models.py dù chạy từ thư mục nào
 current_dir = os.path.dirname(os.path.abspath(__file__))
-# Thêm thư mục 'api' vào danh sách tìm kiếm module của Python
 sys.path.append(current_dir)
-# Lấy đường dẫn thư mục cha (back-end) để config đường dẫn upload ảnh sau này
-backend_dir = os.path.dirname(current_dir)
-# ----------------------------------------------------
+backend_dir = os.path.dirname(current_dir) # Dùng cho folder static/uploads
+# -----------------------------------------------------------
 
-# SAU KHI THÊM ĐOẠN TRÊN THÌ MỚI ĐƯỢC IMPORT CÁC FILE KHÁC
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
@@ -20,72 +17,59 @@ import polyline
 import uuid
 import math
 
-# Bây giờ Python đã hiểu 'models' nằm ở đâu
+# Import models sau khi đã fix đường dẫn
 from models import db, bcrypt, User, Favorite, RouteHistory, Review
 from routes import restaurant_bp
 
 app = Flask(__name__, static_folder='../static')
 
-# --- CẤU HÌNH CORS CHUẨN (CHO PHÉP FRONTEND GỌI API) ---
-# Danh sách các domain được phép gọi API này
+# --- 2. CẤU HÌNH CORS (BẢO MẬT & KẾT NỐI) ---
 allowed_origins = [
-    "http://localhost:5173",  # Môi trường Dev (Vite mặc định)
-    "http://localhost:3000",  # Môi trường Dev (React mặc định - phòng hờ)
-    "http://localhost:8080",
-    "https://ten-du-an-frontend-cua-ban.vercel.app" # <-- THAY LINK VERCEL CỦA BẠN VÀO ĐÂY SAU KHI DEPLOY
+    "http://localhost:5173",  # Vite Local
+    "http://localhost:3000",  # React Local
+    "http://localhost:8080",  # Port lạ (nếu có)
+    "https://food-tour-frontend.vercel.app", # <-- HÃY THAY LINK VERCEL THẬT CỦA BẠN VÀO ĐÂY
+    "https://food-tour-assistant.vercel.app" # Ví dụ dự phòng
 ]
 
 CORS(app, 
-    resources={r"/api/*": {"origins": allowed_origins}}, # Chỉ áp dụng cho các route bắt đầu bằng /api/
-    supports_credentials=True, # RẤT QUAN TRỌNG: Để cho phép gửi Cookie/Token xác thực
-    allow_headers=["Content-Type", "Authorization"], # Các header được phép gửi
-    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"] # Các phương thức được phép
+    resources={r"/api/*": {"origins": allowed_origins}},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 )
 
-# --- CẤU HÌNH DATABASE THÔNG MINH ---
-# Ưu tiên lấy từ biến môi trường của Render, nếu không có thì dùng local
+# --- 3. CẤU HÌNH DATABASE (SMART CONFIG) ---
+# Ưu tiên lấy từ Render (Environment Variable), nếu không có thì dùng Local
 database_url = os.environ.get('DATABASE_URL')
 
+# Fix lỗi "postgres://" của Render (SQLAlchemy yêu cầu "postgresql://")
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 
+# Nếu không có biến môi trường (chạy local), dùng chuỗi kết nối local của bạn
+# Lưu ý: Khi chạy local nhớ đảm bảo password '271006' là đúng
 DB_URI = database_url or "postgresql://postgres:271006@localhost:5432/user_data_db"
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DB_URI
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Cấu hình DB phụ (Nếu bạn dùng 1 DB cho cả 2 thì trỏ chung, hoặc tạo 2 DB trên Render)
-# Để đơn giản tuần 1: Tạm thời trỏ chung vào DB chính để test trước
+# Cấu hình Bind cho DB phụ (nếu cần tách biệt, tạm thời trỏ chung DB chính cho đơn giản)
 app.config['SQLALCHEMY_BINDS'] = {
     'restaurants_db': DB_URI 
 }
 
-# ---------------------------
-# CẤU HÌNH POSTGRESQL
-# ---------------------------
-# Lưu ý: Thay '123456' bằng mật khẩu thật của bạn
-DB_URI = "postgresql://postgres:271006@localhost:5432"
-
-# Database chính (User, Lộ trình, Favorite)
-app.config['SQLALCHEMY_DATABASE_URI'] = f"{DB_URI}/user_data_db"
-
-# Database phụ (Nhà hàng)
-app.config['SQLALCHEMY_BINDS'] = {
-    'restaurants_db': f"{DB_URI}/restaurants_db"
-}
-
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
+# Khởi tạo Extension
 db.init_app(app)
 bcrypt.init_app(app)
 
-# Tự động tạo bảng nếu chưa có (Chạy 1 lần khi khởi động)
+# Tự động tạo bảng khi khởi động
 with app.app_context():
     db.create_all()
-    print(">>> Đã kết nối PostgreSQL và kiểm tra bảng dữ liệu!")
+    print(f">>> Đã kết nối Database: {'RENDER (Online)' if database_url else 'LOCALHOST'}")
 
-# Đăng ký Blueprint (Module nhà hàng)
+# Đăng ký Blueprint
 app.register_blueprint(restaurant_bp)
-
 # ---------------------------
 # CẤU HÌNH GOONG API
 # ---------------------------
