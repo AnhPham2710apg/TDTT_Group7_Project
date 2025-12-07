@@ -2,7 +2,7 @@ import Navbar from "@/components/Navbar";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
 import RestaurantCard from "@/components/RestaurantCard";
-import { Route, Search, Trash2 } from "lucide-react";
+import { Route, Search, Trash2, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -11,8 +11,8 @@ const CartPage = () => {
   const navigate = useNavigate();
 
   const handleOptimizeRoute = () => {
-    if (cartItems.length < 2) {
-      toast.error("Cần ít nhất 2 địa điểm để tối ưu lộ trình!");
+    if (cartItems.length < 1) {
+      toast.error("Cần ít nhất 1 địa điểm để tối ưu lộ trình!");
       return;
     }
 
@@ -36,7 +36,15 @@ const CartPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="container mx-auto px-4 py-8">
+      
+      <div className="container mx-auto px-4 py-4">
+        <Button 
+          variant="ghost" 
+          className="mb-4 pl-0 hover:pl-2 transition-all" 
+          onClick={() => navigate(-1)}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" /> Quay lại
+        </Button>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold mb-2">Danh sách địa điểm đã chọn</h1>

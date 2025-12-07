@@ -93,3 +93,43 @@ All colors MUST be HSL.
 .mapboxgl-ctrl-attrib {
     display: none !important;
 }
+
+@layer utilities {
+  /* 1. Keyframes: Trượt từ dưới lên + Hiện dần */
+  @keyframes appear-up {
+    0% {
+      opacity: 0;
+      transform: translateY(20px); /* Dịch xuống 20px */
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0); /* Về vị trí cũ */
+    }
+  }
+
+  /* 2. Keyframes: Trượt từ trên xuống + Hiện dần */
+  @keyframes appear-down {
+    0% {
+      opacity: 0;
+      transform: translateY(-20px); /* Dịch lên 20px */
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* 3. Class để dùng trong React */
+  .animate-slide-up {
+    animation: appear-up 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; /* Mượt mà */
+  }
+
+  .animate-slide-down {
+    animation: appear-down 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  }
+
+  /* 4. Độ trễ (Delay) để các phần tử hiện lần lượt */
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+}

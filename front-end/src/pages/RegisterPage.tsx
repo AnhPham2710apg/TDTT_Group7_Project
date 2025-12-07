@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
+import { API_BASE_URL } from "@/lib/api-config";
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ const RegisterPage = () => {
     setIsLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5000/api/register", {
+      const res = await fetch(`${API_BASE_URL}/api/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),

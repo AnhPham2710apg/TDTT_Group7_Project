@@ -2,10 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import goongjs from '@goongmaps/goong-js';
 import polyline from '@mapbox/polyline';
 import '@goongmaps/goong-js/dist/goong-js.css';
-import { AttributionControl } from 'mapbox-gl';
-import { a } from 'node_modules/framer-motion/dist/types.d-BJcRxCew';
 
-const GOONG_MAP_KEY = "YOUR_MAP_API_KEY"; 
+const GOONG_MAP_KEY = "m0h13U1deb9pxgukC0cN745d6H4FQNi2vyZNPi5m"; 
 
 interface Waypoint {
   id: string;

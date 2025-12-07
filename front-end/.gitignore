@@ -20,26 +20,31 @@ __pycache__/
 *$py.class
 .pytest_cache/
 
-# Virtual Environments (Quan trọng: Chặn venv ở mọi thư mục con)
+# Virtual Environments
 venv/
 env/
 .env
 .venv/
 
-# Flask
+# Flask & Webassets
 instance/
 .webassets-cache
+
+# --- QUAN TRỌNG: Chặn ảnh upload test ---
+# Chỉ giữ file .gitkeep nếu có, chặn toàn bộ ảnh bên trong
+back-end/static/uploads/*
+!back-end/static/uploads/.gitkeep
 
 # ===========================
 # 3. DATABASE (SQLite)
 # ===========================
-# Chặn tất cả file .db để tránh conflict và lộ dữ liệu
+# Chặn user data để bảo mật
 *.db
 *.sqlite3
 
-# NGOẠI LỆ: Nếu bạn muốn giữ file data gốc (ví dụ file nhà hàng HCM), 
-# hãy bỏ comment dòng dưới (nhưng file không được quá 100MB):
-# !back-end/db/restaurants_hcmc.db
+# --- NGOẠI LỆ (QUAN TRỌNG KHI DEPLOY) ---
+# Nếu bạn cần dữ liệu quán ăn có sẵn trên Render, hãy bỏ dấu # ở dòng dưới:
+# !back-end/db/restaurants_db.db
 
 # ===========================
 # 4. FRONTEND (React/Vite/Bun)
@@ -47,7 +52,7 @@ instance/
 # Dependencies
 node_modules/
 
-# Bun lock file (NÊN commit file này, đừng ignore nó trừ khi có lý do đặc biệt)
+# Bun lock file (Giữ lại file này để Render cài đúng phiên bản)
 # bun.lockb 
 
 # Build Output
@@ -65,5 +70,6 @@ pnpm-debug.log*
 # 5. ENVIRONMENT VARIABLES (BẢO MẬT TUYỆT ĐỐI)
 # ===========================
 .env
+.env.local
 .env.*
 !.env.example

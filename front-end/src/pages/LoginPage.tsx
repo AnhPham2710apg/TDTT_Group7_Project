@@ -8,6 +8,7 @@ import { UtensilsCrossed, Loader2 } from "lucide-react"; // Thêm Loader2
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
+import { API_BASE_URL } from "@/lib/api-config";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ const LoginPage = () => {
     setIsLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5000/api/login", {
+      const res = await fetch(`${API_BASE_URL}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),

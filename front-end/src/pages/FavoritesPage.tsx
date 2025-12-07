@@ -7,6 +7,7 @@ import { Restaurant } from "@/types";
 import { Heart, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api-config";
 
 const FavoritesPage = () => {
   const [favorites, setFavorites] = useState<Restaurant[]>([]);
@@ -28,7 +29,7 @@ const FavoritesPage = () => {
 
       // Bước 1: Lấy danh sách place_id (VD: ["place_1", "place_5"])
       const favResponse = await axios.get(
-        `http://localhost:5000/api/favorite/${username}`
+        `${API_BASE_URL}/api/favorite/${username}`
       );
       const placeIds: string[] = favResponse.data.favorites || [];
 
@@ -43,7 +44,7 @@ const FavoritesPage = () => {
       const detailPromises = placeIds.map(async (id) => {
         try {
             // Gọi vào API chi tiết nhà hàng bạn đã có
-            const res = await axios.get(`http://localhost:5000/api/restaurant/${id}`);
+            const res = await axios.get(`${API_BASE_URL}/api/restaurant/${id}`);
             return res.data;
         } catch (error) {
             console.error(`Không tải được chi tiết cho ID: ${id}`, error);
@@ -82,7 +83,7 @@ const FavoritesPage = () => {
 
     // 2. Gọi API Xóa
     try {
-      await axios.delete("http://localhost:5000/api/favorite", {
+      await axios.delete("${API_BASE_URL}/api/favorite", {
         data: {
           username: username,
           place_id: restaurant.place_id, // Lưu ý dùng place_id
