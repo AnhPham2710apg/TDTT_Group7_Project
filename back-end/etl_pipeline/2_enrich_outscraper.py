@@ -1,43 +1,24 @@
 import sqlite3
 import json
-import os
 import time
 import re
+import os
 from outscraper import ApiClient
+import config  # Import config
 
-# --- CẤU HÌNH ---
-API_KEY = "MmI2NmUyNGY0Mzk1NDY4ZGExZDQzOWI3ZjAwMWY2NGV8YWQyZGYxZmNlMg"
-
-# --- CẤU HÌNH ĐƯỜNG DẪN DB ---
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_FOLDER = os.path.join(BASE_DIR, "db")
-
-SOURCE_DB_NAME = "restaurants_hcmc.db"
-TARGET_DB_NAME = "restaurants_enrich.db"
-
-# --- CẤU HÌNH PHẠM VI ID CẦN CHẠY ---
-START_ID = 3701  # 2701 #3101 #1701
-END_ID = 3900  # 3500
-
-SOURCE_DB_PATH = os.path.join(DB_FOLDER, SOURCE_DB_NAME)
-TARGET_DB_PATH = os.path.join(DB_FOLDER, TARGET_DB_NAME)
+# --- CẤU HÌNH PHẠM VI ID ---
+START_ID = 4000      # Sửa lại số này khi chạy thật
+END_ID = 4001    # Quét hết
 
 # --- PHẦN 1: KHỞI TẠO DATABASE ---
 
-
-def ensure_db_folder():
-    if not os.path.exists(DB_FOLDER):
-        os.makedirs(DB_FOLDER)
-
-
+# --- HÀM KHỞI TẠO DB ĐÍCH ---
 def init_target_db():
-    ensure_db_folder()
-    conn = sqlite3.connect(TARGET_DB_PATH)
+    conn = sqlite3.connect(config.DB_ENRICHED_PATH)
     cursor = conn.cursor()
-
-    # QUAN TRỌNG: Cột place_id phải là UNIQUE
-    cursor.execute(
-        """
+    
+    # Tạo bảng enriched
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS restaurants (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             place_id TEXT UNIQUE,
@@ -61,18 +42,16 @@ def init_target_db():
             subtypes TEXT,
             description TEXT
         )
-    """
-    )
+    """)
     conn.commit()
     conn.close()
 
-
 def get_source_data(start_id, end_id):
-    if not os.path.exists(SOURCE_DB_PATH):
-        print(f"❌ Lỗi: Không tìm thấy file nguồn {SOURCE_DB_PATH}")
+    if not os.path.exists(config.DB_RAW_PATH):
+        print(f"❌ Lỗi: Không tìm thấy DB nguồn {config.DB_RAW_PATH}")
         return []
 
-    conn = sqlite3.connect(SOURCE_DB_PATH)
+    conn = sqlite3.connect(config.DB_RAW_PATH)
     cursor = conn.cursor()
     try:
         cursor.execute(
@@ -86,7 +65,6 @@ def get_source_data(start_id, end_id):
         return []
     finally:
         conn.close()
-
 
 # --- HÀM XỬ LÝ DỮ LIỆU CHUYÊN BIỆT ---
 def parse_working_hours(place_data):
@@ -183,18 +161,14 @@ def normalize_price_range(raw_range):
     else:
         return "₫₫₫₫"
 
-
 def save_to_target_db(place_data, source_ref_id):
-    """Lưu vào DB dùng INSERT OR IGNORE để tự động lọc trùng."""
-
     place_id = place_data.get("place_id")
     name = place_data.get("name")
 
     if not place_id or not name:
-        print(f"⛔ [Dòng {source_ref_id}] Bỏ qua: Thiếu ID hoặc Tên.")
         return
 
-    conn = sqlite3.connect(TARGET_DB_PATH, timeout=30)
+    conn = sqlite3.connect(config.DB_ENRICHED_PATH, timeout=30)
     cursor = conn.cursor()
 
     # --- 1. Trích xuất dữ liệu (Giữ nguyên logic cũ) ---
@@ -308,16 +282,21 @@ def save_to_target_db(place_data, source_ref_id):
 # --- PHẦN 3: CHẠY CHƯƠNG TRÌNH ---
 def main():
     init_target_db()
+    
+    # Lấy API Key từ config (Đã sửa lỗi hardcode rỗng)
+    if not config.OUTSCRAPER_API_KEY:
+        print("❌ Lỗi: Chưa có OUTSCRAPER_API_KEY trong .env")
+        return
 
     print(f"\n📡 Đang đọc dữ liệu từ dòng {START_ID} đến {END_ID}...")
     source_rows = get_source_data(START_ID, END_ID)
 
     if not source_rows:
-        print("⚠ Không tìm thấy dữ liệu.")
+        print("⚠ Không tìm thấy dữ liệu nguồn.")
         return
 
-    print(f"📋 Tìm thấy {len(source_rows)} địa điểm. Bắt đầu xử lý...\n")
-    client = ApiClient(api_key=API_KEY)
+    print(f"📋 Tìm thấy {len(source_rows)} địa điểm. Bắt đầu OutScraper...")
+    client = ApiClient(api_key=config.OUTSCRAPER_API_KEY)
 
     for row in source_rows:
         src_id, src_name, src_address, src_lat, src_lng = row

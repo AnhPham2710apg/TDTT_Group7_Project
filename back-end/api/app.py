@@ -1,14 +1,37 @@
 # api/app.py
 import sys
 import os
-import uuid
 from dotenv import load_dotenv
 
-# 1. LOAD CONFIG
-load_dotenv()
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(current_dir)
+# --- 1. CẤU HÌNH ĐƯỜNG DẪN & LOAD .ENV ---
+
+# Lấy đường dẫn tuyệt đối của file app.py hiện tại (.../back-end/api/app.py)
+current_file_path = os.path.abspath(__file__)
+
+# Lấy thư mục chứa app.py (.../back-end/api)
+current_dir = os.path.dirname(current_file_path)
+
+# Lấy thư mục cha (.../back-end) -> Đây là nơi chứa file .env chung
 backend_dir = os.path.dirname(current_dir)
+
+# Tạo đường dẫn tới file .env (.../back-end/.env)
+dotenv_path = os.path.join(backend_dir, '.env')
+
+# Load file .env từ đường dẫn cụ thể vừa tạo
+# override=True để đảm bảo nếu hệ thống có biến môi trường trùng tên thì ưu tiên file .env (hoặc ngược lại tùy bạn, thường thì để default)
+load_dotenv(dotenv_path)
+
+# Thêm đường dẫn vào sys.path để import modules dễ dàng
+sys.path.append(current_dir)
+sys.path.append(backend_dir) 
+
+# --- KIỂM TRA (In ra để chắc chắn đã đọc được) ---
+# Bạn có thể xóa đoạn print này sau khi test xong
+db_check = os.getenv('DATABASE_URL') or os.getenv('DATABASE_URL_LOCAL')
+if db_check:
+    print(f">>> ✅ Đã load cấu hình từ: {dotenv_path}")
+else:
+    print(f">>> ❌ CẢNH BÁO: Không tìm thấy file .env tại {dotenv_path}")
 
 from flask import Flask, jsonify
 from flask_cors import CORS
@@ -63,13 +86,6 @@ app.register_blueprint(auth_bp)        # Login, Register
 app.register_blueprint(restaurant_bp)  # Search, Detail
 app.register_blueprint(review_bp)      # Reviews, Favorites
 app.register_blueprint(map_bp)         # Geocode, Route, Optimize
-
-# --- SEED DATA (Giữ lại để nạp data nếu cần) ---
-@app.route("/api/seed_database", methods=["GET"])
-def seed_database():
-    if Restaurant.query.first(): return jsonify({"message": "Data exists!"})
-    # ... (Code seed data mẫu của bạn, giữ nguyên hoặc bỏ qua nếu đã nạp từ sqlite)
-    return jsonify({"message": "Done"})
 
 @app.route("/")
 def hello(): return "Backend is Running Perfectly!"

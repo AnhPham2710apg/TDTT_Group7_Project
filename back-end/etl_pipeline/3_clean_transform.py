@@ -3,15 +3,14 @@ import json
 import re
 import os
 import logging
+import config # Import config
 
-# --- CẤU HÌNH ĐƯỜNG DẪN ---
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# Nếu bạn muốn đọc từ CSV, hãy sửa đoạn code đọc dữ liệu bên dưới.
-# Mặc định code này đang đọc từ DB như bạn cung cấp.
-SOURCE_DB = os.path.join(BASE_DIR, "db", "restaurants_enriched.db")
-TARGET_DB = os.path.join(BASE_DIR, "db", "restaurants_processed.db")
+# --- CẤU HÌNH ĐƯỜNG DẪN (SỬA LẠI) ---
+SOURCE_DB = config.DB_AI_TAGGED  # Input là output của bước 3
+TARGET_DB = config.DB_FINAL_PATH     # Output ra file cuối cùng
 
 BATCH_SIZE = 1000
+
 
 # Thiết lập Logging
 logging.basicConfig(

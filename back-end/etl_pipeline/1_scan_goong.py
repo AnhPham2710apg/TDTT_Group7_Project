@@ -3,18 +3,18 @@
 import requests
 import time
 import config
-import db_raw_utils  # Đã đổi tên từ database -> db_raw_utils
-
-# import sys (Không cần nữa)
+import db_manager
+import sys
 from requests.exceptions import RequestException, HTTPError
 
+# === CẤU HÌNH HẰNG SỐ ===
+BASE_URL = "https://rsapi.goong.io"
+SLEEP_TIME = 0.2  # Tăng nhẹ để tránh bị chặn
 
 # === THAY ĐỔI 1: ĐỊNH NGHĨA LỖI TÙY CHỈNH ===
 class RateLimitError(Exception):
     """Lỗi tùy chỉnh khi gặp giới hạn 429"""
-
     pass
-
 
 def get_hcmc_grid():
     """
@@ -30,17 +30,17 @@ def get_hcmc_grid():
         # {'name': 'Quận 6', 'lat': 10.7480, 'lon': 106.6346},
         # {'name': 'Quận 8', 'lat': 10.7225, 'lon': 106.6231},
         # {'name': 'Quận 10', 'lat': 10.7702, 'lon': 106.6661},
-        {'name': 'Quận 11', 'lat': 10.7623, 'lon': 106.6501},
+        # {'name': 'Quận 11', 'lat': 10.7623, 'lon': 106.6501},
         # {'name': 'Quận Phú Nhuận', 'lat': 10.7937, 'lon': 106.6891},//
         # {'name': 'Quận Bình Thạnh', 'lat': 10.8016, 'lon': 106.7081},
         # {'name': 'Quận Tân Bình', 'lat': 10.7997, 'lon': 106.6589},//
         # {'name': 'Quận Tân Phú', 'lat': 10.7782, 'lon': 106.6217},//
         # {'name': 'Quận Gò Vấp', 'lat': 10.8288, 'lon': 106.6658},//
         # # --- Các quận ven & TP. Thủ Đức ---
-        # {"name": "Quận 7", "lat": 10.7300, "lon": 106.7214},
+        # {"name": "Quận 7", "lat": 10.7300, "lon": 106.7214},//
         # {'name': 'Quận 12', 'lat': 10.8672, 'lon': 106.6413},
         # {'name': 'Quận Bình Tân', 'lat': 10.7554, 'lon': 106.5879},
-        # {'name': 'Thành phố Thủ Đức', 'lat': 10.8200, 'lon': 106.7692},
+        {'name': 'Thành phố Thủ Đức', 'lat': 10.8200, 'lon': 106.7692},
         # # --- Các huyện ngoại thành ---
         # {'name': 'Huyện Hóc Môn', 'lat': 10.8845, 'lon': 106.5936},
         # {'name': 'Huyện Bình Chánh', 'lat': 10.7107, 'lon': 106.5714},
@@ -298,12 +298,12 @@ def start_scan():
     """
     Bắt đầu quá trình quét toàn bộ TP.HCM để tìm quán ăn.
     """
-    conn = db_raw_utils.create_connection()
+    conn = db_manager.create_connection()
     if conn is None:
         print("Không thể kết nối đến database. Đang dừng...")
         return
 
-    db_raw_utils.create_table(conn)
+    db_manager.create_table(conn)
 
     session = requests.Session()
     grid = get_hcmc_grid()
@@ -325,7 +325,7 @@ def start_scan():
                 f"Đang quét: Từ khóa='{term}', Khu vực='{area['name']}'..."
             )
 
-            autocomplete_url = f"{config.BASE_URL}/Place/AutoComplete"
+            autocomplete_url = f"{BASE_URL}/Place/AutoComplete"
             params = {
                 "input": f"{term} {area['name']}",
                 "location": f"{area['lat']},{area['lon']}",
@@ -374,7 +374,7 @@ def start_scan():
                 f"{place_id[:20]}..."
             )
 
-            detail_url = f"{config.BASE_URL}/Place/Detail"
+            detail_url = f"{BASE_URL}/Place/Detail"
             params = {"place_id": place_id, "api_key": config.GOONG_API_KEY}
 
             # call_api sẽ ném RateLimitError nếu gặp lỗi 429
@@ -399,7 +399,7 @@ def start_scan():
                     restaurant_data["goong_place_id"]
                     and restaurant_data["name"]
                 ):
-                    row_id = db_raw_utils.insert_restaurant(
+                    row_id = db_manager.insert_restaurant(
                         conn, restaurant_data
                     )
                     if row_id:
@@ -419,3 +419,22 @@ def start_scan():
     )
 
     conn.close()
+
+def main():
+    """
+    Hàm chính để chạy ứng dụng quét database.
+    """
+    if config.GOONG_API_KEY == "YOUR_REST_API_KEY_GOES_HERE":
+        print("=" * 60)
+        print("LỖI: Bạn chưa cấu hình API Key.")
+        print("Vui lòng cập nhật 'GOONG_API_KEY' của bạn.")
+        print("=" * 60)
+        sys.exit(1)
+
+    print("Bắt đầu quá trình quét và xây dựng database quán ăn TP.HCM...")
+    start_scan()
+    print("Hoàn tất.")
+
+
+if __name__ == "__main__":
+    main()
