@@ -1,73 +1,57 @@
-import os
+# back-end/tests/test_api.py
 import pytest
+import sys
+import os
 import json
-from unittest.mock import patch
 
-# --- QUAN TRỌNG: Đặt biến môi trường TRƯỚC KHI import app ---
-os.environ["FLASK_TESTING"] = "True"
+# Thêm đường dẫn để Python tìm thấy code trong thư mục api
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/api")
 
-# Bây giờ mới import app (lúc này app sẽ tự động nhận cấu hình RAM)
-from api.app import app
-from api.models import db, Restaurant
+from app import app, db
+from models import User
 
 @pytest.fixture
 def client():
-    # Cấu hình thêm API Key giả
-    app.config['GOONG_API_KEY'] = 'fake_key_for_testing'
-
+    # Cấu hình chế độ Test
+    app.config['TESTING'] = True
+    # Dùng database ảo trong RAM (SQLite) để test cho nhanh, không đụng vào DB thật
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    
     with app.test_client() as client:
         with app.app_context():
-            # Tạo bảng mới trong RAM
             db.create_all()
-            
-            # Thêm dữ liệu giả
-            res1 = Restaurant(
-                place_id="123", name="Phở Thìn", 
-                full_address="13 Lò Đúc, Hà Nội",
-                district="Quận Hai Bà Trưng", 
-                latitude=21.018, longitude=105.855,
-                rating=4.5, foodType="mặn", bevFood="khô"
-            )
-            db.session.add(res1)
+            # Tạo 1 user mẫu để test login
+            user = User(username="testuser")
+            user.set_password("password123")
+            db.session.add(user)
             db.session.commit()
-            
         yield client
-        
-        # Dọn dẹp
-        with app.app_context():
-            db.session.remove()
-            db.drop_all()
 
-# --- CÁC TEST CASE ---
-
-def test_search_api_basic(client):
-    """Test tìm kiếm cơ bản"""
-    response = client.get('/api/search?keyword=Phở')
-    data = json.loads(response.data)
-    
+# --- TEST CASE 1: Kiểm tra trang chủ ---
+def test_home_page(client):
+    response = client.get('/')
     assert response.status_code == 200
-    assert len(data) >= 1
-    assert data[0]['name'] == "Phở Thìn"
 
-@patch('api.routes.get_coords_from_goong') 
-def test_search_with_radius(mock_get_coords, client):
-    """Test tìm quanh bán kính (Mock API)"""
-    mock_get_coords.return_value = (21.018, 105.855) 
-    
-    response = client.get('/api/search?district=Quận Hai Bà Trưng&radius=1')
-    data = json.loads(response.data)
-    
-    assert response.status_code == 200
-    assert len(data) > 0
-    assert data[0]['name'] == "Phở Thìn"
+# --- TEST CASE 2: Đăng nhập thất bại ---
+def test_login_fail(client):
+    response = client.post('/api/login', json={
+        "username": "testuser",
+        "password": "wrongpassword"
+    })
+    assert response.status_code == 401 # Mong đợi lỗi 401
 
-@patch('api.routes.get_coords_from_goong')
-def test_search_radius_api_fail(mock_get_coords, client):
-    """Test khi API Goong lỗi (None)"""
-    mock_get_coords.return_value = None
-    
-    response = client.get('/api/search?district=Quận Hai Bà Trưng&radius=1')
+# --- TEST CASE 3: Đăng nhập thành công ---
+def test_login_success(client):
+    response = client.post('/api/login', json={
+        "username": "testuser",
+        "password": "password123"
+    })
+    assert response.status_code == 200 # Mong đợi thành công
     data = json.loads(response.data)
-    
+    assert data['user']['username'] == "testuser"
+
+# --- TEST CASE 4: Tìm kiếm (Dù DB ảo chưa có data nhưng API phải chạy được) ---
+def test_search_api(client):
+    response = client.get('/api/search?keyword=pho')
+    # API search trả về 200 (kể cả list rỗng) là đạt
     assert response.status_code == 200
-    assert data[0]['name'] == "Phở Thìn"

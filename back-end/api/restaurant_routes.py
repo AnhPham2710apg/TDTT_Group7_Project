@@ -67,6 +67,53 @@ def get_coords_from_goong(address_query):
 
 @restaurant_bp.route("/api/search", methods=["GET"])
 def search_restaurants():
+    """
+    Tìm kiếm nhà hàng (Filter & Radius)
+    ---
+    tags:
+      - Restaurants
+    parameters:
+      - name: keyword
+        in: query
+        type: string
+        description: Tên quán hoặc món ăn
+      - name: district
+        in: query
+        type: string
+        description:
+      - name: radius
+        in: query
+        type: number
+        description: Bán kính tìm kiếm (km) tính từ tâm Quận
+      - name: minPrice
+        in: query
+        type: integer
+        description: Giá thấp nhất
+      - name: maxPrice
+        in: query
+        type: integer
+        description: Giá cao nhất
+      - name: foodType
+        in: query
+        type: string
+        description: Loại món (food/beverage)
+    responses:
+      200:
+        description: Danh sách nhà hàng tìm thấy
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              address:
+                type: string
+              price_level:
+                type: integer
+    """
     try:
         # 1. Lấy tham số
         keyword = request.args.get("keyword")

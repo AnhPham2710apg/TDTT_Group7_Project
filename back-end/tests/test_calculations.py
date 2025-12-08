@@ -1,6 +1,6 @@
 # tests/test_calculations.py
 import pytest
-from api.routes import haversine_distance
+from restaurant_routes import haversine_distance
 
 def test_haversine_distance():
     # Tọa độ Hồ Gươm
