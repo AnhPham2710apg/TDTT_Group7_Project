@@ -16,8 +16,9 @@ import { useCart } from "@/context/CartContext";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE_URL } from "@/lib/api-config";
+import { motion, useAnimation, PanInfo } from "framer-motion";
 
-// --- INTERFACES (Giữ nguyên) ---
+// ... (Các Interface giữ nguyên)
 interface Waypoint {
   id: string;
   address?: string;
@@ -56,9 +57,16 @@ const OptimizeRoutePage = () => {
   const [focusPoint, setFocusPoint] = useState<{lat: number, lon: number} | null>(null);
   const { clearCart } = useCart(); 
   const { username, isLoggedIn } = useAuth();
+  
   const [isDrawerOpen, setIsDrawerOpen] = useState(true);
+  const controls = useAnimation();
 
-  // --- EFFECT: Parse URL ---
+  // === CẤU HÌNH ĐỘ CAO DRAWER TẠI ĐÂY ===
+  // 120px: Đủ để hiện Handle Bar + Input, che mất nút Button (giúp thoáng map)
+  const DRAWER_CLOSED_HEIGHT = "calc(100% - 120px)"; 
+  const DRAWER_OPEN_HEIGHT = "45vh";
+
+  // --- EFFECT: Parse URL (Giữ nguyên) ---
   useEffect(() => {
     const separator = "|||";
     const namesStr = searchParams.get("names") || "";
@@ -85,7 +93,7 @@ const OptimizeRoutePage = () => {
     }
   }, [searchParams]);
 
-  // --- DRAG & DROP ---
+  // --- DRAG & DROP (Giữ nguyên) ---
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     const items = Array.from(initialPlaces);
@@ -94,7 +102,37 @@ const OptimizeRoutePage = () => {
     setInitialPlaces(items);
   };
 
-  // --- OPTIMIZE ---
+  // --- DRAWER LOGIC ---
+  const toggleDrawer = () => {
+      setIsDrawerOpen(!isDrawerOpen);
+  };
+
+  useEffect(() => {
+      if (isDrawerOpen) {
+          controls.start({ y: DRAWER_OPEN_HEIGHT }); 
+      } else {
+          controls.start({ y: DRAWER_CLOSED_HEIGHT }); 
+      }
+  }, [isDrawerOpen, controls]);
+
+  const onDragEndDrawer = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+      const { offset, velocity } = info;
+      const swipeUp = velocity.y < -50 || offset.y < -50;
+      const swipeDown = velocity.y > 50 || offset.y > 50;
+
+      if (swipeUp) {
+          setIsDrawerOpen(true);
+      } 
+      else if (swipeDown) {
+          setIsDrawerOpen(false);
+      } 
+      else {
+          if (isDrawerOpen) controls.start({ y: DRAWER_OPEN_HEIGHT });
+          else controls.start({ y: DRAWER_CLOSED_HEIGHT });
+      }
+  };
+
+  // ... (Phần Optimize logic giữ nguyên) ...
   const handleOptimize = async () => {
     if (!startPoint) { toast.error("Vui lòng nhập điểm xuất phát"); return; }
     setIsOptimizing(true);
@@ -154,12 +192,7 @@ const OptimizeRoutePage = () => {
       }
       clearCart();
     } catch (error: unknown) {
-      console.error("Lỗi:", error);
-      let errorMessage = "Tối ưu hóa thất bại";
-      if (axios.isAxiosError(error) && error.response?.data?.error) {
-          errorMessage = error.response.data.error;
-      }
-      toast.error(errorMessage);
+      toast.error("Tối ưu hóa thất bại");
     } finally {
       setIsOptimizing(false);
     }
@@ -328,12 +361,11 @@ const OptimizeRoutePage = () => {
       {/* --- MOBILE LAYOUT --- */}
       <div className="md:hidden relative flex-1 h-[100dvh] flex flex-col overflow-hidden">
          
-         {/* 1. NÚT BACK (ĐÃ CHỈNH STYLE) */}
+         {/* 1. NÚT BACK */}
          <div className="absolute top-0 left-0 w-full z-20 pt-4 pb-2 px-4 flex items-center gap-3 pointer-events-none">
              <Button 
                 variant="outline" 
                 size="icon" 
-                // === STYLE MỚI CHO NÚT BACK ===
                 className="h-9 w-9 rounded-full shadow-lg transition-all duration-300 pointer-events-auto
                            bg-white text-green-600 border border-green-600
                            hover:bg-green-600 hover:text-white hover:border-green-600" 
@@ -343,7 +375,7 @@ const OptimizeRoutePage = () => {
              </Button>
          </div>
 
-         {/* 2. MAP (FULL SCREEN & ẨN CONTROLS) */}
+         {/* 2. MAP */}
          <div className="absolute inset-0 z-0 bg-gray-100 [&_.leaflet-control-container]:hidden [&_.gmnoprint]:hidden [&_.mapboxgl-ctrl]:hidden">
              <RouteMap 
                 polylineOutbound={polyOutbound} 
@@ -354,29 +386,40 @@ const OptimizeRoutePage = () => {
          </div>
 
          {/* 3. BOTTOM DRAWER */}
-         <div 
-            className={`
-                absolute bottom-0 left-0 w-full z-30 bg-white rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.1)] 
-                transition-all duration-300 ease-out flex flex-col
-                ${isDrawerOpen ? 'h-[85vh]' : 'h-[160px]'}
-            `}
+         <motion.div 
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={0.1}
+            onDragEnd={onDragEndDrawer}
+            animate={controls}
+            initial={{ y: DRAWER_OPEN_HEIGHT }} 
+            transition={{ type: "spring", damping: 30, stiffness: 300 }}
+
+            className="absolute top-0 left-0 right-0 h-[55dvh] z-30 bg-white rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.1)] flex flex-col pointer-events-auto"
          >
+            {/* Handle Bar */}
             <div 
-                className="w-full h-8 flex items-center justify-center cursor-pointer shrink-0"
-                onClick={() => setIsDrawerOpen(!isDrawerOpen)}
+                className="w-full h-9 flex items-center justify-center cursor-grab active:cursor-grabbing shrink-0 touch-none pt-2 pb-1"
+                onClick={toggleDrawer}
             >
                 <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 pb-6 scrollbar-hide">
+            {/* Nội dung Drawer */}
+            <div 
+                // FIX LỖI UI INPUT: Thêm pt-2 để tách Input ra khỏi Handle Bar
+                className="flex-1 overflow-y-auto px-4 pb-6 pt-2 scrollbar-hide touch-pan-y" 
+                onPointerDown={(e) => e.stopPropagation()} 
+            >
                 <div className="space-y-3 mb-4">
                     <div className="relative">
-                        <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
+                        {/* FIX LỖI UI INPUT: Thêm border rõ ràng và bg-white */}
                         <Input 
                             placeholder="Nhập điểm xuất phát..." 
                             value={startPoint}
                             onChange={(e) => setStartPoint(e.target.value)}
-                            className="pl-9 bg-gray-50 border-gray-200"
+                            className="pl-9 bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 h-10 shadow-sm"
                         />
                     </div>
                     <Button 
@@ -384,7 +427,7 @@ const OptimizeRoutePage = () => {
                             if(!isDrawerOpen) setIsDrawerOpen(true);
                             else handleOptimize();
                         }}
-                        className="w-full bg-green-600 text-white"
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-medium h-10 shadow-sm"
                         disabled={isOptimizing}
                     >
                         {isOptimizing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Navigation className="h-4 w-4 mr-2" />}
@@ -392,14 +435,14 @@ const OptimizeRoutePage = () => {
                     </Button>
                 </div>
 
-                <div className={`${!isDrawerOpen && optimizedRoute.length === 0 ? 'opacity-50 pointer-events-none' : 'opacity-100'} transition-opacity duration-300`}>
+                <div className="transition-opacity duration-300">
                     {optimizedRoute.length === 0 && initialPlaces.length > 0 && <DragDropList />}
                     {optimizedRoute.length > 0 && <ResultList />}
                 </div>
             </div>
-         </div>
+         </motion.div>
       </div>
-
+      
       {/* --- PC LAYOUT --- */}
       <div className="hidden md:block container mx-auto px-4 py-8 h-[calc(100vh-80px)]">
         <div className="mb-6">
