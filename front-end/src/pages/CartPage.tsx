@@ -17,7 +17,6 @@ const CartPage = () => {
     }
 
     const separator = "|||";
-    // Chuẩn bị dữ liệu giống logic cũ của bạn
     const placeAddresses = cartItems.map(r => r.address).join(separator);
     const placeNames = cartItems.map(r => r.name).join(separator);
     const placeLats = cartItems.map(r => r.lat).join(separator);
@@ -29,57 +28,98 @@ const CartPage = () => {
     params.append("lats", placeLats);
     params.append("lngs", placeLngs);
     
-    // Chuyển hướng
     navigate(`/optimize?${params.toString()}`);
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Navbar />
       
-      <div className="container mx-auto px-4 py-4">
-        <Button 
-          variant="ghost" 
-          className="mb-4 pl-0 hover:pl-2 transition-all" 
-          onClick={() => navigate(-1)}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" /> Quay lại
-        </Button>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Danh sách địa điểm đã chọn</h1>
-            <p className="text-muted-foreground">
-              Bạn đã chọn {cartItems.length} địa điểm cho hành trình.
+      <div className="container mx-auto px-4 py-4 md:py-6">
+        
+        {/* --- 1. NÚT BACK (ĐÃ SỬA LỖI VỊ TRÍ) --- */}
+        {/* Bỏ 'absolute', dùng 'mb-4' để đẩy nội dung bên dưới xuống */}
+        <div className="mb-4">
+            <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate(-1)}
+                // Style: Tròn, Xanh lá, Đổ bóng (Giữ nguyên yêu cầu của bạn)
+                className="h-9 rounded-full shadow-sm border border-green-600 text-green-600 bg-white 
+                           hover:bg-green-600 hover:text-white transition-all px-4 gap-2"
+            >
+                <ArrowLeft className="h-4 w-4" /> 
+                <span className="font-medium">Quay lại</span>
+            </Button>
+        </div>
+
+        {/* HEADER TOOLBAR */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 md:mb-8 gap-4">
+          
+          {/* Thông tin Text */}
+          <div className="w-full md:w-auto">
+            <h1 className="text-2xl md:text-3xl font-bold mb-1">Danh sách đã chọn</h1>
+            <p className="text-muted-foreground text-sm">
+              Bạn đã chọn <span className="font-medium text-foreground">{cartItems.length}</span> địa điểm.
             </p>
           </div>
           
-          <div className="flex gap-3">
+          {/* GROUP BUTTONS */}
+          <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 no-scrollbar">
+              
+             {/* Nút Xóa tất cả */}
              {cartItems.length > 0 && (
-                <Button variant="outline" onClick={clearCart} className="text-destructive border-destructive hover:bg-destructive/10">
-                   <Trash2 className="mr-2 h-4 w-4" /> Xóa tất cả
+                <Button 
+                  variant="outline" 
+                  onClick={clearCart} 
+                  className="flex-shrink-0 text-destructive border-destructive/50 hover:bg-destructive/10 hover:border-destructive h-8 md:h-9 text-xs md:text-sm hover:text-red-500 px-3 whitespace-nowrap rounded-full"
+                >
+                   <Trash2 className="mr-1.5 h-3.5 w-3.5 md:h-4 md:w-4" /> 
+                   Xóa hết
                 </Button>
              )}
-             <Button onClick={() => navigate("/search")} variant="secondary">
-                <Search className="mr-2 h-4 w-4" /> Tìm thêm
+
+             {/* Nút Tìm thêm */}
+             <Button 
+                onClick={() => navigate("/search")} 
+                variant="outline"
+                className="flex-shrink-0 hover:bg-gray/90 hover:text-primary h-8 md:h-9 text-xs md:text-sm px-3 whitespace-nowrap rounded-full"
+             >
+                <Search className="mr-1.5 h-3.5 w-3.5 md:h-4 md:w-4" /> 
+                Tìm thêm
              </Button>
-             <Button onClick={handleOptimizeRoute} className="bg-hero-gradient">
-                <Route className="mr-2 h-4 w-4" /> Tối ưu lộ trình ngay
+
+             {/* Nút Tối ưu (Gradient) */}
+             <Button 
+                onClick={handleOptimizeRoute} 
+                className="flex-shrink-0 bg-hero-gradient shadow-md hover:shadow-lg hover:opacity-90 h-8 md:h-9 text-xs md:text-sm px-4 whitespace-nowrap rounded-full font-semibold"
+             >
+                <Route className="mr-1.5 h-3.5 w-3.5 md:h-4 md:w-4" /> 
+                Tối ưu ngay
              </Button>
           </div>
         </div>
 
+        {/* CONTENT LIST */}
         {cartItems.length === 0 ? (
-          <div className="text-center py-20 bg-muted/30 rounded-lg border border-dashed">
-            <p className="text-muted-foreground mb-4">Danh sách trống.</p>
-            <Button onClick={() => navigate("/search")}>Đi tìm quán ăn</Button>
+          <div className="text-center py-16 bg-muted/30 rounded-xl border border-dashed flex flex-col items-center justify-center">
+             <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
+                <Search className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <p className="text-lg font-medium mb-1">Danh sách trống</p>
+            <p className="text-muted-foreground text-sm mb-6 max-w-xs">
+              Bạn chưa chọn địa điểm nào cho hành trình food tour của mình.
+            </p>
+            <Button onClick={() => navigate("/search")} className="bg-primary rounded-full px-6">
+              Khám phá quán ăn
+            </Button>
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
             {cartItems.map((restaurant) => (
               <RestaurantCard 
                 key={restaurant.id} 
                 restaurant={restaurant}
-                // onToggleFavorite={...} // Truyền nếu muốn xử lý favorite ở đây
               />
             ))}
           </div>

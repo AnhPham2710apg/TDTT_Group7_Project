@@ -8,8 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// Thêm MessageSquare vào import
-import { Heart, MapPin, Star, User, Edit, Loader2, Trash2, Calendar, Pencil, MessageSquare } from "lucide-react"; 
+import { Heart, MapPin, Star, User, Edit, Loader2, Trash2, Calendar, Pencil, MessageSquare, Settings } from "lucide-react"; 
 import RestaurantCard from "@/components/RestaurantCard";
 import { Restaurant } from "@/types";
 import { toast } from "sonner";
@@ -34,7 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// Interface Lộ trình
+// --- INTERFACES ---
 interface RouteHistoryItem {
   id: number;
   name: string;
@@ -43,7 +42,6 @@ interface RouteHistoryItem {
   created_at: string;
 }
 
-// Interface Review của User (Mở rộng thêm restaurantName để hiển thị)
 interface UserReviewItem {
     id: number;
     place_id: string;
@@ -51,7 +49,7 @@ interface UserReviewItem {
     comment: string;
     images: string[];
     created_at: string;
-    restaurantName?: string; // Field này sẽ được điền sau khi fetch info quán
+    restaurantName?: string; 
     restaurantAddress?: string;
 }
 
@@ -68,11 +66,11 @@ const ProfilePage = () => {
   // Data
   const [favorites, setFavorites] = useState<Restaurant[]>([]);
   const [routes, setRoutes] = useState<RouteHistoryItem[]>([]);
-  const [myReviews, setMyReviews] = useState<UserReviewItem[]>([]); // State mới cho Reviews
+  const [myReviews, setMyReviews] = useState<UserReviewItem[]>([]); 
   
   const [isLoadingData, setIsLoadingData] = useState(false);
 
-  // State xử lý xóa (Dùng chung cho cả Route và Review)
+  // State xử lý xóa 
   const [deleteType, setDeleteType] = useState<"route" | "review" | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
@@ -92,24 +90,21 @@ const ProfilePage = () => {
         const currentUsername = authUsername || localStorage.getItem("username");
         if (!currentUsername) return;
 
-        // 1. Lấy Favorites
+        // 1. Fetch Favorites
         const favRes = await axios.get(`http://localhost:5000/api/favorite/${currentUsername}`);
         const favIds: string[] = favRes.data.favorites || [];
         const favPromises = favIds.map(id => axios.get(`http://localhost:5000/api/restaurant/${id}`).catch(() => null));
         const favResults = await Promise.all(favPromises);
         setFavorites(favResults.filter(r => r?.data).map(r => ({...r?.data, is_favorite: true})));
 
-        // 2. Lấy Routes
+        // 2. Fetch Routes
         const routeRes = await axios.get(`http://localhost:5000/api/routes/${currentUsername}`);
         setRoutes(routeRes.data);
 
-        // 3. Lấy Reviews (MỚI)
+        // 3. Fetch Reviews
         const reviewRes = await axios.get(`http://localhost:5000/api/user/${currentUsername}/reviews`);
         const reviewsData: UserReviewItem[] = reviewRes.data;
 
-        // Để hiển thị tên quán, ta cần fetch info quán dựa trên place_id của review
-        // (Cách này hơi tốn request nếu nhiều review, nhưng với MVP thì ok)
-        // Tối ưu hơn: Backend nên trả về tên quán trong API review luôn (cần join bảng).
         const reviewPromises = reviewsData.map(async (review) => {
             try {
                 const restRes = await axios.get(`http://localhost:5000/api/restaurant/${review.place_id}`);
@@ -135,22 +130,16 @@ const ProfilePage = () => {
 
   useEffect(() => {
     if (authLoading) return;
-    
     if (!isLoggedIn) { 
       toast.error("Bạn cần đăng nhập để xem trang này");
       navigate("/login");
       return;
     }
-    
     setUsername(authUsername || "User");
     setEmail(authUsername ? `${authUsername}@example.com` : "user@example.com");
     setBio("Yêu thích khám phá ẩm thực Việt Nam");
-
     fetchProfileData(); 
-
   }, [isLoggedIn, authUsername, authLoading, navigate, fetchProfileData]);
-
-  
 
   const handleSave = () => {
     updateUsername(username); 
@@ -159,7 +148,6 @@ const ProfilePage = () => {
   };
 
   const handleRemoveFavorite = async (restaurant: Restaurant) => {
-    /* Logic xóa favorite giữ nguyên */
     const currentUsername = authUsername || localStorage.getItem("username");
     if(!currentUsername) return;
     const oldFavs = favorites;
@@ -176,7 +164,6 @@ const ProfilePage = () => {
   };
 
   const handleViewRoute = (route: RouteHistoryItem) => {
-    /* Logic view route giữ nguyên */
     const separator = "|||";
     const names = route.places.map(p => p.name).join(separator);
     const addresses = route.places.map(p => p.address).join(separator);
@@ -191,7 +178,6 @@ const ProfilePage = () => {
     navigate(`/optimize?${params.toString()}`);
   };
 
-  // --- LOGIC XÓA CHUNG (ROUTE & REVIEW) ---
   const confirmDelete = (id: number, type: "route" | "review", event: React.MouseEvent) => {
     event.stopPropagation();
     setDeleteId(id);
@@ -200,7 +186,6 @@ const ProfilePage = () => {
 
   const executeDelete = async () => {
     if (!deleteId || !deleteType) return;
-
     try {
       if (deleteType === "route") {
           await axios.delete(`http://localhost:5000/api/routes/${deleteId}`);
@@ -220,7 +205,6 @@ const ProfilePage = () => {
     }
   };
 
-  // Logic Rename Route giữ nguyên
   const openRenameDialog = (route: RouteHistoryItem, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingRoute({ id: route.id, name: route.name });
@@ -248,13 +232,16 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Navbar />
-      <main className="container mx-auto px-4 py-8">
-        {/* Header Profile giữ nguyên */}
+      
+      {/* ================================================
+        1. PC LAYOUT (GIỮ NGUYÊN)
+        ================================================
+      */}
+      <div className="hidden md:block container mx-auto px-4 py-8">
         <Card className="mb-8">
           <CardContent className="pt-6">
-            {/* ... (Code UI Profile Header cũ) ... */}
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
               <Avatar className="h-32 w-32"><AvatarImage src={avatarUrl} /><AvatarFallback className="text-4xl bg-primary/10">{getAvatarFallback()}</AvatarFallback></Avatar>
               <div className="flex-1 text-center md:text-left">
@@ -273,149 +260,277 @@ const ProfilePage = () => {
           </CardContent>
         </Card>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-           {/* ... (Stats Card 1, 2 giữ nguyên) ... */}
+        <div className="grid grid-cols-3 gap-6 mb-8">
            <Card><CardContent className="pt-6"><div className="flex items-center gap-4"><div className="p-3 rounded-full bg-primary/10"><Heart className="h-6 w-6 text-primary" /></div><div><p className="text-3xl font-bold">{stats.favorites}</p><p className="text-muted-foreground">Yêu thích</p></div></div></CardContent></Card>
            <Card><CardContent className="pt-6"><div className="flex items-center gap-4"><div className="p-3 rounded-full bg-primary/10"><MapPin className="h-6 w-6 text-primary" /></div><div><p className="text-3xl font-bold">{stats.routes}</p><p className="text-muted-foreground">Lộ trình</p></div></div></CardContent></Card>
            <Card><CardContent className="pt-6"><div className="flex items-center gap-4"><div className="p-3 rounded-full bg-primary/10"><Star className="h-6 w-6 text-primary" /></div><div><p className="text-3xl font-bold">{stats.reviews}</p><p className="text-muted-foreground">Đánh giá</p></div></div></CardContent></Card>
         </div>
+      </div>
 
-        {/* TABS CHÍNH */}
+      {/* ================================================
+        2. MOBILE HEADER & STATS
+        ================================================
+      */}
+      <div className="md:hidden">
+        <div className="bg-white border-b pb-6 pt-2 px-4 rounded-b-[2rem] shadow-sm mb-4">
+            <div className="flex flex-col items-center">
+                <Avatar className="h-24 w-24 border-4 border-white shadow-lg mb-3">
+                    <AvatarImage src={avatarUrl} />
+                    <AvatarFallback className="text-3xl bg-primary/10 text-primary">{getAvatarFallback()}</AvatarFallback>
+                </Avatar>
+                
+                {isEditing ? (
+                    <div className="w-full space-y-3 animate-in fade-in zoom-in duration-300">
+                        <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username" className="text-center" />
+                        <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="text-center" />
+                        <div className="flex gap-2">
+                            <Button onClick={handleSave} className="flex-1 bg-primary text-white rounded-full">Lưu</Button>
+                            <Button variant="outline" onClick={() => setIsEditing(false)} className="flex-1 rounded-full">Hủy</Button>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        <h1 className="text-2xl font-bold text-gray-900">{username}</h1>
+                        <p className="text-sm text-gray-500 mb-1">{email}</p>
+                        <p className="text-sm text-center text-gray-600 mb-4 px-4 line-clamp-2">{bio}</p>
+                        <Button 
+                            onClick={() => setIsEditing(true)} 
+                            className="w-full rounded-full bg-gray-900 text-white hover:bg-gray-800 h-10 shadow-md"
+                        >
+                            <Settings className="w-4 h-4 mr-2" /> Chỉnh sửa hồ sơ
+                        </Button>
+                    </>
+                )}
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 mt-6">
+                <div className="bg-red-50 p-3 rounded-2xl flex flex-col items-center justify-center border border-red-100">
+                    <Heart className="h-5 w-5 text-red-500 mb-1" />
+                    <span className="font-bold text-lg text-gray-800">{stats.favorites}</span>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Yêu thích</span>
+                </div>
+                <div className="bg-blue-50 p-3 rounded-2xl flex flex-col items-center justify-center border border-blue-100">
+                    <MapPin className="h-5 w-5 text-blue-500 mb-1" />
+                    <span className="font-bold text-lg text-gray-800">{stats.routes}</span>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Lộ trình</span>
+                </div>
+                <div className="bg-yellow-50 p-3 rounded-2xl flex flex-col items-center justify-center border border-yellow-100">
+                    <Star className="h-5 w-5 text-yellow-500 mb-1" />
+                    <span className="font-bold text-lg text-gray-800">{stats.reviews}</span>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Đánh giá</span>
+                </div>
+            </div>
+        </div>
+      </div>
+
+      {/* ================================================
+        3. MAIN CONTENT TABS
+        ================================================
+      */}
+      <div className="container mx-auto px-4">
         <Tabs defaultValue="favorites" className="w-full">
-          <TabsList className="w-full justify-start rounded-3xl h-13 p-2 mb-6 bg-muted/50">
-            <TabsTrigger value="favorites" className="rounded-2xl text-base">Quán yêu thích</TabsTrigger>
-            <TabsTrigger value="routes" className="rounded-2xl text-base">Lộ trình</TabsTrigger>
-            <TabsTrigger value="reviews" className="rounded-2xl text-base">Lịch sử đánh giá</TabsTrigger>
-          </TabsList>
+          
+          <div className="sticky top-14 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-2 -mx-4 px-4 md:static md:bg-transparent md:p-0 md:mx-0">
+              <TabsList className="w-full justify-start md:rounded-3xl h-12 p-1 bg-muted/50 overflow-x-auto flex-nowrap no-scrollbar">
+                <TabsTrigger value="favorites" className="rounded-full text-sm px-6 flex-shrink-0 data-[state=active]:bg-white data-[state=active]:shadow-sm">Quán yêu thích</TabsTrigger>
+                <TabsTrigger value="routes" className="rounded-full text-sm px-6 flex-shrink-0 data-[state=active]:bg-white data-[state=active]:shadow-sm">Lộ trình đã lưu</TabsTrigger>
+                <TabsTrigger value="reviews" className="rounded-full text-sm px-6 flex-shrink-0 data-[state=active]:bg-white data-[state=active]:shadow-sm">Đánh giá của tôi</TabsTrigger>
+              </TabsList>
+          </div>
 
           {/* 1. Favorites Content */}
-          <TabsContent value="favorites" className="min-h-[400px]">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {favorites.map((restaurant) => (
-                <div key={restaurant.id}><RestaurantCard restaurant={restaurant} onToggleFavorite={handleRemoveFavorite} /></div>
-              ))}
-            </div>
-            {favorites.length === 0 && <Card><CardContent className="py-12 text-center text-muted-foreground">Chưa có quán yêu thích nào</CardContent></Card>}
-          </TabsContent>
-
-          {/* 2. Routes Content */}
-          <TabsContent value="routes" className="min-h-[400px]">
-            <div className="space-y-4">
-              {routes.map((route) => (
-                <Card key={route.id}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center justify-between text-base">
-                      <span className="truncate mr-2 font-medium">{route.name}</span>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button variant="ghost" size="icon" onClick={(e) => openRenameDialog(route, e)}><Pencil className="h-4 w-4 text-blue-500" /></Button>
-                        <Button variant="outline" size="sm" onClick={() => handleViewRoute(route)} className="text-xs h-8">Xem lại</Button>
-                        <Button variant="ghost" size="icon" onClick={(e) => confirmDelete(route.id, "route", e)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
-                      </div>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex gap-4 text-sm text-muted-foreground mb-1">
-                      <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {route.places.length} điểm</span>
-                      <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {new Date(route.created_at).toLocaleDateString("vi-VN")}</span>
+          <TabsContent value="favorites" className="min-h-[300px] space-y-4 mt-4">
+            {favorites.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground bg-gray-50 rounded-xl border border-dashed">
+                    <Heart className="h-10 w-10 mb-2 opacity-20" />
+                    <p>Chưa có quán yêu thích</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {favorites.map((restaurant) => (
+                    <div key={restaurant.id}>
+                        <RestaurantCard restaurant={restaurant} onToggleFavorite={handleRemoveFavorite} />
                     </div>
-                    <p className="text-xs text-gray-400 truncate border-t pt-2 mt-1 border-dashed">Xuất phát: {route.start_point}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-            {routes.length === 0 && <Card><CardContent className="py-12 text-center text-muted-foreground">Chưa có lộ trình nào</CardContent></Card>}
+                  ))}
+                </div>
+            )}
           </TabsContent>
 
-          {/* 3. Reviews Content (MỚI) */}
-          <TabsContent value="reviews" className="min-h-[400px]">
-            <div className="space-y-4">
-                {myReviews.map((review) => (
-                    <Card key={review.id} className="overflow-hidden hover:shadow-md transition-shadow">
-                        <CardHeader className="pb-2 bg-gray-50/50">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <h4 
-                                        className="font-bold text-lg text-primary hover:underline cursor-pointer"
-                                        onClick={() => navigate(`/restaurant/${review.place_id}`)}
-                                    >
-                                        {review.restaurantName || "Đang tải tên quán..."}
-                                    </h4>
-                                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                                        <MapPin className="h-3 w-3" /> {review.restaurantAddress || "..."}
-                                    </p>
+          {/* 2. Routes Content (Đã chỉnh sửa 3 cột cho PC) */}
+          <TabsContent value="routes" className="min-h-[300px] space-y-3 mt-4">
+            {routes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground bg-gray-50 rounded-xl border border-dashed">
+                    <MapPin className="h-12 w-12 mb-3 opacity-20" />
+                    <p>Bạn chưa lưu lộ trình nào</p>
+                </div>
+            ) : (
+                <>
+                  {/* --- GIAO DIỆN MOBILE (GIỮ NGUYÊN) --- */}
+                  <div className="md:hidden space-y-3">
+                    {routes.map((route) => (
+                      <div key={route.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col gap-3">
+                          {/* Header Mobile */}
+                          <div className="flex justify-between items-start">
+                              <div className="flex items-center gap-3">
+                                  <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                                      <MapPin className="h-5 w-5" />
+                                  </div>
+                                  <div>
+                                      <h4 className="font-bold text-gray-800 line-clamp-1">{route.name}</h4>
+                                      <p className="text-xs text-gray-500">{new Date(route.created_at).toLocaleDateString("vi-VN")}</p>
+                                  </div>
+                              </div>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 text-gray-400" onClick={(e) => openRenameDialog(route, e)}>
+                                  <Pencil className="h-4 w-4" />
+                              </Button>
+                          </div>
+
+                          {/* Body Mobile */}
+                          <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
+                              <p className="text-gray-600 flex items-center gap-2">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                  {route.start_point}
+                              </p>
+                              <div className="pl-[3px] border-l border-dashed border-gray-300 ml-[3px] h-3"></div>
+                              <p className="text-gray-600 flex items-center gap-2">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                  {route.places.length} điểm dừng
+                              </p>
+                          </div>
+
+                          {/* Footer Mobile */}
+                          <div className="flex gap-2 mt-1">
+                              <Button onClick={() => handleViewRoute(route)} className="flex-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 h-9 rounded-lg shadow-sm text-xs font-medium">
+                                  Xem lại
+                              </Button>
+                              <Button onClick={(e) => confirmDelete(route.id, "route", e)} className="flex-1 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 h-9 rounded-lg shadow-sm text-xs font-medium">
+                                  Xóa
+                              </Button>
+                          </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* --- GIAO DIỆN PC (3 CỘT & THẺ NHỎ) --- */}
+                  <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {routes.map((route) => (
+                      <Card key={route.id} className="group hover:shadow-md transition-shadow border-gray-200 flex flex-col justify-between">
+                        <CardHeader className="pb-2 p-4">
+                          <div className="flex justify-between items-start">
+                            <div className="flex items-center gap-3 w-full">
+                                <div className="p-2 bg-primary/10 rounded-lg text-primary shrink-0">
+                                  <MapPin className="h-5 w-5" />
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="flex bg-yellow-50 px-2 py-1 rounded-full border border-yellow-100">
-                                        {Array.from({ length: 5 }).map((_, i) => (
-                                            <Star key={i} className={`h-3 w-3 ${i < review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-200"}`} />
-                                        ))}
-                                    </div>
-                                    <Button 
-                                        variant="ghost" size="icon" 
-                                        className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
-                                        onClick={(e) => confirmDelete(review.id, "review", e)}
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                <div className="min-w-0 flex-1">
+                                  <CardTitle className="text-sm font-bold truncate" title={route.name}>{route.name}</CardTitle>
+                                  <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {new Date(route.created_at).toLocaleDateString("vi-VN")}
+                                  </p>
                                 </div>
                             </div>
+                            
+                            {/* Nút thao tác PC (Icon nhỏ gọn) */}
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                               <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-gray/90" onClick={(e) => openRenameDialog(route, e)} title="Đổi tên">
+                                  <Pencil className="h-3.5 w-3.5" />
+                               </Button>
+                               <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-red-600 hover:bg-gray/90" onClick={(e) => confirmDelete(route.id, "route", e)} title="Xóa">
+                                  <Trash2 className="h-3.5 w-3.5" />
+                               </Button>
+                            </div>
+                          </div>
                         </CardHeader>
-                        <CardContent className="pt-4">
-                            <p className="text-gray-700 text-sm whitespace-pre-wrap mb-3">
-                                <MessageSquare className="h-3 w-3 inline mr-1 text-gray-400" />
-                                {review.comment}
-                            </p>
-                            
-                            {/* Ảnh Review */}
-                            {review.images && review.images.length > 0 && (
-                                <div className="flex gap-2 overflow-x-auto pb-2">
-                                    {review.images.map((img, idx) => (
-                                        <img 
-                                            key={idx} src={img} alt="review" 
-                                            className="h-16 w-16 object-cover rounded-md border cursor-pointer hover:opacity-90"
-                                            onClick={() => window.open(img, '_blank')}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                            
-                            <div className="text-xs text-gray-400 mt-2 border-t pt-2 flex items-center gap-1">
-                                <Calendar className="h-3 w-3" /> 
-                                Đăng ngày {new Date(review.created_at).toLocaleDateString("vi-VN")}
-                            </div>
+                        
+                        <CardContent className="p-4 pt-0">
+                          <div className="bg-muted/30 p-2.5 rounded-md text-xs space-y-1.5 border mb-3">
+                             <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Xuất phát</span>
+                                <span className="font-medium truncate max-w-[120px]" title={route.start_point}>{route.start_point}</span>
+                             </div>
+                             <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Điểm dừng</span>
+                                <span className="font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded-full text-[10px]">
+                                  {route.places.length} địa điểm
+                                </span>
+                             </div>
+                          </div>
+                          
+                          <Button onClick={() => handleViewRoute(route)} className="w-full h-8 text-xs bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-primary hover:border-primary/30">
+                             Xem chi tiết
+                          </Button>
                         </CardContent>
-                    </Card>
-                ))}
-            </div>
-            {myReviews.length === 0 && (
-                <Card><CardContent className="py-12 text-center text-muted-foreground">Bạn chưa viết đánh giá nào.</CardContent></Card>
+                      </Card>
+                    ))}
+                  </div>
+                </>
+            )}
+          </TabsContent>
+
+          {/* 3. Reviews Content */}
+          <TabsContent value="reviews" className="min-h-[300px] space-y-3 mt-4">
+            {myReviews.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground bg-gray-50 rounded-xl border border-dashed">
+                    <MessageSquare className="h-10 w-10 mb-2 opacity-20" />
+                    <p>Bạn chưa viết đánh giá nào</p>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {myReviews.map((review) => (
+                        <div key={review.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                            {/* Review Header: Tên quán + Rating */}
+                            <div className="flex justify-between items-start mb-3">
+                                <div className="flex gap-3">
+                                    <div className="h-12 w-12 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
+                                        {review.images && review.images.length > 0 ? (
+                                            <img src={review.images[0]} alt="thumb" className="h-full w-full object-cover" />
+                                        ) : (
+                                            <div className="h-full w-full flex items-center justify-center text-gray-400"><StoreIcon /></div>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-sm text-gray-800 line-clamp-1" onClick={() => navigate(`/restaurant/${review.place_id}`)}>
+                                            {review.restaurantName || "Đang tải..."}
+                                        </h4>
+                                        <div className="flex items-center gap-1 mt-1">
+                                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                            <span className="text-xs font-bold text-gray-700">{review.rating}.0</span>
+                                            <span className="text-[10px] text-gray-400">• {new Date(review.created_at).toLocaleDateString("vi-VN")}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 text-gray-300 hover:text-red-500" onClick={(e) => confirmDelete(review.id, "review", e)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+
+                            <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg line-clamp-3 italic">
+                                "{review.comment}"
+                            </p>
+                        </div>
+                    ))}
+                </div>
             )}
           </TabsContent>
         </Tabs>
-      </main>
+      </div>
 
-      {/* Dialog Xóa Chung */}
+      {/* Dialogs giữ nguyên */}
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Bạn có chắc chắn muốn xóa?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Hành động này không thể hoàn tác. Dữ liệu sẽ bị xóa vĩnh viễn khỏi hồ sơ của bạn.
-            </AlertDialogDescription>
+            <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
+            <AlertDialogDescription>Dữ liệu này sẽ bị xóa vĩnh viễn.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="hover:bg-gray/90 hover:text-green-600">Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction onClick={executeDelete} className="bg-red-600 hover:bg-red-700 text-white">
-                Xóa ngay
-            </AlertDialogAction>
+            <AlertDialogCancel className="rounded-full">Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDelete} className="bg-red-600 rounded-full">Xóa</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Dialog Đổi tên Route */}
       <Dialog open={!!editingRoute} onOpenChange={(open) => !open && setEditingRoute(null)}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] rounded-2xl">
           <DialogHeader><DialogTitle>Đổi tên lộ trình</DialogTitle><DialogDescription>Đặt tên mới cho chuyến đi.</DialogDescription></DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
@@ -429,5 +544,10 @@ const ProfilePage = () => {
     </div>
   );
 };
+
+// Helper Icon
+const StoreIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12v0a2 2 0 0 1-2-2V7"/></svg>
+)
 
 export default ProfilePage;

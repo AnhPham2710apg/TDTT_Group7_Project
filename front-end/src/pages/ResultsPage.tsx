@@ -122,6 +122,59 @@ const ResultsPage = () => {
     }
   };
 
+  // Component Nút Sắp Xếp (Tách ra để tái sử dụng)
+  const SortButtonGroup = ({ isMobile = false }) => (
+    <div className={`flex items-center bg-white rounded-lg p-0.5 border border-border shadow-sm ${isMobile ? 'h-8' : ''}`}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            // Mobile: Padding nhỏ hơn chút để vừa hàng
+            className={`${isMobile ? 'h-7 px-2 text-xs' : 'h-8 px-3 text-sm'} gap-1.5 text-muted-foreground hover:text-primary hover:bg-gray/90`}
+          >
+            <ListFilter className={`${isMobile ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} />
+            <span className="font-medium">
+              {sortBy === "price" ? "Giá cả" : sortBy === "rating" ? "Đánh giá" : "Sắp xếp"}
+            </span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuItem onClick={() => { setSortBy("rating"); setSortOrder("desc"); }} className="cursor-pointer">
+            <Star className="mr-2 h-4 w-4 text-yellow-500" /> Đánh giá
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => { setSortBy("price"); setSortOrder("asc"); }} className="cursor-pointer">
+            <DollarSign className="mr-2 h-4 w-4 text-green-600" /> Giá cả
+          </DropdownMenuItem>
+          {sortBy && (
+            <DropdownMenuItem onClick={() => setSortBy(null)} className="text-muted-foreground border-t mt-1 cursor-pointer">
+                Mặc định
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {sortBy && (
+        <>
+          <div className={`w-[1px] bg-border mx-0.5 ${isMobile ? 'h-3' : 'h-4'}`}></div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className={`${isMobile ? 'h-7 w-7' : 'h-8 w-8'} p-0 hover:bg-background rounded-md`}
+            onClick={toggleOrder}
+            title={sortOrder === "asc" ? "Tăng dần" : "Giảm dần"}
+          >
+            {sortOrder === "asc" ? (
+              <ArrowUp className={`${isMobile ? 'h-3.5 w-3.5' : 'h-4 w-4'} text-primary animate-in zoom-in duration-200`} />
+            ) : (
+              <ArrowDown className={`${isMobile ? 'h-3.5 w-3.5' : 'h-4 w-4'} text-primary animate-in zoom-in duration-200`} />
+            )}
+          </Button>
+        </>
+      )}
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -137,97 +190,59 @@ const ResultsPage = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6 md:py-8">
         
-        {/* HEADER TOOLBAR */}
-        {/* items-end: Căn đáy các phần tử con để text và nút thẳng hàng dưới */}
-        <div className="mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+        {/* === HEADER TOOLBAR === */}
+        <div className="mb-6 md:mb-8 flex flex-col lg:flex-row lg:items-end gap-3 md:gap-4 justify-between">
           
-          {/* NHÓM TRÁI: Tiêu đề + Nút Sắp Xếp */}
-          {/* items-end: Căn đáy cho tiêu đề và nút sắp xếp */}
-          <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6">
-            
-            {/* Khối Tiêu đề */}
+          {/* GROUP TRÁI: Tiêu đề + Nút Sắp xếp (Chỉ hiện Sắp xếp trên PC) */}
+          <div className="flex flex-col sm:flex-row sm:items-end gap-4">
             <div>
-              <h1 className="text-3xl font-bold mb-1 leading-none">Kết quả tìm kiếm</h1>
+              <h1 className="text-2xl md:text-3xl font-bold mb-1 leading-none">Kết quả tìm kiếm</h1>
               <p className="text-muted-foreground text-sm">
                 Tìm thấy <span className="font-medium text-foreground">{restaurants.length}</span> quán phù hợp.
               </p>
             </div>
-
-            {/* Khối Nút Sắp Xếp */}
-            <div 
-                // 🟢 1. CĂN CHỈNH NÚT SẮP XẾP Ở ĐÂY
-                // mb-1: Đẩy nút lên 4px so với đáy
-                // mb-0: Sát đáy
-                // -mb-1: Đẩy xuống 4px
-                className="flex items-center bg-white rounded-lg p-1 border border-border self-start sm:self-auto mb-0.5"
-            >
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 gap-2 text-muted-foreground hover:text-primary hover:bg-gray/90">
-                    <ListFilter className="h-4 w-4" />
-                    <span className="font-medium">
-                      {sortBy === "price" ? "Giá cả" : sortBy === "rating" ? "Đánh giá" : "Sắp xếp"}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-40">
-                  <DropdownMenuItem onClick={() => { setSortBy("rating"); setSortOrder("desc"); }} className="cursor-pointer focus:bg-gray/90 focus:text-primary">
-                    <Star className="mr-2 h-4 w-4 text-yellow-500" /> Đánh giá
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => { setSortBy("price"); setSortOrder("asc"); }} className="cursor-pointer focus:bg-gray/90 focus:text-primary">
-                    <DollarSign className="mr-2 h-4 w-4 text-green-600" /> Giá cả
-                  </DropdownMenuItem>
-                  {sortBy && (
-                    <>
-                        <DropdownMenuItem onClick={() => setSortBy(null)} className="text-muted-foreground border-t mt-1 cursor-pointer focus:bg-gray/90 focus:text-primary">
-                            Mặc định
-                        </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {sortBy && (
-                <>
-                  <div className="w-[1px] h-4 bg-border mx-1"></div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 w-8 p-0 hover:bg-background rounded-md"
-                    onClick={toggleOrder}
-                    title={sortOrder === "asc" ? "Tăng dần" : "Giảm dần"}
-                  >
-                    {sortOrder === "asc" ? (
-                      <ArrowUp className="h-4 w-4 text-primary animate-in zoom-in duration-200" />
-                    ) : (
-                      <ArrowDown className="h-4 w-4 text-primary animate-in zoom-in duration-200" />
-                    )}
-                  </Button>
-                </>
-              )}
+            
+            {/* 1. NÚT SẮP XẾP PC (Hidden on Mobile) */}
+            <div className="hidden lg:block mb-0.5">
+               <SortButtonGroup isMobile={false} />
             </div>
           </div>
-          
-          {/* NHÓM PHẢI: Các nút hành động khác */}
-          <div 
-            // 🟢 2. CĂN CHỈNH NÚT BÊN PHẢI Ở ĐÂY
-            // mb-0.5: Đẩy nhẹ lên một chút cho cân với nút sắp xếp
-            className="flex flex-wrap items-center gap-3 mb-0.5"
-          >
-            <Button variant="outline" onClick={() => navigate("/search")} className="hover:bg-gray/90 hover:text-primary">
-              <Search className="mr-2 h-4 w-4" /> Tìm kiếm khác
+
+          {/* GROUP PHẢI: Các nút hành động */}
+          <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 no-scrollbar">
+             {/* Wrapper Mobile: flex row, w-full */}
+
+            <div className="lg:hidden">
+              <SortButtonGroup isMobile={true} />
+            </div>
+             
+             {/* Nút Tìm kiếm */}
+             <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate("/search")} 
+                className="flex-1 lg:flex-none hover:bg-gray/90 hover:text-primary text-xs md:text-sm h-8 md:h-9 whitespace-nowrap"
+             >
+              <Search className="mr-2 h-3 w-3 md:h-4 md:w-4" /> Tìm kiếm khác
             </Button>
             
-            <Button onClick={() => navigate("/cart")} className="bg-primary/90 hover:bg-primary">
+            {/* Nút Xem danh sách */}
+            <Button 
+                size="sm" 
+                onClick={() => navigate("/cart")} 
+                className="flex-1 lg:flex-none bg-primary/90 hover:bg-primary text-xs md:text-sm h-8 md:h-9 whitespace-nowrap"
+            >
               Xem danh sách
             </Button>
+
+
           </div>
         </div>
 
         {/* GRID RESULTS */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
           {sortedRestaurants.map((restaurant) => (
             <RestaurantCard
               key={restaurant.id}

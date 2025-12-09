@@ -102,7 +102,7 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
           formData.append("images", file);
       });
 
-      const res = await axios.post("${API_BASE_URL}/api/reviews", formData, {
+      const res = await axios.post(`${API_BASE_URL}/api/reviews`, formData, {
         headers: { "Content-Type": "multipart/form-data" }
       });
       
@@ -141,36 +141,46 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex items-center justify-between">
-        <h3 className="text-2xl font-bold text-gray-800">Đánh giá ({reviews.length})</h3>
+        <h3 className="text-xl md:text-2xl font-bold text-gray-800">Đánh giá ({reviews.length})</h3>
       </div>
 
-      <Card className="p-6 bg-gray-50/50 border-gray-200 shadow-sm">
-        <div className="flex gap-4">
-          <Avatar className="h-10 w-10">
-            <AvatarFallback className="bg-green-600 text-white font-bold">
-              {username ? username[0].toUpperCase() : <User className="h-5 w-5"/>}
-            </AvatarFallback>
-          </Avatar>
+      {/* INPUT CARD */}
+      <Card className="p-4 md:p-6 bg-gray-50/50 border-gray-200 shadow-sm">
+        <div className="flex flex-col md:flex-row gap-4">
+          
+          {/* Avatar: Ẩn trên mobile để tiết kiệm chỗ, hiện trên PC */}
+          <div className="hidden md:block">
+            <Avatar className="h-10 w-10">
+                <AvatarFallback className="bg-green-600 text-white font-bold">
+                {username ? username[0].toUpperCase() : <User className="h-5 w-5"/>}
+                </AvatarFallback>
+            </Avatar>
+          </div>
           
           <div className="flex-1 space-y-4">
-            <div className="flex items-center gap-1">
+            
+            {/* Rating Stars: Mobile căn giữa, to hơn */}
+            <div className="flex justify-center md:justify-start items-center gap-2">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
                   type="button"
-                  className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
+                  className="focus:outline-none transition-transform hover:scale-110 active:scale-95 p-1"
                   onMouseEnter={() => setHoverRating(star)}
                   onMouseLeave={() => setHoverRating(0)}
                   onClick={() => setRating(star)}
                 >
-                  <Star className={`h-6 w-6 ${star <= (hoverRating || rating) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
+                  <Star 
+                    // Mobile: h-9 w-9 (to dễ bấm), PC: h-6 w-6
+                    className={`h-9 w-9 md:h-6 md:w-6 transition-colors duration-200 ${star <= (hoverRating || rating) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} 
+                  />
                 </button>
               ))}
             </div>
 
-            {/* Textarea - Đã bỏ Counter ở đây */}
+            {/* Textarea */}
             <div className="relative">
                 <Textarea 
                   ref={textareaRef}
@@ -180,46 +190,36 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
                   disabled={!isLoggedIn}
                   maxLength={MAX_CHARS} 
                   className={`
-                    min-h-[100px] max-h-[200px] w-full bg-white rounded-xl border-gray-200
+                    min-h-[120px] md:min-h-[100px] max-h-[200px] w-full bg-white rounded-xl border-gray-200
                     focus:ring-2 focus:ring-green-500/20 focus:border-green-500
                     resize-none transition-all duration-200
                     placeholder:text-gray-400 text-base leading-relaxed
-                    
-                    overflow-y-auto
-                    [&::-webkit-scrollbar]:w-2
-                    [&::-webkit-scrollbar-track]:bg-transparent
-                    [&::-webkit-scrollbar-thumb]:bg-gray-200
-                    [&::-webkit-scrollbar-thumb]:rounded-full
-                    hover:[&::-webkit-scrollbar-thumb]:bg-gray-300
                   `}
                 />
             </div>
 
             {/* Preview Images */}
             {previewUrls.length > 0 && (
-                <div className="flex gap-3 overflow-x-auto pb-2 pt-4 pr-4 pl-1 
-                    [&::-webkit-scrollbar]:h-2
-                    [&::-webkit-scrollbar-track]:bg-transparent
-                    [&::-webkit-scrollbar-thumb]:bg-gray-200
-                    [&::-webkit-scrollbar-thumb]:rounded-full
-                ">
+                <div className="flex gap-3 overflow-x-auto pb-2 pt-2 px-1 scrollbar-hide">
                     {previewUrls.map((url, idx) => (
-                        <div key={idx} className="relative w-24 h-24 flex-shrink-0 group">
+                        <div key={idx} className="relative w-20 h-20 md:w-24 md:h-24 flex-shrink-0 group">
                             <img src={url} alt="preview" className="w-full h-full object-cover rounded-lg border border-gray-200 shadow-sm" />
                             <button 
                                 type="button"
                                 onClick={() => removeImage(idx)}
-                                className="absolute -top-2 -right-2 bg-white text-red-500 border border-gray-100 rounded-full p-1 shadow-md hover:bg-red-50 transition-all z-10 opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100"
+                                className="absolute -top-2 -right-2 bg-white text-red-500 border border-gray-100 rounded-full p-1 shadow-md hover:bg-red-50 z-10"
                             >
-                                <X className="h-3.5 w-3.5" />
+                                <X className="h-3 w-3" />
                             </button>
                         </div>
                     ))}
                 </div>
             )}
 
-            {/* Action Bar */}
-            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+            {/* Action Bar: Mobile xếp dọc, PC xếp ngang */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 md:gap-0 pt-2 border-t border-gray-100">
+                
+                {/* Upload Button */}
                 <div>
                     <input 
                         type="file" 
@@ -229,12 +229,12 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
                         multiple 
                         accept="image/*" 
                     />
-                    
                     <Button 
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="text-muted-foreground hover:text-green-600 hover:bg-green-50 hover:border-green-400 border-dashed border-gray-300 rounded-full px-4 transition-all"
+                        // Mobile: w-full, PC: auto
+                        className="w-full md:w-auto text-muted-foreground hover:text-green-600 hover:bg-green-50 hover:border-green-400 border-dashed border-gray-300 rounded-lg md:rounded-full h-10 md:h-9"
                         onClick={() => fileInputRef.current?.click()} 
                         disabled={!isLoggedIn}
                     >
@@ -243,19 +243,17 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
                     </Button>
                 </div>
 
-                {/* --- KHU VỰC COUNTER & NÚT GỬI --- */}
-                <div className="flex items-center gap-4">
-                    {/* Character Counter (Đã chuyển xuống đây) */}
-                    <span className={`text-xs font-medium transition-colors
-                        ${comment.length >= MAX_CHARS ? 'text-red-500' : (comment.length >= MAX_CHARS*0.9) ? 'text-yellow-500' : 'text-gray-400'}
-                    `}>
+                {/* Submit Area */}
+                <div className="flex flex-col-reverse md:flex-row items-center gap-3 md:gap-4">
+                    <span className={`text-xs font-medium transition-colors ${comment.length >= MAX_CHARS ? 'text-red-500' : 'text-gray-400'}`}>
                         {comment.length}/{MAX_CHARS}
                     </span>
 
                     <Button 
                         onClick={handleSubmit} 
                         disabled={!isLoggedIn || isSubmitting}
-                        className="bg-green-600 hover:bg-green-700 text-white rounded-full px-6 font-semibold shadow-sm hover:shadow active:scale-95 transition-all"
+                        // Mobile: w-full, h-11 (to hơn), PC: w-auto
+                        className="w-full md:w-auto h-11 md:h-10 bg-green-600 hover:bg-green-700 text-white rounded-lg md:rounded-full font-semibold shadow-sm"
                     >
                         {isSubmitting ? "Đang gửi..." : <><Send className="w-4 h-4 mr-2" /> Gửi đánh giá</>}
                     </Button>
@@ -265,17 +263,17 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
         </div>
       </Card>
 
-      {/* List Reviews (Giữ nguyên) */}
-      <div className="space-y-6">
+      {/* List Reviews */}
+      <div className="space-y-4 md:space-y-6">
         {reviews.map((review) => (
-          <div key={review.id} className="flex gap-4 p-5 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300">
-            <Avatar className="h-10 w-10 mt-1 border border-gray-100">
-              <AvatarFallback className="bg-blue-50 text-blue-600 font-bold text-sm">
+          <div key={review.id} className="flex gap-3 md:gap-4 p-4 md:p-5 rounded-2xl bg-white border border-gray-100 shadow-sm">
+            <Avatar className="h-8 w-8 md:h-10 md:w-10 mt-1 border border-gray-100 flex-shrink-0">
+              <AvatarFallback className="bg-blue-50 text-blue-600 font-bold text-xs md:text-sm">
                 {review.user.avatar_letter}
               </AvatarFallback>
             </Avatar>
             
-            <div className="flex-1 space-y-3">
+            <div className="flex-1 space-y-2 md:space-y-3 min-w-0">
               <div className="flex justify-between items-start">
                 <div>
                   <h4 className="font-bold text-gray-900 text-sm">{review.user.username}</h4>
@@ -284,10 +282,10 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
                   </span>
                 </div>
                 
-                <div className="flex items-center gap-3">
-                    <div className="flex bg-yellow-50 px-2.5 py-1 rounded-full border border-yellow-100">
+                <div className="flex items-center gap-2 md:gap-3">
+                    <div className="flex bg-yellow-50 px-2 py-0.5 md:py-1 rounded-full border border-yellow-100">
                         {Array.from({ length: 5 }).map((_, i) => (
-                            <Star key={i} className={`h-3 w-3 ${i < review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-200"}`} />
+                            <Star key={i} className={`h-2.5 w-2.5 md:h-3 md:w-3 ${i < review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-200"}`} />
                         ))}
                     </div>
 
@@ -295,9 +293,8 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
                         <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-7 w-7 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
+                            className="h-6 w-6 md:h-7 md:w-7 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
                             onClick={() => confirmDelete(review.id)}
-                            title="Xóa bài viết"
                         >
                             <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -305,21 +302,16 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
                 </div>
               </div>
 
-              <p className="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">{review.comment}</p>
+              <p className="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed break-words">{review.comment}</p>
               
               {review.images && review.images.length > 0 && (
-                <div className="flex gap-2 mt-3 overflow-x-auto pb-2 
-                    [&::-webkit-scrollbar]:h-1.5
-                    [&::-webkit-scrollbar-track]:bg-transparent
-                    [&::-webkit-scrollbar-thumb]:bg-gray-200
-                    [&::-webkit-scrollbar-thumb]:rounded-full
-                ">
+                <div className="flex gap-2 mt-2 overflow-x-auto pb-2 scrollbar-hide">
                   {review.images.map((img, idx) => (
                     <img 
                       key={idx} 
                       src={img} 
                       alt="review-img" 
-                      className="h-24 w-24 rounded-lg object-cover border border-gray-100 cursor-zoom-in hover:opacity-90 transition-opacity"
+                      className="h-20 w-20 md:h-24 md:w-24 rounded-lg object-cover border border-gray-100 flex-shrink-0"
                       onClick={() => window.open(img, '_blank')}
                     />
                   ))}
@@ -331,16 +323,16 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
       </div>
 
       <AlertDialog open={!!deleteReviewId} onOpenChange={(open) => !open && setDeleteReviewId(null)}>
-        <AlertDialogContent className="rounded-xl">
+        <AlertDialogContent className="rounded-xl w-[90%] md:w-full">
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa đánh giá?</AlertDialogTitle>
             <AlertDialogDescription>
               Bạn có chắc chắn muốn xóa đánh giá này không? Hành động này không thể hoàn tác.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-lg">Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction onClick={executeDelete} className="bg-red-600 hover:bg-red-700 text-white rounded-lg">
+          <AlertDialogFooter className="flex-row gap-2 justify-end">
+            <AlertDialogCancel className="rounded-lg mt-0 flex-1 md:flex-none">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDelete} className="bg-red-600 hover:bg-red-700 text-white rounded-lg flex-1 md:flex-none">
                 Xóa ngay
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Restaurant } from "@/types";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
-// Thêm icon Image để làm Skeleton
 import { Heart, MapPin, Star, DollarSign, Eye, Plus, Trash2, Image as ImageIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
@@ -21,18 +20,12 @@ const priceRangeMap: { [key: number]: string } = {
   4: "2.000.000đ trở lên",
 };
 
-// --- 1. HÀM TỐI ƯU URL ẢNH ---
-// Hàm này giúp giảm dung lượng ảnh từ vài MB xuống vài chục KB
 const getOptimizedImageUrl = (url: string) => {
   if (!url) return "";
-  
-  // Nếu là ảnh từ Google (thường gặp nhất trong Food Tour app)
   if (url.includes("googleusercontent.com")) {
-    // Cắt bỏ các tham số cũ và ép về size chiều rộng 400px
     const baseUrl = url.split("=")[0]; 
-    return `${baseUrl}=w400-h300-c`; // w=400, h=300, c=crop (cắt cho vừa khung)
+    return `${baseUrl}=w400-h400-c`; 
   }
-  
   return url;
 };
 
@@ -44,16 +37,13 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
   const { isInCart, addToCart, removeFromCart } = useCart();
   const inCart = isInCart(restaurant.id);
 
-  // --- 2. STATE QUẢN LÝ TRẠNG THÁI ẢNH ---
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   const handleCartAction = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (inCart)
-      removeFromCart(restaurant.id)
-    else
-      addToCart(restaurant)
+    if (inCart) removeFromCart(restaurant.id)
+    else addToCart(restaurant)
   };
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
@@ -68,131 +58,136 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
     navigate(`/restaurant/${restaurant.id}`);
   };
 
-  // Lấy URL đã được tối ưu
   const optimizedSrc = getOptimizedImageUrl(restaurant.photo_url || "");
-  // Reset lại state khi restaurant thay đổi (đề phòng trường hợp tái sử dụng component trong list ảo)
-  // useEffect này không bắt buộc nhưng nên có để tránh bug khi scroll nhanh
-  /* useEffect(() => {
-     setImageLoaded(false);
-     setImageError(false);
-  }, [restaurant.photo_url]); 
-  */
 
   return (
-    <Card className="overflow-hidden hover:shadow-hover transition-all duration-300 group">
-      {/* Phần chứa ảnh - Giữ nguyên chiều cao h-48 */}
-      <div className="relative h-48 bg-gray-100 overflow-hidden">
+    <Card 
+      className="group overflow-hidden hover:shadow-hover transition-all duration-300 
+      flex flex-row md:flex-col h-auto"
+    >
+      {/* 1. KHUNG CHỨA ẢNH (Image Container) */}
+      <div className="relative w-[110px] h-[110px] md:w-full md:h-48 bg-muted/30 shrink-0 p-2 md:p-0 overflow-hidden">
         
-        {optimizedSrc && !imageError ? (
-          <>
-            {/* SKELETON: Giữ nguyên logic này là đúng */}
-            <div 
-              className={`absolute inset-0 flex items-center justify-center bg-gray-200 z-10
-                ${!imageLoaded ? "animate-pulse" : "hidden"}`}
-            >
-              <ImageIcon className="h-8 w-8 text-gray-400" />
+        {/* --- KHỐI ZOOM (SCALING WRAPPER) ---
+            - Mobile: Chứa ảnh + Nút Tim Mobile (để cùng zoom).
+            - PC: Chỉ chứa ảnh.
+        */}
+        <div className="relative w-full h-full rounded-lg md:rounded-none overflow-hidden transition-transform duration-700 group-hover:scale-110">
+            
+            {/* Skeleton & Image */}
+            <div className={`absolute inset-0 flex items-center justify-center bg-gray-200 z-10 ${!imageLoaded ? "animate-pulse" : "hidden"}`}>
+              <ImageIcon className="h-6 w-6 md:h-8 md:w-8 text-gray-400" />
             </div>
 
-            {/* ẢNH THẬT: Thêm referrerPolicy */}
-            <img
-              src={optimizedSrc}
-              alt={restaurant.name}
-              className={`w-full h-full object-cover transition-opacity duration-500 
-                ${imageLoaded ? "opacity-100 group-hover:scale-110 transition-transform duration-700" : "opacity-0"}
-              `}
-              loading="lazy"
-              decoding="async"
-              
-              // --- SỬA LỖI TẠI ĐÂY ---
-              // 1. Thêm dòng này để bypass chặn ảnh của Google/Server lạ
-              referrerPolicy="no-referrer" 
-              
-              onLoad={() => setImageLoaded(true)}
-              onError={(e) => {
-                // 2. Log ra để debug nếu vẫn lỗi
-                console.warn("Lỗi load ảnh:", optimizedSrc); 
-                setImageError(true);
-              }}
-            />
-          </>
-        ) : (
-          // Fallback
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
-            <MapPin className="h-16 w-16 text-muted-foreground/30" />
-          </div>
-        )}
-        
-        {/* Nút Tim (Giữ nguyên) */}
+            {optimizedSrc && !imageError ? (
+              <img
+                src={optimizedSrc}
+                alt={restaurant.name}
+                className={`w-full h-full object-cover transition-opacity duration-500 
+                  ${imageLoaded ? "opacity-100" : "opacity-0"}`}
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
+                onLoad={() => setImageLoaded(true)}
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
+                <MapPin className="h-8 w-8 md:h-16 md:w-16 text-muted-foreground/30" />
+              </div>
+            )}
+
+            {/* --- [A] NÚT TIM MOBILE (CHỈ HIỆN TRÊN MOBILE) --- 
+                - Vị trí: absolute top-1 left-1 (Góc trái trên của ảnh).
+                - Nằm TRONG div scale-110 nên sẽ phóng to theo ảnh.
+                - Style: Trắng mờ (bg-white/70 backdrop-blur).
+            */}
+            {onToggleFavorite && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="md:hidden absolute top-1 left-1 z-20 h-6 w-6 rounded-full 
+                           bg-white/70 backdrop-blur-[2px] hover:bg-white text-foreground shadow-sm"
+                onClick={handleFavoriteClick}
+              >
+                <Heart className={`h-3.5 w-3.5 ${restaurant.is_favorite ? "fill-red-500 text-red-500" : "text-foreground"}`} />
+              </Button>
+            )}
+        </div>
+
+        {/* --- [B] NÚT TIM PC (CHỈ HIỆN TRÊN PC) --- 
+            - Vị trí: absolute top-2 right-2 (Góc phải trên như cũ).
+            - Nằm NGOÀI div scale-110 nên đứng yên, độc lập với ảnh.
+            - Style: Trắng rõ (bg-white/90).
+        */}
         {onToggleFavorite && (
           <Button
             size="icon"
             variant="ghost"
-            className="absolute top-2 right-2 bg-white/90 hover:bg-white z-10"
+            className="hidden md:flex absolute top-2 right-2 z-20 h-9 w-9 rounded-full 
+                       bg-white/90 hover:bg-white text-foreground shadow-sm"
             onClick={handleFavoriteClick}
           >
-            <Heart
-              className={`h-5 w-5 ${
-                restaurant.is_favorite 
-                  ? "fill-red-500 text-red-500" 
-                  : "text-foreground"
-              }`}
-            />
+            <Heart className={`h-5 w-5 ${restaurant.is_favorite ? "fill-red-500 text-red-500" : "text-foreground"}`} />
           </Button>
         )}
       </div>
 
-      {/* Phần thông tin bên dưới (Giữ nguyên hoàn toàn) */}
-      <div className="p-4 space-y-2">
-        <h3 className="font-semibold text-lg line-clamp-1" title={restaurant.name}>
-            {restaurant.name}
-        </h3>
+      {/* 2. PHẦN THÔNG TIN (Content Section) */}
+      <div className="flex-1 p-2 md:p-4 flex flex-col min-w-0"> 
+        <div className="space-y-1 md:space-y-2">
+          <h3 className="font-semibold text-sm md:text-lg truncate leading-tight text-foreground" title={restaurant.name}>
+              {restaurant.name}
+          </h3>
 
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <MapPin className="h-4 w-4 flex-shrink-0" />
-          <span className="line-clamp-1">{restaurant.address}</span>
-        </div>
+          <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground">
+            <MapPin className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
+            <span className="truncate">{restaurant.address}</span>
+          </div>
 
-        <div className="flex items-center gap-4 text-sm">
-          {restaurant.rating && (
-            <div className="flex items-center gap-1">
-              <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
-              <span className="font-medium">{restaurant.rating}</span>
-            </div>
-          )}
-          
-          {restaurant.price_level && priceRangeMap[restaurant.price_level] && (
-            <div className="flex items-center gap-1">
-              <div className="flex items-center">
-                {Array.from({ length: restaurant.price_level }).map((_, i) => (
-                  <DollarSign key={i} className="h-4 w-4 text-green-600" />
-                ))}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs md:text-sm">
+            {restaurant.rating && (
+              <div className="flex items-center gap-1 bg-yellow-50 px-1.5 rounded-md border border-yellow-100 md:border-none md:bg-transparent md:p-0 shrink-0">
+                <Star className="h-3 w-3 md:h-4 md:w-4 fill-yellow-500 text-yellow-500" />
+                <span className="font-medium text-yellow-700">{restaurant.rating}</span>
               </div>
-              <span className="text-xs text-muted-foreground ml-1">
-                ({priceRangeMap[restaurant.price_level]})
-              </span>
-            </div>
-          )}
+            )}
+            
+            {restaurant.price_level && priceRangeMap[restaurant.price_level] && (
+              <div className="flex items-center gap-1 text-muted-foreground min-w-0">
+                <div className="hidden md:flex shrink-0">
+                   {Array.from({ length: restaurant.price_level }).map((_, i) => (
+                    <DollarSign key={i} className="h-4 w-4 text-green-600" />
+                  ))}
+                </div>
+                <span className="text-xs truncate block">
+                  <span className="md:hidden text-muted-foreground/50 mr-1">•</span> 
+                  {priceRangeMap[restaurant.price_level]}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex gap-2 mt-4">
+        <div className="flex gap-2 mt-2 md:mt-4 justify-end md:justify-start items-center">
           <Button
             variant={inCart ? "destructive" : "secondary"} 
             size="sm"
-            className="w-12 px-0 flex-shrink-0"
+            className="h-7 w-7 px-0 md:h-9 md:w-12 md:px-0 flex-shrink-0 shadow-sm"
             onClick={handleCartAction}
             title={inCart ? "Xóa khỏi danh sách" : "Thêm vào danh sách"}
           >
-            {inCart ? <Trash2 className="h-4 w-4" /> : <Plus className="h-5 w-5" />}
+            {inCart ? <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" /> : <Plus className="h-4 w-4 md:h-5 md:w-5" />}
           </Button>
 
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 hover:bg-gray/90 hover:text-green-600"
+            className="h-7 text-xs px-2 md:h-9 md:text-sm md:flex-1 hover:bg-gray/90 hover:text-green-600 truncate"
             onClick={handleViewDetails}
           >
-            <Eye className="mr-2 h-4 w-4" />
-            Xem chi tiết
+            <Eye className="mr-1 h-3 w-3 md:h-4 md:w-4" />
+            <span className="md:inline">Chi tiết</span>
           </Button>
         </div>
       </div>  
