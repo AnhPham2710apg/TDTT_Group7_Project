@@ -79,7 +79,7 @@ const InputSection = ({ startPoint, setStartPoint, handleKeyDown, handleOptimize
   </Card>
 );
 
-// --- COMPONENT CON: DRAG LIST (GIỮ NGUYÊN LOGIC FIX) ---
+// --- COMPONENT CON: DRAG LIST (ĐÃ LOẠI BỎ LOGIC KHÓA DRAWER) ---
 interface DragDropListProps {
   initialPlaces: InitialPlace[];
   useManualOrder: boolean;
@@ -130,7 +130,7 @@ const DragDropList = ({ initialPlaces, useManualOrder, setUseManualOrder, onDrag
                         ref={provided.innerRef}
                         {...provided.draggableProps}
                         {...(useManualOrder ? provided.dragHandleProps : {})}
-                        {...(useManualOrder ? { "data-vaul-no-drag": true } : {})}
+                        // ĐÃ XÓA: dòng data-vaul-no-drag tại đây để test tương tác
                         style={{
                           ...style,
                           ...(snapshot.isDragging ? { width: style?.width || "auto" } : {})
@@ -368,12 +368,7 @@ const OptimizeRoutePage = () => {
          <Navbar />
       </div>
 
-      {/* --- MOBILE LAYOUT (CẬP NHẬT QUAN TRỌNG) --- */}
-      {/* 1. fixed inset-0: Ghim chặt vào màn hình, không cho phép cuộn trang.
-        2. h-[100dvh]: Chiều cao động chính xác theo viewport mobile.
-        3. overflow-hidden: Cắt bỏ mọi thứ thừa ra.
-        4. overscroll-none: Chặn hiệu ứng bounce (đàn hồi) của trình duyệt iOS/Android.
-      */}
+      {/* --- MOBILE LAYOUT (CỐ ĐỊNH VIEWPORT) --- */}
       <div className="md:hidden fixed inset-0 w-full h-[100dvh] flex flex-col overflow-hidden overscroll-none bg-background">
          
          {/* 1. NÚT BACK */}
@@ -390,7 +385,7 @@ const OptimizeRoutePage = () => {
              </Button>
          </div>
 
-         {/* 2. MAP */}
+         {/* 2. MAP (VẪN GIỮ LOGIC MAP LOCK) */}
          <div className={`absolute inset-0 z-0 bg-gray-100 transition-opacity duration-300 
                           [&_.leaflet-control-container]:hidden [&_.gmnoprint]:hidden [&_.mapboxgl-ctrl]:hidden
                           ${snap === "190px" ? "" : "pointer-events-none"}`}
