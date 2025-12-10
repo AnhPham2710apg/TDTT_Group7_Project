@@ -16,7 +16,7 @@ import { useCart } from "@/context/CartContext";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE_URL } from "@/lib/api-config";
-import { Drawer } from "vaul"; // IMPORT VAUL
+import { Drawer } from "vaul"; 
 import { createPortal } from "react-dom";
 import React from "react";
 
@@ -44,7 +44,7 @@ interface InitialPlace {
   lon?: number;
 }
 
-// --- COMPONENT CON (GIỮ NGUYÊN) ---
+// --- COMPONENT CON: INPUT SECTION ---
 interface InputSectionProps {
   startPoint: string;
   setStartPoint: (val: string) => void;
@@ -79,6 +79,7 @@ const InputSection = ({ startPoint, setStartPoint, handleKeyDown, handleOptimize
   </Card>
 );
 
+// --- COMPONENT CON: DRAG LIST (GIỮ NGUYÊN LOGIC FIX) ---
 interface DragDropListProps {
   initialPlaces: InitialPlace[];
   useManualOrder: boolean;
@@ -129,7 +130,6 @@ const DragDropList = ({ initialPlaces, useManualOrder, setUseManualOrder, onDrag
                         ref={provided.innerRef}
                         {...provided.draggableProps}
                         {...(useManualOrder ? provided.dragHandleProps : {})}
-                        // Logic chặn kéo drawer khi đang ở chế độ thủ công
                         {...(useManualOrder ? { "data-vaul-no-drag": true } : {})}
                         style={{
                           ...style,
@@ -171,6 +171,7 @@ const DragDropList = ({ initialPlaces, useManualOrder, setUseManualOrder, onDrag
   </Card>
 );
 
+// --- COMPONENT CON: RESULT LIST ---
 interface ResultListProps {
   optimizedRoute: string[];
   handleCardClick: (index: number) => void;
@@ -361,21 +362,26 @@ const OptimizeRoutePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col md:block overflow-hidden md:overflow-auto">
+    <div className="min-h-screen bg-background flex flex-col md:block overflow-hidden">
       {/* PC Navbar */}
       <div className="hidden md:block">
          <Navbar />
       </div>
 
-      {/* --- MOBILE LAYOUT --- */}
-      <div className="md:hidden relative flex-1 h-[100dvh] w-full flex flex-col overflow-hidden">
+      {/* --- MOBILE LAYOUT (CẬP NHẬT QUAN TRỌNG) --- */}
+      {/* 1. fixed inset-0: Ghim chặt vào màn hình, không cho phép cuộn trang.
+        2. h-[100dvh]: Chiều cao động chính xác theo viewport mobile.
+        3. overflow-hidden: Cắt bỏ mọi thứ thừa ra.
+        4. overscroll-none: Chặn hiệu ứng bounce (đàn hồi) của trình duyệt iOS/Android.
+      */}
+      <div className="md:hidden fixed inset-0 w-full h-[100dvh] flex flex-col overflow-hidden overscroll-none bg-background">
          
          {/* 1. NÚT BACK */}
-         <div className="absolute top-10 left-0 w-full z-20 pt-4 pb-2 px-4 flex items-center gap-3 pointer-events-none">
+         <div className="absolute top-10 left-0 w-full z-20 pt-4 pb-2 px-4 flex items-center gap-3 pointer-events-auto">
              <Button 
                variant="outline" 
                size="icon" 
-               className="h-9 w-9 rounded-full shadow-lg transition-all duration-300 pointer-events-auto
+               className="h-9 w-9 rounded-full shadow-lg transition-all duration-300
                           bg-white text-green-600 border border-green-600
                           hover:bg-green-600 hover:text-white hover:border-green-600" 
                onClick={() => navigate(-1)}
@@ -384,10 +390,7 @@ const OptimizeRoutePage = () => {
              </Button>
          </div>
 
-         {/* 2. MAP (CẢI TIẾN QUAN TRỌNG) */}
-         {/* Nếu snap khác 190px (tức là drawer đang mở cao), ta thêm 'pointer-events-none' cho Map.
-             Điều này giúp Map "đóng băng", không nhận sự kiện kéo/click nhầm.
-             Đồng thời giúp trình duyệt không phải repaint map khi đang kéo drawer -> Mượt hơn RẤT NHIỀU. */}
+         {/* 2. MAP */}
          <div className={`absolute inset-0 z-0 bg-gray-100 transition-opacity duration-300 
                           [&_.leaflet-control-container]:hidden [&_.gmnoprint]:hidden [&_.mapboxgl-ctrl]:hidden
                           ${snap === "190px" ? "" : "pointer-events-none"}`}
