@@ -105,7 +105,6 @@ const DragDropList = ({
                       const style: React.CSSProperties = {
                           ...originalStyle,
                           ...(snapshot.isDragging ? { 
-                              position: "fixed", 
                               zIndex: 99999,
                               background: "white",
                               border: "1px solid #16a34a",
@@ -426,8 +425,8 @@ const OptimizeRoutePage = () => {
              </div>
 
              <div className="px-4 pb-2 bg-white border-b border-gray-50 flex-shrink-0">
-                 <div className="relative mb-3">
-                   <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
+                 <div className="relative mb-3 pt-2">
+                   <MapPin className="absolute left-3 top-5 h-4 w-4 text-gray-400 z-10" />
                    <Input 
                      placeholder="Nhập điểm xuất phát..." 
                      value={startPoint}
