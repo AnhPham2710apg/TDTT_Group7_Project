@@ -13,7 +13,17 @@ import {
 import { toast } from "sonner";
 import RouteMap from "@/components/RouteMap"; 
 import { useCart } from "@/context/CartContext";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+// --- THÊM IMPORT SENSORS ---
+import { 
+  DragDropContext, 
+  Droppable, 
+  Draggable, 
+  DropResult,
+  useSensor,
+  useSensors,
+  TouchSensor,
+  MouseSensor
+} from "@hello-pangea/dnd";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE_URL } from "@/lib/api-config";
 import { Drawer } from "vaul"; 
@@ -44,7 +54,7 @@ interface InitialPlace {
   lon?: number;
 }
 
-// --- COMPONENT CON: INPUT SECTION ---
+// --- COMPONENT CON: INPUT SECTION (GIỮ NGUYÊN) ---
 interface InputSectionProps {
   startPoint: string;
   setStartPoint: (val: string) => void;
@@ -52,7 +62,6 @@ interface InputSectionProps {
   handleOptimize: () => void;
   isOptimizing: boolean;
 }
-
 const InputSection = ({ startPoint, setStartPoint, handleKeyDown, handleOptimize, isOptimizing }: InputSectionProps) => (
   <Card className="p-4 md:p-6 shadow-sm border-0 md:border">
     <div className="space-y-3">
@@ -79,7 +88,7 @@ const InputSection = ({ startPoint, setStartPoint, handleKeyDown, handleOptimize
   </Card>
 );
 
-// --- COMPONENT CON: DRAG LIST (ĐÃ FIX LỖI DRAG MOBILE) ---
+// --- COMPONENT CON: DRAG LIST (ĐÃ SỬA LẠI SENSORS & LOGIC) ---
 interface DragDropListProps {
   initialPlaces: InitialPlace[];
   useManualOrder: boolean;
@@ -87,103 +96,133 @@ interface DragDropListProps {
   onDragEnd: (result: DropResult) => void;
 }
 
-const DragDropList = ({ initialPlaces, useManualOrder, setUseManualOrder, onDragEnd }: DragDropListProps) => (
-  <Card className="p-4 md:p-6 border-dashed border-2 relative mt-4">
-    <div className="space-y-3">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-            <ListChecks className="h-4 w-4 text-muted-foreground" />
-            <h3 className="font-semibold text-sm md:text-lg">Điểm cần đến ({initialPlaces.length})</h3>
+const DragDropList = ({ initialPlaces, useManualOrder, setUseManualOrder, onDragEnd }: DragDropListProps) => {
+  
+  // === 1. CẤU HÌNH SENSORS QUAN TRỌNG ===
+  const sensors = useSensors(
+    useSensor(MouseSensor), // Cho PC
+    useSensor(TouchSensor, {
+      // Cấu hình cho Mobile:
+      activationConstraint: {
+        delay: 250,    // Phải giữ 250ms mới bắt đầu Drag -> Tránh drag nhầm khi cuộn
+        tolerance: 5,  // Cho phép rung tay 5px trong khi giữ -> Giúp trải nghiệm mượt hơn
+      },
+    })
+  );
+
+  return (
+    <Card className="p-4 md:p-6 border-dashed border-2 relative mt-4">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+              <ListChecks className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-semibold text-sm md:text-lg">Điểm cần đến ({initialPlaces.length})</h3>
+          </div>
+          <div className="flex items-center gap-2">
+              <span className={`text-xs font-medium ${useManualOrder ? "text-green-600" : "text-muted-foreground"}`}>
+                  {useManualOrder ? "Thủ công" : "Tự động"}
+              </span>
+              <Switch 
+                checked={useManualOrder}
+                onCheckedChange={setUseManualOrder}
+                className="scale-75 data-[state=checked]:bg-green-600"
+              />
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-            <span className={`text-xs font-medium ${useManualOrder ? "text-green-600" : "text-muted-foreground"}`}>
-                {useManualOrder ? "Thủ công" : "Tự động"}
-            </span>
-            <Switch 
-              checked={useManualOrder}
-              onCheckedChange={setUseManualOrder}
-              className="scale-75 data-[state=checked]:bg-green-600"
-            />
-        </div>
+        
+        {/* Thêm sensors vào Context */}
+        <DragDropContext onDragEnd={onDragEnd} sensors={sensors}>
+          <Droppable droppableId="places-list">
+            {(provided) => (
+              <div 
+                  {...provided.droppableProps} 
+                  ref={provided.innerRef}
+                  // Sử dụng overscroll-y-auto và touch-pan-y để cuộn mượt mà
+                  className="space-y-2 max-h-[220px] md:max-h-[300px] overflow-y-auto pr-1 overscroll-contain"
+                  style={{ touchAction: "pan-y" }} 
+              >
+                {initialPlaces.map((place, index) => (
+                  <Draggable 
+                      key={`${place.name}-${index}`} 
+                      draggableId={`${place.name}-${index}`} 
+                      index={index}
+                      isDragDisabled={!useManualOrder}
+                  >
+                    {(provided, snapshot) => {
+                      // Style riêng biệt
+                      const style = {
+                          ...provided.draggableProps.style,
+                          // Nếu đang kéo thì tắt touch action để trình duyệt không can thiệp
+                          ...(snapshot.isDragging ? { touchAction: 'none' } : {}),
+                      } as React.CSSProperties;
+
+                      const cardContent = (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          // Chỉ apply drag handle props khi bật Manual
+                          {...(useManualOrder ? provided.dragHandleProps : {})}
+                          // Quan trọng: Ngăn Drawer (Vaul) nhận sự kiện drag ở item này
+                          {...(useManualOrder ? { "data-vaul-no-drag": true } : {})}
+                          style={{
+                            ...style,
+                            ...(snapshot.isDragging ? { 
+                                width: style?.width || "auto",
+                                opacity: 0.9,
+                                transform: style.transform, // Giữ transform mượt mà
+                            } : {})
+                          }}
+                          className={`
+                            relative flex items-center gap-3 p-3 rounded-lg border text-sm select-none transition-colors
+                            ${snapshot.isDragging 
+                                ? "bg-green-50 border-green-500 shadow-xl z-[9999]" 
+                                : "bg-white border-gray-100"
+                            }
+                          `}
+                        >
+                          {/* Nút Grip lớn hơn một chút để dễ bấm trên mobile */}
+                          {useManualOrder && (
+                             <div className="p-1 -ml-2 text-gray-400 cursor-grab active:cursor-grabbing">
+                                <GripVertical className="h-5 w-5" />
+                             </div>
+                          )}
+                          
+                          <div className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold border flex-shrink-0 ${useManualOrder ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
+                            {index + 1}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0 pointer-events-none"> {/* pointer-events-none text để tránh bôi đen nhầm */}
+                            <p className="font-medium truncate text-gray-900">{place.name}</p>
+                            <p className="text-muted-foreground text-xs truncate">{place.address}</p>
+                          </div>
+                        </div>
+                      );
+
+                      // Dùng Portal để đưa item ra ngoài DOM tree, tránh bị clip bởi overflow:hidden của cha
+                      if (snapshot.isDragging) {
+                        return createPortal(cardContent, document.body);
+                      }
+
+                      return cardContent;
+                    }}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
       </div>
-      
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="places-list">
-          {(provided) => (
-            <div 
-                {...provided.droppableProps} 
-                ref={provided.innerRef}
-                className="space-y-2 max-h-[200px] md:max-h-[300px] overflow-y-auto pr-1"
-            >
-              {initialPlaces.map((place, index) => (
-                <Draggable 
-                    key={`${place.name}-${index}`} 
-                    draggableId={`${place.name}-${index}`} 
-                    index={index}
-                    isDragDisabled={!useManualOrder}
-                >
-                  {(provided, snapshot) => {
-                    // FIX: Thêm touchAction: 'none' để ngăn chặn hành vi cuộn/kéo của trình duyệt
-                    const style = {
-                        ...provided.draggableProps.style,
-                        touchAction: 'none', 
-                    } as React.CSSProperties;
+    </Card>
+  );
+};
 
-                    const cardContent = (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        {...(useManualOrder ? provided.dragHandleProps : {})}
-                        // data-vaul-no-drag báo cho Drawer biết đừng nhận sự kiện kéo ở đây
-                        {...(useManualOrder ? { "data-vaul-no-drag": true } : {})}
-                        style={{
-                          ...style,
-                          // Giữ kích thước khi đang kéo (tránh bị co lại)
-                          ...(snapshot.isDragging ? { width: style?.width || "auto" } : {})
-                        }}
-                        className={`
-                          relative flex items-center gap-2 p-2 rounded-lg border text-sm select-none
-                          ${snapshot.isDragging 
-                              ? "bg-white border-green-600 shadow-2xl z-[9999]" 
-                              : "bg-white border-gray-100"
-                          }
-                        `}
-                      >
-                        {useManualOrder && <GripVertical className="h-4 w-4 text-gray-300 flex-shrink-0" />}
-                        <div className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold border flex-shrink-0 ${useManualOrder ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
-                          {index + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{place.name}</p>
-                          <p className="text-muted-foreground text-xs truncate">{place.address}</p>
-                        </div>
-                      </div>
-                    );
-
-                    if (snapshot.isDragging) {
-                      return createPortal(cardContent, document.body);
-                    }
-
-                    return cardContent;
-                  }}
-                </Draggable>
-              ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
-    </div>
-  </Card>
-);
-
-// --- COMPONENT CON: RESULT LIST ---
+// --- COMPONENT CON: RESULT LIST (GIỮ NGUYÊN) ---
 interface ResultListProps {
   optimizedRoute: string[];
   handleCardClick: (index: number) => void;
   routeInfo: { distance: string; duration: string };
 }
-
 const ResultList = ({ optimizedRoute, handleCardClick, routeInfo }: ResultListProps) => (
   <div className="space-y-4 mt-4 pb-20 md:pb-0">
       <Card className="p-4 bg-green-50 dark:bg-green-900/10 border-green-200 shadow-sm">
@@ -207,7 +246,6 @@ const ResultList = ({ optimizedRoute, handleCardClick, routeInfo }: ResultListPr
           ))}
           </div>
       </Card>
-
       <Card className="p-4 shadow-sm">
           <h3 className="font-semibold mb-2 text-sm">Tổng quan</h3>
           <div className="flex justify-between text-sm border-b pb-2 mb-2">
@@ -296,7 +334,6 @@ const OptimizeRoutePage = () => {
         setIsOptimizing(false);
         return;
       }
-      
       const placesPayload = initialPlaces.map((place) => ({
         name: place.name, address: place.address, lat: place.lat || 0, lng: place.lon || 0
       }));
@@ -326,7 +363,7 @@ const OptimizeRoutePage = () => {
       setMapPoints([start_Point, ...data.waypoints]);
       toast.success("Đã tối ưu hóa lộ trình!");
       
-      setSnap(0.61);
+      setSnap(0.61); // Tự động mở drawer cao lên một chút sau khi có kết quả
 
       if (isLoggedIn && username) {
           try {
@@ -356,7 +393,7 @@ const OptimizeRoutePage = () => {
       }
       if (targetPoint) {
           setFocusPoint({ lat: targetPoint.lat, lon: targetPoint.lon });
-          setSnap("190px"); 
+          setSnap("190px"); // Thu nhỏ drawer để xem bản đồ
       }
   };
 
@@ -374,7 +411,7 @@ const OptimizeRoutePage = () => {
          <Navbar />
       </div>
 
-      {/* --- MOBILE LAYOUT --- */}
+      {/* --- MOBILE LAYOUT (CẬP NHẬT) --- */}
       <div className="md:hidden fixed inset-0 w-full h-[100dvh] flex flex-col overflow-hidden overscroll-none bg-background">
           
          {/* 1. NÚT BACK */}
@@ -382,9 +419,7 @@ const OptimizeRoutePage = () => {
              <Button 
                variant="outline" 
                size="icon" 
-               className="h-9 w-9 rounded-full shadow-lg transition-all duration-300
-                          bg-white text-green-600 border border-green-600
-                          hover:bg-green-600 hover:text-white hover:border-green-600" 
+               className="h-9 w-9 rounded-full shadow-lg bg-white text-green-600 border border-green-600 hover:bg-green-600 hover:text-white" 
                onClick={() => navigate(-1)}
              >
                  <ArrowLeft className="h-5 w-5" />
@@ -392,10 +427,7 @@ const OptimizeRoutePage = () => {
          </div>
 
          {/* 2. MAP */}
-         <div className={`absolute inset-0 z-0 bg-gray-100 transition-opacity duration-300 
-                          [&_.leaflet-control-container]:hidden [&_.gmnoprint]:hidden [&_.mapboxgl-ctrl]:hidden
-                          ${snap === "190px" ? "" : "pointer-events-none"}`}
-         >
+         <div className={`absolute inset-0 z-0 bg-gray-100 transition-opacity duration-300 ${snap === "190px" ? "" : "pointer-events-none"}`}>
              <RouteMap 
                polylineOutbound={polyOutbound} 
                polylineReturn={polyReturn}
@@ -413,7 +445,11 @@ const OptimizeRoutePage = () => {
            open={true}
            dismissible={false} 
          >
-           <Drawer.Content className="fixed flex flex-col bg-white border border-gray-200 border-b-none rounded-t-[16px] bottom-0 left-0 right-0 h-full max-h-[96%] mx-[-1px] z-30 shadow-2xl outline-none">
+           <Drawer.Content 
+             className="fixed flex flex-col bg-white border border-gray-200 border-b-none rounded-t-[16px] bottom-0 left-0 right-0 h-full max-h-[96%] mx-[-1px] z-30 shadow-2xl outline-none"
+             // Quan trọng để cuộn mượt:
+             style={{ display: 'flex', flexDirection: 'col' }}
+           >
               
              {/* Handle Bar */}
              <div className="w-full mx-auto flex flex-col items-center pt-3 pb-2 bg-white rounded-t-[16px] flex-shrink-0 cursor-grab active:cursor-grabbing z-10 border-b border-gray-50">
@@ -421,7 +457,8 @@ const OptimizeRoutePage = () => {
              </div>
 
              {/* Scrollable Content */}
-             <div className="flex-1 overflow-y-auto px-4 pt-4 pb-safe bg-white">
+             {/* overflow-y-auto với -webkit-overflow-scrolling: touch giúp cuộn mượt trên iOS */}
+             <div className="flex-1 overflow-y-auto px-4 pt-4 pb-safe bg-white overscroll-contain">
                <div className="space-y-4 mb-4">
                  <div className="relative">
                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
@@ -431,18 +468,15 @@ const OptimizeRoutePage = () => {
                      onChange={(e) => setStartPoint(e.target.value)}
                      onKeyDown={handleKeyDown}
                      spellCheck={false}
-                     onFocus={() => {
-                       if (snap === "190px") setSnap(0.61);
-                     }}
-                     className="pl-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-green-500 focus:ring-1 focus:ring-green-500 h-10 shadow-sm transition-all"
+                     // Khi focus input thì đẩy drawer lên để không bị bàn phím che
+                     onFocus={() => { if (snap === "190px") setSnap(0.61); }}
+                     className="pl-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-green-500 h-10 shadow-sm"
                    />
                  </div>
 
                  <Button 
-                   onClick={() => {
-                       handleOptimize();
-                   }}
-                   className="w-full bg-green-600 hover:bg-green-700 text-white font-medium h-10 shadow-sm active:scale-[0.98] transition-transform"
+                   onClick={handleOptimize}
+                   className="w-full bg-green-600 hover:bg-green-700 text-white font-medium h-10 shadow-sm"
                    disabled={isOptimizing}
                  >
                    {isOptimizing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Navigation className="h-4 w-4 mr-2" />}
@@ -450,7 +484,7 @@ const OptimizeRoutePage = () => {
                  </Button>
                </div>
 
-               <div className="transition-opacity duration-300 pb-20">
+               <div className="pb-20">
                  {optimizedRoute.length === 0 && initialPlaces.length > 0 && 
                    <DragDropList 
                      initialPlaces={initialPlaces} 
