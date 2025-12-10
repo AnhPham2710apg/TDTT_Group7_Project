@@ -45,14 +45,12 @@ interface InitialPlace {
   lat?: number;
   lon?: number;
 }
-
 // --- COMPONENT CON: DRAG LIST ---
 interface DragDropListProps {
   initialPlaces: InitialPlace[];
   useManualOrder: boolean;
   setUseManualOrder: (val: boolean) => void;
   onDragEnd: (result: DropResult) => void;
-  // Thêm prop để báo cho cha biết đang drag
   onDragStart: () => void;
 }
 
@@ -61,7 +59,7 @@ const DragDropList = ({
     useManualOrder, 
     setUseManualOrder, 
     onDragEnd,
-    onDragStart // Nhận hàm này từ cha
+    onDragStart 
 }: DragDropListProps) => {
   return (
     <Card className="p-4 md:p-6 border-dashed border-2 relative mt-2 md:mt-4">
@@ -83,7 +81,6 @@ const DragDropList = ({
           </div>
         </div>
         
-        {/* Kết nối sự kiện Drag Start/End */}
         <DragDropContext 
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
@@ -108,10 +105,8 @@ const DragDropList = ({
                       const style: React.CSSProperties = {
                           ...originalStyle,
                           ...(snapshot.isDragging ? { 
-                              // Logic Portal Fix:
                               position: "fixed", 
                               zIndex: 99999,
-
                               background: "white",
                               border: "1px solid #16a34a",
                               boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)",
@@ -126,22 +121,27 @@ const DragDropList = ({
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          // Ngăn Drawer nhận sự kiện drag (Layer bảo vệ 1)
+                          // 1. CHUYỂN HANDLE VỀ THẺ CHA: Bây giờ chạm đâu trên thẻ cũng kéo được
+                          {...(useManualOrder ? provided.dragHandleProps : {})}
+                          
                           data-vaul-no-drag={useManualOrder}
-                          style={style}
+                          style={{
+                              ...style,
+                              // 2. CHẶN CUỘN KHI Ở MANUAL MODE:
+                              // Nếu bật Manual -> touchAction='none' (Ưu tiên kéo, chặn cuộn)
+                              // Nếu tắt Manual -> touchAction='pan-y' (Cho phép cuộn bình thường)
+                              touchAction: useManualOrder ? 'none' : 'pan-y' 
+                          }}
                           className={`
                             relative flex items-center gap-3 p-3 rounded-lg border text-sm select-none
-                            ${snapshot.isDragging ? "" : "bg-white border-gray-100"}
+                            ${snapshot.isDragging ? "" : "bg-white border-gray-100 transition-colors"}
+                            ${useManualOrder ? "cursor-grab active:cursor-grabbing" : ""}
                           `}
                         >
+                          {/* Icon Grip vẫn giữ để làm dấu hiệu nhận biết, nhưng không chứa logic riêng nữa */}
                           {useManualOrder && (
-                             <div 
-                                {...provided.dragHandleProps}
-                                className="p-2 -ml-2 cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
-                                // Chặn scroll (Layer bảo vệ 2)
-                                style={{ touchAction: 'none' }}
-                             >
-                                <GripVertical className="h-5 w-5 text-gray-400" />
+                             <div className="p-2 -ml-2 text-gray-400 flex-shrink-0">
+                                <GripVertical className="h-5 w-5" />
                              </div>
                           )}
                           
