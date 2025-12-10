@@ -425,7 +425,7 @@ const OptimizeRoutePage = () => {
                <div className="w-12 h-1.5 bg-gray-300 rounded-full mb-2" />
              </div>
 
-             <div className="px-4 pb-2 mt-2 bg-white border-b border-gray-50 flex-shrink-0">
+             <div className="px-4 pb-2 pt-2 bg-white border-b border-gray-50 flex-shrink-0">
                  <div className="relative mb-3">
                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
                    <Input 
@@ -435,7 +435,7 @@ const OptimizeRoutePage = () => {
                      onKeyDown={handleKeyDown}
                      spellCheck={false}
                      onFocus={() => { if (snap === "190px") setSnap(0.61); }}
-                     className="pl-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-green-500 h-10 shadow-sm rounded-lg text-sm"
+                     className="pl-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-green-500 h-10 shadow-sm rounded-lg text-base md:text-sm"
                    />
                  </div>
 
