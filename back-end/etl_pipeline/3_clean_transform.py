@@ -264,6 +264,8 @@ def get_full_text(row):
         row["subtypes"],
         row["description"],
         row["review_tags"],
+        row["cuisine_origin"],
+        row["ai_vibe"],
     ]
     return clean_text(" ".join([str(p) for p in parts if p]))
 
@@ -487,7 +489,7 @@ def create_processed_db():
             SELECT place_id, name, full_address, latitude, longitude,
                    street, borough, city, country, rating, range, 
                    working_hour, photo_url, street_view, phone, site, 
-                   category, review_tags, subtypes, description
+                   category, review_tags, subtypes, description, ai_vibe, cuisine_origin
             FROM restaurants
         """
         )

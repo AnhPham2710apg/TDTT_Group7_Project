@@ -42,7 +42,7 @@ except ImportError as e:
 # CONFIGURATION
 # ==============================================================================
 START_ID = 1      # Start ID in SQLite
-END_ID = 500        # End ID
+END_ID = 1700        # End ID
 BATCH_SIZE = 50     # Batch size for bulk inserts
 
 # ==============================================================================
