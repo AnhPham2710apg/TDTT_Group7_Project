@@ -434,7 +434,18 @@ const OptimizeRoutePage = () => {
                      onChange={(e) => setStartPoint(e.target.value)}
                      onKeyDown={handleKeyDown}
                      spellCheck={false}
-                     onFocus={() => { if (snap === "190px") setSnap(0.61); }}
+                     onFocus={(e) => {
+                        // Chỉ xử lý nếu đang ở trạng thái thu gọn
+                        if (snap === "190px") {
+                          // Delay 300ms (thời gian chuẩn animation bàn phím iOS)
+                          setTimeout(() => {
+                            setSnap(0.61);
+                            
+                            // (Tuỳ chọn) Đảm bảo input nằm giữa màn hình sau khi drawer mở rộng
+                            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          }, 300);
+                        }
+                      }}
                      className="pl-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-green-500 h-10 shadow-sm rounded-lg text-base md:text-sm"
                    />
                  </div>
