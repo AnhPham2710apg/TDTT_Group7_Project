@@ -19,6 +19,7 @@ import { API_BASE_URL } from "@/lib/api-config";
 import { Drawer } from "vaul"; // IMPORT VAUL
 import { createPortal } from "react-dom";
 import React from "react";
+
 // --- INTERFACES (GIỮ NGUYÊN) ---
 interface Waypoint {
   id: string;
@@ -121,7 +122,6 @@ const DragDropList = ({ initialPlaces, useManualOrder, setUseManualOrder, onDrag
                     isDragDisabled={!useManualOrder}
                 >
                   {(provided, snapshot) => {
-                    // Ép kiểu style sang React.CSSProperties
                     const style = provided.draggableProps.style as React.CSSProperties;
 
                     const cardContent = (
@@ -129,7 +129,7 @@ const DragDropList = ({ initialPlaces, useManualOrder, setUseManualOrder, onDrag
                         ref={provided.innerRef}
                         {...provided.draggableProps}
                         {...(useManualOrder ? provided.dragHandleProps : {})}
-                        // CẬP NHẬT QUAN TRỌNG: Khóa Drawer khi đang ở chế độ thủ công
+                        // Logic chặn kéo drawer khi đang ở chế độ thủ công
                         {...(useManualOrder ? { "data-vaul-no-drag": true } : {})}
                         style={{
                           ...style,
@@ -234,7 +234,6 @@ const OptimizeRoutePage = () => {
   const { username, isLoggedIn } = useAuth();
 
   // === VAUL DRAWER CONFIG ===
-  // CẬP NHẬT: State snap mặc định là "190px" theo yêu cầu
   const [snap, setSnap] = useState<number | string | null>("190px");
 
   // --- EFFECT: Parse URL ---
@@ -320,7 +319,6 @@ const OptimizeRoutePage = () => {
       setMapPoints([start_Point, ...data.waypoints]);
       toast.success("Đã tối ưu hóa lộ trình!");
       
-      // UX: CẬP NHẬT: Mở drawer lên mức giữa (0.61) để xem kết quả
       setSnap(0.61);
 
       if (isLoggedIn && username) {
@@ -351,7 +349,6 @@ const OptimizeRoutePage = () => {
       }
       if (targetPoint) {
           setFocusPoint({ lat: targetPoint.lat, lon: targetPoint.lon });
-          // UX: CẬP NHẬT: Thu gọn drawer về 190px để xem map
           setSnap("190px"); 
       }
   };
@@ -387,8 +384,14 @@ const OptimizeRoutePage = () => {
              </Button>
          </div>
 
-         {/* 2. MAP */}
-         <div className="absolute inset-0 z-0 bg-gray-100 [&_.leaflet-control-container]:hidden [&_.gmnoprint]:hidden [&_.mapboxgl-ctrl]:hidden">
+         {/* 2. MAP (CẢI TIẾN QUAN TRỌNG) */}
+         {/* Nếu snap khác 190px (tức là drawer đang mở cao), ta thêm 'pointer-events-none' cho Map.
+             Điều này giúp Map "đóng băng", không nhận sự kiện kéo/click nhầm.
+             Đồng thời giúp trình duyệt không phải repaint map khi đang kéo drawer -> Mượt hơn RẤT NHIỀU. */}
+         <div className={`absolute inset-0 z-0 bg-gray-100 transition-opacity duration-300 
+                          [&_.leaflet-control-container]:hidden [&_.gmnoprint]:hidden [&_.mapboxgl-ctrl]:hidden
+                          ${snap === "190px" ? "" : "pointer-events-none"}`}
+         >
              <RouteMap 
                polylineOutbound={polyOutbound} 
                polylineReturn={polyReturn}
@@ -399,23 +402,21 @@ const OptimizeRoutePage = () => {
 
          {/* 3. VAUL DRAWER */}
          <Drawer.Root 
-            // CẬP NHẬT: snapPoints chính xác theo yêu cầu: 190px, 0.61, 0.8
             snapPoints={["190px", 0.61, 0.8]} 
             activeSnapPoint={snap} 
             setActiveSnapPoint={setSnap}
-            // Quan trọng: modal={false} cho phép tương tác với map khi drawer không full
             modal={false}
             open={true}
-            dismissible={false} // Không cho phép đóng hẳn
+            dismissible={false} 
           >
             <Drawer.Content className="fixed flex flex-col bg-white border border-gray-200 border-b-none rounded-t-[10px] bottom-0 left-0 right-0 h-full max-h-[96%] mx-[-1px] z-30 shadow-2xl outline-none">
               
-              {/* 1. Handle Bar: Thêm z-index và shadow nhẹ để tách biệt nếu muốn */}
+              {/* Handle Bar */}
               <div className="w-full mx-auto flex flex-col items-center pt-3 pb-2 bg-white rounded-t-[10px] flex-shrink-0 cursor-grab active:cursor-grabbing z-10">
                 <div className="w-12 h-1.5 bg-gray-300 rounded-full mb-2" />
               </div>
 
-              {/* 2. Scrollable Content: QUAN TRỌNG - Thêm pt-4 để đẩy nội dung xuống */}
+              {/* Scrollable Content */}
               <div className="flex-1 overflow-y-auto px-4 pt-4 pb-safe bg-white">
                 <div className="space-y-3 mb-4">
                   <div className="relative">
@@ -425,13 +426,10 @@ const OptimizeRoutePage = () => {
                       value={startPoint}
                       onChange={(e) => setStartPoint(e.target.value)}
                       onKeyDown={handleKeyDown}
-                      // Tắt kiểm tra chính tả gạch chân đỏ (nếu muốn)
                       spellCheck={false}
                       onFocus={() => {
-                        // CẬP NHẬT: Nếu đang ở min (190px), nhảy lên mức giữa (0.61)
                         if (snap === "190px") setSnap(0.61);
                       }}
-                      // Thêm ring-offset-0 để viền khít hơn nếu cần, nhưng pt-4 ở trên là quan trọng nhất
                       className="pl-9 bg-white border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 h-10 shadow-sm"
                     />
                   </div>
@@ -448,7 +446,6 @@ const OptimizeRoutePage = () => {
                   </Button>
                 </div>
 
-                {/* Phần danh sách bên dưới giữ nguyên */}
                 <div className="transition-opacity duration-300 pb-20">
                   {optimizedRoute.length === 0 && initialPlaces.length > 0 && 
                     <DragDropList 
