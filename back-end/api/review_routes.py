@@ -160,6 +160,27 @@ def delete_review(review_id):
     except Exception:
         db.session.rollback()
         return jsonify({"error": "Error"}), 500
+      
+# --- THÊM ĐOẠN NÀY VÀO ---
+@review_bp.route("/api/user/<username>/reviews", methods=["GET"])
+def get_user_reviews(username):
+    """
+    Lấy danh sách các đánh giá do một User viết
+    ---
+    tags:
+      - Reviews
+    """
+    try:
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+            
+        # Lấy tất cả review của user này, sắp xếp mới nhất trước
+        reviews = Review.query.filter_by(user_id=user.id).order_by(Review.created_at.desc()).all()
+        
+        return jsonify([r.to_dict() for r in reviews])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # ==============================================================================
 # 2. QUẢN LÝ YÊU THÍCH (FAVORITES)
