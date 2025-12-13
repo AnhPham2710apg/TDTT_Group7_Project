@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   MapPin, Loader2, Navigation, ListChecks,
-  GripVertical, ArrowLeft
+  GripVertical, ArrowLeft, Save
 } from "lucide-react";
 import { toast } from "sonner";
 import RouteMap from "@/components/RouteMap";
@@ -245,6 +245,13 @@ const OptimizeRoutePage = () => {
   // STATE MỚI: Theo dõi trạng thái đang kéo
   const [isDragging, setIsDragging] = useState(false);
 
+  const [isSaving, setIsSaving] = useState(false);
+  // State để lưu dữ liệu thô từ API optimize (để gửi lại cho API save)
+  const [rawRouteData, setRawRouteData] = useState<{
+    distance: number;
+    duration: number;
+  } | null>(null);
+
   // --- EFFECT: Parse URL & Tạo ID duy nhất ---
   useEffect(() => {
     const separator = "|||";
@@ -291,15 +298,18 @@ const OptimizeRoutePage = () => {
   };
 
   // --- OPTIMIZE LOGIC ---
+  // --- OPTIMIZE LOGIC ---
   const handleOptimize = async () => {
     if (!startPoint) { toast.error("Vui lòng nhập điểm xuất phát"); return; }
     setIsOptimizing(true);
+    // Reset states
     setFocusPoint(null);
     setOptimizedRoute([]);
     setRouteInfo({ distance: "", duration: "" });
     setPolyOutbound(null);
     setPolyReturn(null);
     setMapPoints([]);
+    setRawRouteData(null); // Reset raw data
 
     try {
       if (initialPlaces.length === 0) {
@@ -307,6 +317,7 @@ const OptimizeRoutePage = () => {
         setIsOptimizing(false);
         return;
       }
+      
       const placesPayload = initialPlaces.map((place) => ({
         name: place.name, address: place.address, lat: place.lat || 0, lng: place.lon || 0
       }));
@@ -317,16 +328,27 @@ const OptimizeRoutePage = () => {
       );
       
       const data = response.data;
+      
+      // 1. Cập nhật UI hiển thị
       const formattedRoute = [
         `Xuất phát: ${startPoint}`,
         ...data.optimized_order.map((placeName, index) => `${index + 1}. ${placeName}`),
         `Kết thúc: ${startPoint}`
       ];
       setOptimizedRoute(formattedRoute);
+      
+      // Hiển thị dạng chuỗi đẹp
       setRouteInfo({
         distance: `${data.distance_km.toFixed(1)} km`,
         duration: `${Math.round(data.duration_min)} phút`,
       });
+
+      // 2. LƯU DỮ LIỆU THÔ (Để dùng cho nút Save) [NEW]
+      setRawRouteData({
+        distance: data.distance_km,
+        duration: data.duration_min
+      });
+
       setPolyOutbound(data.polyline_outbound);
       setPolyReturn(data.polyline_return);
       
@@ -334,25 +356,62 @@ const OptimizeRoutePage = () => {
         id: 'Điểm xuất phát', address: startPoint, ...data.start_point_coords,
       };
       setMapPoints([start_Point, ...data.waypoints]);
+      
       toast.success("Đã tối ưu hóa lộ trình!");
-
       setSnap(0.61); 
 
-      if (isLoggedIn && username) {
-          try {
-              await axios.post(`${API_BASE_URL}/api/routes`, {
-                  username: username, start_point: startPoint, places: placesPayload,
-                  polyline_outbound: data.polyline_outbound, polyline_return: data.polyline_return,
-                  distance: data.distance_km, duration: data.duration_min
-              });
-              toast.success("Đã lưu vào lịch sử lộ trình!");
-          } catch (err) { console.error("Không thể lưu lịch sử", err); }
-      }
+      // --- XÓA ĐOẠN CODE AUTO-SAVE CŨ Ở ĐÂY ---
+      // (Chúng ta sẽ chuyển nó sang nút bấm riêng)
+      
       clearCart();
     } catch (error: unknown) {
+      console.error(error);
       toast.error("Tối ưu hóa thất bại");
     } finally {
       setIsOptimizing(false);
+    }
+  };
+
+  // --- SAVE ROUTE HANDLER [NEW] ---
+  const handleSaveRoute = async () => {
+    if (!isLoggedIn || !username) {
+      toast.error("Vui lòng đăng nhập để lưu lộ trình");
+      navigate("/login");
+      return;
+    }
+
+    if (!rawRouteData) {
+      toast.error("Chưa có dữ liệu lộ trình để lưu");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Chuẩn bị payload đúng format backend yêu cầu
+      const placesPayload = initialPlaces.map((place) => ({
+        name: place.name, 
+        address: place.address, 
+        lat: place.lat || 0, 
+        lng: place.lon || 0
+      }));
+
+      const payload = {
+        username: username,
+        start_point: startPoint,
+        places: placesPayload,
+        distance: rawRouteData.distance,   // Gửi số (float)
+        duration: rawRouteData.duration,   // Gửi số (float)
+        polyline_outbound: polyOutbound || "",
+        polyline_return: polyReturn || ""
+      };
+
+      await axios.post(`${API_BASE_URL}/api/routes`, payload);
+      toast.success("Đã lưu lộ trình vào lịch sử!");
+    } catch (error) {
+      console.error("Save route error:", error);
+      toast.error("Không thể lưu lộ trình. Vui lòng thử lại.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -471,13 +530,28 @@ const OptimizeRoutePage = () => {
                      onDragStart={handleDragStart} // Truyền handler xuống
                    />
                  }
-                 {optimizedRoute.length > 0 && 
-                   <ResultList 
-                     optimizedRoute={optimizedRoute} 
-                     handleCardClick={handleCardClick} 
-                     routeInfo={routeInfo} 
-                   />
-                 }
+                 {optimizedRoute.length > 0 && (
+                  <div className="space-y-3"> {/* Bọc trong div để spacing đẹp */}
+                    <ResultList 
+                      optimizedRoute={optimizedRoute} 
+                      handleCardClick={handleCardClick} 
+                      routeInfo={routeInfo} 
+                    />
+                    
+                    {/* NÚT SAVE CHO MOBILE */}
+                    {isLoggedIn && (
+                      <Button 
+                        variant="outline" 
+                        className="w-full border-green-600 text-green-700 hover:bg-green-50"
+                        onClick={handleSaveRoute}
+                        disabled={isSaving}
+                      >
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        Lưu lộ trình này
+                      </Button>
+                    )}
+                  </div>
+                )}
                </div>
              </div>
            </Drawer.Content>
@@ -538,12 +612,27 @@ const OptimizeRoutePage = () => {
 
              {/* ResultList tự đẩy chiều cao xuống */}
              {optimizedRoute.length > 0 && (
-               <ResultList 
-                   optimizedRoute={optimizedRoute} 
-                   handleCardClick={handleCardClick} 
-                   routeInfo={routeInfo} 
-               />
-             )}
+              <div className="space-y-4"> {/* Bọc div để tạo khoảng cách */}
+                <ResultList 
+                    optimizedRoute={optimizedRoute} 
+                    handleCardClick={handleCardClick} 
+                    routeInfo={routeInfo} 
+                />
+                
+                {/* NÚT SAVE CHO PC */}
+                {isLoggedIn && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full border-green-600 text-green-700 hover:bg-green-600"
+                    onClick={handleSaveRoute}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Lưu vào lịch sử
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* --- CỘT PHẢI (BẢN ĐỒ) --- */}
