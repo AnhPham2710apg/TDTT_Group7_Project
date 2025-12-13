@@ -32,6 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { API_BASE_URL } from "@/lib/api-config";
 
 // --- INTERFACES ---
 interface RouteHistoryItem {
@@ -91,23 +92,23 @@ const ProfilePage = () => {
         if (!currentUsername) return;
 
         // 1. Fetch Favorites
-        const favRes = await axios.get(`http://localhost:5000/api/favorite/${currentUsername}`);
+        const favRes = await axios.get(`${API_BASE_URL}/api/favorite/${currentUsername}`);
         const favIds: string[] = favRes.data.favorites || [];
-        const favPromises = favIds.map(id => axios.get(`http://localhost:5000/api/restaurant/${id}`).catch(() => null));
+        const favPromises = favIds.map(id => axios.get(`${API_BASE_URL}/api/restaurant/${id}`).catch(() => null));
         const favResults = await Promise.all(favPromises);
         setFavorites(favResults.filter(r => r?.data).map(r => ({...r?.data, is_favorite: true})));
 
         // 2. Fetch Routes
-        const routeRes = await axios.get(`http://localhost:5000/api/routes/${currentUsername}`);
+        const routeRes = await axios.get(`${API_BASE_URL}/api/routes/${currentUsername}`);
         setRoutes(routeRes.data);
 
         // 3. Fetch Reviews
-        const reviewRes = await axios.get(`http://localhost:5000/api/user/${currentUsername}/reviews`);
+        const reviewRes = await axios.get(`${API_BASE_URL}/api/user/${currentUsername}/reviews`);
         const reviewsData: UserReviewItem[] = reviewRes.data;
 
         const reviewPromises = reviewsData.map(async (review) => {
             try {
-                const restRes = await axios.get(`http://localhost:5000/api/restaurant/${review.place_id}`);
+                const restRes = await axios.get(`${API_BASE_URL}/api/restaurant/${review.place_id}`);
                 return { 
                     ...review, 
                     restaurantName: restRes.data.name,
@@ -153,7 +154,7 @@ const ProfilePage = () => {
     const oldFavs = favorites;
     setFavorites(prev => prev.filter(f => f.id !== restaurant.id));
     try {
-        await axios.delete("http://localhost:5000/api/favorite", {
+        await axios.delete(`${API_BASE_URL}/api/favorite`, {
             data: { username: currentUsername, place_id: restaurant.place_id }
         });
         toast.success("Đã xóa khỏi yêu thích");
@@ -188,11 +189,11 @@ const ProfilePage = () => {
     if (!deleteId || !deleteType) return;
     try {
       if (deleteType === "route") {
-          await axios.delete(`http://localhost:5000/api/routes/${deleteId}`);
+          await axios.delete(`${API_BASE_URL}/api/routes/${deleteId}`);
           setRoutes((prev) => prev.filter((r) => r.id !== deleteId));
           toast.success("Đã xóa lộ trình!");
       } else {
-          await axios.delete(`http://localhost:5000/api/reviews/${deleteId}`);
+          await axios.delete(`${API_BASE_URL}/api/reviews/${deleteId}`);
           setMyReviews((prev) => prev.filter((r) => r.id !== deleteId));
           toast.success("Đã xóa bài đánh giá!");
       }
@@ -214,7 +215,7 @@ const ProfilePage = () => {
   const handleRenameSubmit = async () => {
     if (!editingRoute || !newName.trim()) return;
     try {
-        await axios.put(`http://localhost:5000/api/routes/${editingRoute.id}`, { name: newName });
+        await axios.put(`${API_BASE_URL}/api/routes/${editingRoute.id}`, { name: newName });
         setRoutes(prev => prev.map(r => r.id === editingRoute.id ? { ...r, name: newName } : r));
         toast.success("Đổi tên thành công!");
         setEditingRoute(null);
