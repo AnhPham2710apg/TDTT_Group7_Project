@@ -542,7 +542,7 @@ const OptimizeRoutePage = () => {
                     {isLoggedIn && (
                       <Button 
                         variant="outline" 
-                        className="w-full border-green-600 text-green-700 hover:bg-green-50"
+                        className="w-full border-green-600 text-green-700 hover:bg-green-600"
                         onClick={handleSaveRoute}
                         disabled={isSaving}
                       >
