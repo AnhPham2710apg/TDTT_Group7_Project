@@ -229,7 +229,7 @@ export const RouteMap = ({ polylineOutbound, polylineReturn, points, focusPoint 
       `}</style>
       <div 
         ref={mapContainerRef} 
-        className="w-full h-full rounded-lg shadow-inner bg-gray-100 overflow-hidden" 
+        className="w-full h-full bg-gray-100 overflow-hidden" 
       />
     </>
   );

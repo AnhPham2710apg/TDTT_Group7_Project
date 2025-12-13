@@ -484,15 +484,23 @@ const OptimizeRoutePage = () => {
          </Drawer.Root>
       </div>
       
-      {/* --- PC LAYOUT (GIỮ NGUYÊN) --- */}
-      <div className="hidden md:block container mx-auto px-4 py-8 h-[calc(100vh-80px)]">
+      {/* --- PC LAYOUT --- */}
+      {/* 1. CONTAINER: Đổi h-[calc...] thành min-h-[...] để trang có thể dài ra */}
+      <div className="hidden md:block container mx-auto px-4 py-8 min-h-[calc(100vh-80px)]">
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2">Tối ưu hóa Lộ trình</h1>
           <p className="text-muted-foreground">Tạo lộ trình hiệu quả nhất để ghé thăm tất cả các nhà hàng đã chọn</p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6 h-full">
-          <div className="lg:col-span-1 space-y-6 h-full overflow-y-auto pr-2 pb-20 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+        {/* 2. GRID: Bỏ h-full, giữ items-stretch (mặc định của grid) */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          
+          {/* --- CỘT TRÁI --- */}
+          {/* 3. Thay đổi class:
+              - Bỏ: h-full, overflow-y-auto, scrollbar-thin... (Để nó tự dài ra theo nội dung)
+              - Thêm: h-fit (để đảm bảo nó ôm nội dung) hoặc để trống (nó sẽ stretch theo grid)
+          */}
+          <div className="lg:col-span-1 space-y-6">
              <Card className="p-6 shadow-sm">
                <div className="space-y-4">
                  <div>
@@ -517,16 +525,18 @@ const OptimizeRoutePage = () => {
                </div>
              </Card>
 
+             {/* DragDropList tự đẩy chiều cao xuống */}
              {optimizedRoute.length === 0 && initialPlaces.length > 0 && (
                 <DragDropList 
                      initialPlaces={initialPlaces} 
                      useManualOrder={useManualOrder} 
                      setUseManualOrder={setUseManualOrder} 
                      onDragEnd={onDragEnd} 
-                     onDragStart={() => {}} // PC không cần logic khóa drawer
+                     onDragStart={() => {}} 
                 />
              )}
 
+             {/* ResultList tự đẩy chiều cao xuống */}
              {optimizedRoute.length > 0 && (
                <ResultList 
                    optimizedRoute={optimizedRoute} 
@@ -536,13 +546,20 @@ const OptimizeRoutePage = () => {
              )}
           </div>
 
-          <div className="lg:col-span-2 h-full relative rounded-xl overflow-hidden border shadow-lg bottom-5">
-             <RouteMap 
-               polylineOutbound={polyOutbound} 
-               polylineReturn={polyReturn} 
-               points={mapPoints} 
-               focusPoint={focusPoint} 
-             />
+          {/* --- CỘT PHẢI (BẢN ĐỒ) --- */}
+          {/* 4. Thay đổi class:
+              - h-full: Để nó cao bằng cột trái (nhờ Grid layout).
+              - min-h-[500px]: Đặt chiều cao tối thiểu để lỡ cột trái ít nội dung quá thì bản đồ vẫn đẹp.
+          */}
+          <div className="lg:col-span-2 h-[580px] relative rounded-xl overflow-hidden border shadow-lg">
+             <div className="w-full h-full">
+                <RouteMap 
+                    polylineOutbound={polyOutbound} 
+                    polylineReturn={polyReturn} 
+                    points={mapPoints} 
+                    focusPoint={focusPoint} 
+                />
+            </div>
           </div>
         </div>
       </div>
