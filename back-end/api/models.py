@@ -68,11 +68,11 @@ class Restaurant(db.Model):
         # Ưu tiên tính theo maxPrice thực tế
         level = 1
         if self.maxPrice:
-            if self.maxPrice >= 500000:   # Trên 500k -> Sang trọng ($$$$)
+            if self.maxPrice >= 2000000:   # Trên 500k -> Sang trọng ($$$$)
                 level = 4
-            elif self.maxPrice >= 200000: # 200k - 500k -> Khá ($$$)
+            elif self.maxPrice >= 500000: # 200k - 500k -> Khá ($$$)
                 level = 3
-            elif self.maxPrice >= 50000:  # 50k - 200k -> Trung bình ($$)
+            elif self.maxPrice >= 100000:  # 50k - 200k -> Trung bình ($$)
                 level = 2
             else:                         # Dưới 50k -> Rẻ ($)
                 level = 1

@@ -3,14 +3,13 @@ import json
 import re
 import os
 import logging
-import config # Import config
+import config  # Import config
 
-# --- CẤU HÌNH ĐƯỜNG DẪN (SỬA LẠI) ---
-SOURCE_DB = config.DB_AI_TAGGED  # Input là output của bước 3
-TARGET_DB = config.DB_FINAL_PATH     # Output ra file cuối cùng
+# --- CẤU HÌNH ĐƯỜNG DẪN ---
+SOURCE_DB = config.DB_AI_TAGGED  # Input
+TARGET_DB = config.DB_FINAL_PATH # Output
 
 BATCH_SIZE = 1000
-
 
 # Thiết lập Logging
 logging.basicConfig(
@@ -21,7 +20,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --- 1. TỪ ĐIỂN TỪ KHÓA NÂNG CAO (SUPER DICTIONARY) ---
-# (Phần này được giữ nguyên như code gốc của bạn)
 KEYWORDS_CONFIG = {
     "cuisine": {
         "Nhật Bản": (
@@ -105,7 +103,6 @@ KEYWORDS_CONFIG = {
             r"soup|gỏi|goi)\b"
         ),
     },
-    # Flavor Direct: Từ khóa chỉ vị trực tiếp
     "flavor_direct": {
         "cay": (
             r"\b(cay|cay xè|spicy|spi cy|cayy|cayyy|ớt|ot|sa tế|sa te|"
@@ -137,12 +134,9 @@ KEYWORDS_CONFIG = {
             r"fresh|rau củ|luộc|luoc|hấp|hap)\b"
         ),
     },
-    # Flavor Inference: Suy luận vị từ món ăn (Dish -> Flavor)
     "flavor_inference_dishes": {
-        # --- VỊ MẶN / UMAMI ---
         "mặn": (
             r"\b("
-            # Món Việt
             r"bún đậu|mắm tôm|kho tộ|kho quẹt|cơm tấm|bún mắm|lẩu mắm|"
             r"bò kho|phở|bún chả|bánh mì|bánh cuốn|bún riêu|bún cá|"
             r"bún thịt nướng|cơm rang|cơm chiên|cơm niêu|cơm gà|xôi mặn|"
@@ -151,21 +145,17 @@ KEYWORDS_CONFIG = {
             r"ốc luộc|cua rang|ghẹ rang|hến xúc|lẩu|lẩu bò|lẩu gà|"
             r"lẩu cá|cháo lòng|cháo lươn|giò lụa|chả quế|thịt ngâm|"
             r"mắm cá|tóp mỡ|ruốc|"
-            # Món Á - Nhật, Hàn, Trung
             r"ramen|udon|soba|gyudon|donburi|sashimi|sushi|teriyaki|"
             r"yakitori|okonomiyaki|bibimbap|bulgogi|samgyeopsal|"
             r"jjajangmyeon|dim sum|xíu mại|há cảo|sủi cảo|"
             r"lẩu Tứ Xuyên|thịt kho tàu Trung Quốc|"
-            # Món Tây
             r"pizza savory|burger|pasta savory|beefsteak|steak|gravy|"
             r"kebab|shawarma|ham|prosciutto|salami|taco|burrito|"
             r"hot dog|fried chicken|fish and chips|"
-            # Từ mô tả vị
             r"đậm đà|mặn mà|ngon mặn|umami|rich savory|salty|đậm vị|"
             r"mặn đậm|ướp muối|ướp gia vị|nước mắm"
             r")\b"
         ),
-        # --- VỊ BÉO ---
         "béo": (
             r"\b("
             r"pizza|carbonara|trà sữa|cheese|phô mai|bơ tỏi|cốt dừa|"
@@ -178,7 +168,6 @@ KEYWORDS_CONFIG = {
             r"béo ngậy|cream sauce|rich|ngậy|oily|bơ nhiều|greasy"
             r")\b"
         ),
-        # --- VỊ CAY ---
         "cay": (
             r"\b("
             r"bún bò huế|mì cay|lẩu thái|tom yum|gà cay|tokbokki|"
@@ -189,7 +178,6 @@ KEYWORDS_CONFIG = {
             r"cay tê|spicy level 3|cay cay|cay nhẹ|cay vừa"
             r")\b"
         ),
-        # --- VỊ NGỌT ---
         "ngọt": (
             r"\b("
             r"chè|bánh flan|sinh tố|nước ép|bánh ngọt|kẹo|caramel|"
@@ -200,7 +188,6 @@ KEYWORDS_CONFIG = {
             r"maple syrup|honey|vol-au-vent|sweet bun"
             r")\b"
         ),
-        # --- VỊ CHUA ---
         "chua": (
             r"\b("
             r"canh chua|gỏi cuốn|gỏi xoài|xoài lắc|mắm me|chanh|"
@@ -209,7 +196,6 @@ KEYWORDS_CONFIG = {
             r"chua thanh|sour|acidic|vinegar|lactic"
             r")\b"
         ),
-        # --- VỊ THANH ĐẠM / NHẠT ---
         "thanh đạm": (
             r"\b("
             r"rau luộc|rau hấp|salad|salad trộn|gỏi cuốn|súp rau củ|"
@@ -220,7 +206,6 @@ KEYWORDS_CONFIG = {
             r"tinh khiết|hương vị nhẹ|clear broth|white meat|plain"
             r")\b"
         ),
-        # --- VỊ ĐẮNG ---
         "đắng": (
             r"\b("
             r"cà phê|coffee|espresso|americano|cold brew|cacao đậm|"
@@ -236,28 +221,20 @@ KEYWORDS_CONFIG = {
 
 # --- 2. HÀM XỬ LÝ TEXT ---
 
-
 def clean_text(text):
-    """Làm sạch văn bản để regex hoạt động tốt hơn."""
     if not text:
         return ""
-    # Chuyển thành chuỗi, chữ thường
     text = str(text).lower()
-    # Loại bỏ dấu câu thừa, giữ lại chữ cái và số Tiếng Việt
     text = (
         text.replace("\n", " ")
         .replace(",", " ")
         .replace(".", " ")
         .replace("-", " ")
     )
-    # Chuẩn hóa khoảng trắng
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
-
 def get_full_text(row):
-    """Gộp tất cả các trường thông tin quan trọng."""
-    # Giữ nguyên các cột cần thiết cho việc suy luận, không cần thay đổi
     parts = [
         row["name"],
         row["category"],
@@ -269,51 +246,30 @@ def get_full_text(row):
     ]
     return clean_text(" ".join([str(p) for p in parts if p]))
 
-
-# --- 3. CÁC HÀM MAPPING LOGIC CAO CẤP ---
-
-# (Các hàm map_cuisine, map_food_type, map_beverage_or_food, 
-# map_course_type, map_flavor, map_price_range được giữ nguyên)
-
+# --- 3. CÁC HÀM MAPPING LOGIC ---
 
 def map_cuisine(text):
-    """
-    Xác định ẩm thực theo độ ưu tiên.
-    Ưu tiên tìm các món nước ngoài trước, nếu không thấy mới check món Việt.
-    """
-    # 1. Check các ẩm thực đặc thù (Foreign)
     for cuisine, pattern in KEYWORDS_CONFIG["cuisine"].items():
         if cuisine != "Việt Nam" and re.search(pattern, text):
             return cuisine
-
-    # 2. Check Việt Nam (Low priority để tránh override)
     if re.search(KEYWORDS_CONFIG["cuisine"]["Việt Nam"], text):
         return "Việt Nam"
-
     return "Khác"
-
 
 def map_food_type(text):
     if re.search(KEYWORDS_CONFIG["food_type"]["chay"], text):
         return "chay"
     return "mặn"
 
-
 def map_beverage_or_food(text, category):
-    """Kết hợp cả text và category gốc của Google Maps"""
     text_check = text + " " + clean_text(category)
-
     is_drink = re.search(KEYWORDS_CONFIG["beverage"], text_check)
     is_food = re.search(KEYWORDS_CONFIG["food_exclusion"], text_check)
-
-    # Logic ưu tiên
     if is_drink and is_food:
         return "cả 2"
     if is_drink:
         return "nước"
-    # Mặc định là 'khô' (đồ ăn) nếu không tìm thấy từ khóa nước
     return "khô"
-
 
 def map_course_type(text, bev_or_food):
     if bev_or_food == "nước":
@@ -324,69 +280,40 @@ def map_course_type(text, bev_or_food):
         return "món khai vị"
     return "món chính"
 
-
 def map_flavor(text, cuisine, category, bev_or_food):
-    """
-    Logic suy luận hương vị phức hợp (Complex Inference)
-    """
     flavors = set()
     category = clean_text(category)
-
-    # --- LAYER 1: Tìm kiếm trực tiếp (Direct Keyword) ---
     for flavor, pattern in KEYWORDS_CONFIG["flavor_direct"].items():
         if re.search(pattern, text):
             flavors.add(flavor)
-
-    # --- LAYER 2: Suy luận từ món ăn (Dish Inference) ---
     for flavor, pattern in KEYWORDS_CONFIG["flavor_inference_dishes"].items():
         if re.search(pattern, text):
             flavors.add(flavor)
-
-    # --- LAYER 3: Suy luận từ Category/Type (Category Inference) ---
-    # Nếu là Bakery/Dessert/Cafe -> chắc chắn có Ngọt
-    if re.search(
-        r"\b(dessert|bakery|ice cream|trà sữa|chè|bánh|cake|sinh tố)\b",
-        text + " " + category,
-    ):
+    if re.search(r"\b(dessert|bakery|ice cream|trà sữa|chè|bánh|cake|sinh tố)\b", text + " " + category):
         flavors.add("ngọt")
-
-    # Nếu là Cafe -> Đắng
     if re.search(r"\b(cafe|coffee)\b", text + " " + category):
         flavors.add("đắng")
-
-    # --- LAYER 4: Suy luận từ Cuisine (Cuisine Fallback) ---
-    # Chỉ thêm vào nếu danh sách flavor còn trống hoặc bổ sung tính đặc trưng
     if cuisine == "Thái Lan":
         flavors.update(["chua", "cay", "đậm đà"])
     elif cuisine == "Hàn Quốc":
         flavors.add("cay")
     elif cuisine == "Ấn Độ":
-        flavors.update(["cay", "đậm đà"])  # Cari thường đậm
+        flavors.update(["cay", "đậm đà"])
     elif cuisine == "Việt Nam":
-        # Món Việt thường đậm đà/mặn (nước mắm)
         if "ngọt" not in flavors and bev_or_food != "nước":
             flavors.add("mặn")
     elif cuisine == "Âu/Mỹ":
         if re.search(r"\b(cheese|phô mai|burger|pizza)\b", text):
             flavors.add("béo")
-
-    # --- LAYER 5: Logic tương quan (Correlation) ---
-    # Nếu có Cay -> thường sẽ Mặn (trừ khi là tráng miệng cay - hiếm)
     if "cay" in flavors and "ngọt" not in flavors and bev_or_food != "nước":
         flavors.add("mặn")
-
-    # Nếu là Trà Sữa -> Auto Béo + Ngọt
     if re.search(r"trà sữa", text):
         flavors.update(["béo", "ngọt"])
-
-    # Chuyển set về list
     return list(flavors)
-
 
 def map_district(address):
     if not address:
         return "Khác"
-    # Regex bắt tất cả các biến thể quận huyện TP.HCM
     pattern = (
         r"(q[0-9]+|quận\s?[0-9]+|quan\s?[0-9]+|district\s?[0-9]+|"
         r"d\s?[0-9]+|gò vấp|govap|binh thanh|bình thạnh|tan binh|"
@@ -402,32 +329,62 @@ def map_district(address):
         return d.strip()
     return "Khác"
 
+# --- HÀM MỚI: TÍNH ĐIỂM RANGE TỪ KÝ TỰ ₫ ---
+def calculate_range_score(range_str):
+    """
+    Chuyển đổi chuỗi ký hiệu (₫, ₫₫, ...) thành số nguyên (1, 2, 3, 4).
+    """
+    if not range_str:
+        return 1  # Mặc định là 1 nếu null
+    
+    r = str(range_str).strip()
+    
+    # Check các hằng số của Google Maps trước
+    if r == "PRICE_LEVEL_INEXPENSIVE": return 1
+    if r == "PRICE_LEVEL_MODERATE": return 2
+    if r == "PRICE_LEVEL_EXPENSIVE": return 3
+    if r == "PRICE_LEVEL_VERY_EXPENSIVE": return 4
+    
+    # Đếm số lượng ký tự '₫'
+    # Ví dụ: "₫" -> 1, "₫₫" -> 2
+    count_symbol = r.count('₫')
+    if count_symbol > 0:
+        if count_symbol > 4: return 4
+        return count_symbol
+        
+    # Trường hợp fallback: kiểm tra độ dài chuỗi (ví dụ '$$' hoặc '1', '2')
+    length = len(r)
+    if 1 <= length <= 4:
+        return length
+        
+    return 1 # Mặc định
 
 def map_price_range(range_str):
+    """
+    Vẫn giữ hàm này để map ra minPrice và maxPrice
+    """
     if not range_str:
         return 0, 5000000
     r = str(range_str).strip()
     length = len(r)
-    if length == 1 or r == "PRICE_LEVEL_INEXPENSIVE":
+    # Mapping tương đối dựa trên độ dài hoặc keyword
+    if length == 1 or r == "PRICE_LEVEL_INEXPENSIVE" or r == "₫":
         return 1000, 100000
-    if length == 2 or r == "PRICE_LEVEL_MODERATE":
+    if length == 2 or r == "PRICE_LEVEL_MODERATE" or r == "₫₫":
         return 100000, 500000
-    if length == 3 or r == "PRICE_LEVEL_EXPENSIVE":
+    if length == 3 or r == "PRICE_LEVEL_EXPENSIVE" or r == "₫₫₫":
         return 500000, 2000000
-    if length == 4 or r == "PRICE_LEVEL_VERY_EXPENSIVE":
+    if length == 4 or r == "PRICE_LEVEL_VERY_EXPENSIVE" or r == "₫₫₫₫":
         return 2000000, 10000000
     return 0, 5000000
 
-
 # --- 4. MAIN PROCESSING ---
-
 
 def create_processed_db():
     if not os.path.exists(SOURCE_DB):
         logger.error(f"Không tìm thấy DB nguồn: {SOURCE_DB}")
         return
 
-    # Xóa DB đích cũ
     if os.path.exists(TARGET_DB):
         try:
             os.remove(TARGET_DB)
@@ -443,11 +400,10 @@ def create_processed_db():
         tgt_conn = sqlite3.connect(TARGET_DB)
         tgt_cur = tgt_conn.cursor()
 
-        # Tối ưu tốc độ ghi
         tgt_cur.execute("PRAGMA synchronous = OFF")
         tgt_cur.execute("PRAGMA journal_mode = MEMORY")
 
-        # Tạo bảng (Cấu trúc bảng đích được giữ nguyên)
+        # CẬP NHẬT: Cột 'range' chuyển thành INTEGER
         tgt_cur.execute(
             """
             CREATE TABLE restaurants (
@@ -467,7 +423,7 @@ def create_processed_db():
                 review_tags TEXT,
                 subtypes TEXT,
                 description TEXT,
-                range TEXT,
+                range INTEGER,  -- Đã đổi thành INTEGER
 
                 -- CỘT INFERRED
                 foodType TEXT,
@@ -483,7 +439,6 @@ def create_processed_db():
         )
 
         logger.info("Đang đọc dữ liệu từ DB nguồn...")
-        # CHỈNH SỬA: Truy vấn SELECT để lấy tất cả các cột của cấu trúc mới
         src_cur.execute(
             """
             SELECT place_id, name, full_address, latitude, longitude,
@@ -499,7 +454,6 @@ def create_processed_db():
         count = 0
         total_rows = len(rows)
 
-        # CHỈNH SỬA: Danh sách cột trong INSERT INTO (giữ nguyên cấu trúc đích)
         insert_sql = """
             INSERT INTO restaurants (
                 place_id, name, full_address, latitude, longitude,
@@ -515,7 +469,6 @@ def create_processed_db():
 
         for row in rows:
             try:
-                # Dùng full_address + borough để mapping district
                 address_for_district = (
                     row["full_address"] or row["borough"] or ""
                 )
@@ -529,16 +482,20 @@ def create_processed_db():
                 bev_food = map_beverage_or_food(full_text, category_orig)
                 course_type = map_course_type(full_text, bev_food)
 
-                # Flavor mapping
                 flavor_list = map_flavor(
                     full_text, cuisine, category_orig, bev_food
                 )
                 flavor_json = json.dumps(flavor_list, ensure_ascii=False)
 
                 district = map_district(address_for_district)
+                
+                # --- XỬ LÝ RANGE VÀ PRICE MỚI ---
+                # 1. Tính min/max price (giữ nguyên logic)
                 min_p, max_p = map_price_range(row["range"])
+                
+                # 2. Tính range score (1, 2, 3, 4) từ ký tự ₫
+                range_score = calculate_range_score(row["range"])
 
-                # Cập nhật data_tuple để lấy dữ liệu từ DB nguồn CŨ
                 data_tuple = (
                     row["place_id"],
                     row["name"],
@@ -555,7 +512,8 @@ def create_processed_db():
                     row["review_tags"],
                     row["subtypes"],
                     row["description"],
-                    row["range"],
+                    range_score, # Đưa giá trị số (1-4) vào cột range
+                    
                     # CỘT INFERRED
                     food_type,
                     bev_food,
@@ -576,7 +534,6 @@ def create_processed_db():
                     logger.info(f"Progress: {count}/{total_rows}")
 
             except Exception as e:
-                # Ghi log lỗi với thông tin cột đã thay đổi để debug dễ hơn
                 name = row["name"] if "name" in row else "Unknown"
                 logger.warning(f"Error processing row '{name}': {e}")
                 continue
@@ -589,6 +546,7 @@ def create_processed_db():
         tgt_cur.execute("CREATE INDEX idx_min_price ON restaurants(minPrice)")
         tgt_cur.execute("CREATE INDEX idx_cuisine ON restaurants(cuisine)")
         tgt_cur.execute("CREATE INDEX idx_flavor ON restaurants(flavor)")
+        tgt_cur.execute("CREATE INDEX idx_range ON restaurants(range)") # Thêm index cho cột range
 
         logger.info(f"✅ XONG! Tổng cộng {count} nhà hàng.")
 
@@ -600,7 +558,6 @@ def create_processed_db():
         if "tgt_conn" in locals():
             tgt_conn.close()
 
-
 # --- 5. TEST FUNCTION ---
 def test_results():
     if not os.path.exists(TARGET_DB):
@@ -609,23 +566,15 @@ def test_results():
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    print("\n--- TEST: CÁC VỊ ĐƯỢC SUY LUẬN ---")
+    print("\n--- TEST: CHECK CỘT RANGE SỐ ---")
     cur.execute(
-        "SELECT name, cuisine, flavor FROM restaurants "
-        "WHERE flavor != '[]' LIMIT 10"
+        "SELECT name, range, minPrice, maxPrice FROM restaurants "
+        "WHERE range > 1 LIMIT 5"
     )
     for r in cur.fetchall():
-        print(f"[{r['cuisine']}] {r['name']} -> {r['flavor']}")
+        print(f"{r['name']} | Range Score: {r['range']} | Price: {r['minPrice']}-{r['maxPrice']}")
 
-    print("\n--- TEST: PHÂN LOẠI ẨM THỰC ---")
-    cur.execute(
-        "SELECT cuisine, COUNT(*) as c FROM restaurants "
-        "GROUP BY cuisine ORDER BY c DESC"
-    )
-    for r in cur.fetchall():
-        print(f"{r['cuisine']}: {r['c']}")
     conn.close()
-
 
 if __name__ == "__main__":
     create_processed_db()
