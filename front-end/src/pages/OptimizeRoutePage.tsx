@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   MapPin, Loader2, Navigation, ListChecks,
-  GripVertical, ArrowLeft, Save
+  GripVertical, ArrowLeft, Save, Info
 } from "lucide-react";
 import { toast } from "sonner";
 import RouteMap from "@/components/RouteMap";
@@ -69,22 +69,51 @@ const DragDropList = ({
               <ListChecks className="h-4 w-4 text-muted-foreground" />
               <h3 className="font-semibold text-sm md:text-lg">Điểm cần đến ({initialPlaces.length})</h3>
           </div>
-          <div className="flex items-center gap-2">
-              <span className={`text-xs font-medium ${useManualOrder ? "text-green-600" : "text-muted-foreground"}`}>
-                  {useManualOrder ? "Thủ công" : "Tự động"}
-              </span>
-              <Switch 
-                checked={useManualOrder}
-                onCheckedChange={setUseManualOrder}
-                className="scale-75 data-[state=checked]:bg-green-600"
-              />
-          </div>
+
+          {/* --- BẮT ĐẦU PHẦN THÊM TOOLTIP --- */}
+          <TooltipProvider>
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                {/* Bọc div này để khi rê vào cả chữ và nút đều hiện tooltip */}
+                <div className="flex items-center gap-2 cursor-help select-none hover:bg-gray-100 p-1 rounded-md transition-colors">
+                    <span className={`text-xs font-medium ${useManualOrder ? "text-green-600" : "text-muted-foreground"}`}>
+                        {useManualOrder ? "Thủ công" : "Tự động"}
+                    </span>
+                    <Switch 
+                      checked={useManualOrder}
+                      onCheckedChange={setUseManualOrder}
+                      className="scale-75 data-[state=checked]:bg-green-600"
+                    />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="max-w-[250px] bg-slate-900 text-white p-3 border-none shadow-xl">
+                {useManualOrder ? (
+                  <div className="space-y-1">
+                    <p className="font-bold text-green-400 flex items-center gap-1">Chế độ Thủ công</p>
+                    <p className="text-xs text-gray-300">
+                      Bạn có toàn quyền <b>kéo thả</b> để sắp xếp thứ tự các điểm đến theo ý thích. Thuật toán tối ưu sẽ bị tắt.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <p className="font-bold text-blue-400">Chế độ Tự động</p>
+                    <p className="text-xs text-gray-300">
+                      Hệ thống sẽ tự động tính toán và sắp xếp thứ tự đi sao cho <b>tổng quãng đường là ngắn nhất</b>.
+                    </p>
+                  </div>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          {/* --- KẾT THÚC PHẦN THÊM TOOLTIP --- */}
+
         </div>
         
         <DragDropContext 
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
         >
+          {/* ... (Phần DragDropContext giữ nguyên không đổi) ... */}
           <Droppable droppableId="places-list">
             {(provided) => (
               <div 
@@ -121,28 +150,25 @@ const DragDropList = ({
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          // 1. CHUYỂN HANDLE VỀ THẺ CHA: Bây giờ chạm đâu trên thẻ cũng kéo được
                           {...(useManualOrder ? provided.dragHandleProps : {})}
-                          
                           data-vaul-no-drag={useManualOrder}
                           style={{
                               ...style,
-                              // 2. CHẶN CUỘN KHI Ở MANUAL MODE:
-                              // Nếu bật Manual -> touchAction='none' (Ưu tiên kéo, chặn cuộn)
-                              // Nếu tắt Manual -> touchAction='pan-y' (Cho phép cuộn bình thường)
                               touchAction: useManualOrder ? 'none' : 'pan-y' 
                           }}
                           className={`
                             relative flex items-center gap-3 p-3 rounded-lg border text-sm select-none
                             ${snapshot.isDragging ? "" : "bg-white border-gray-100 transition-colors"}
-                            ${useManualOrder ? "cursor-grab active:cursor-grabbing" : ""}
+                            ${useManualOrder ? "cursor-grab active:cursor-grabbing hover:border-green-200" : "opacity-80"}
                           `}
                         >
-                          {/* Icon Grip vẫn giữ để làm dấu hiệu nhận biết, nhưng không chứa logic riêng nữa */}
-                          {useManualOrder && (
+                          {useManualOrder ? (
                              <div className="p-2 -ml-2 text-gray-400 flex-shrink-0">
                                 <GripVertical className="h-5 w-5" />
                              </div>
+                          ) : (
+                            // Thêm icon khóa hoặc dấu chấm để user biết không kéo được khi ở mode Tự động
+                            <div className="w-2 h-2 rounded-full bg-gray-300 ml-1 mr-2" />
                           )}
                           
                           <div className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold border flex-shrink-0 ${useManualOrder ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
