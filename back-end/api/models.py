@@ -93,7 +93,7 @@ class Restaurant(db.Model):
             "lng": self.longitude or 0.0,
             
             "rating": self.rating or 0.0,
-            "price_level": level,
+            "price_level": self.range,
             "photo_url": self.photo_url or "",
             "description": self.description or "",
             "phone_number": self.phone or "",
