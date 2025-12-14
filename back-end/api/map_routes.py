@@ -231,39 +231,42 @@ def optimize():
     use_manual_order = data.get("use_manual_order", False)
     api_key = current_app.config.get('GOONG_API_KEY')
 
-    # Check cache
-    potential_routes = RouteHistory.query.filter(
-        RouteHistory.start_point.ilike(start_query)
-    ).all()
+    if not use_manual_order:
+      # Check cache
+      potential_routes = RouteHistory.query.filter(
+          RouteHistory.start_point.ilike(start_query)
+      ).all()
 
-    for r in potential_routes:
-        try:
-            stored_places = json.loads(r.places_json)
-            if are_places_equal(places_data, stored_places):
-                print(f">>> CACHE HIT! Route ID: {r.id}")
-                real_start_coords = None
-                if r.polyline_outbound:
-                    try:
-                        decoded = polyline.decode(r.polyline_outbound)
-                        if decoded: real_start_coords = {"lat": decoded[0][0], "lon": decoded[0][1]}
-                    except: pass
-                
-                if not real_start_coords:
-                    real_start_coords = goong_geocode_helper(start_query) or {"lat": 0, "lon": 0}
+      for r in potential_routes:
+          try:
+              stored_places = json.loads(r.places_json)
+              if are_places_equal(places_data, stored_places):
+                  print(f">>> CACHE HIT! Route ID: {r.id}")
+                  real_start_coords = None
+                  if r.polyline_outbound:
+                      try:
+                          decoded = polyline.decode(r.polyline_outbound)
+                          if decoded: real_start_coords = {"lat": decoded[0][0], "lon": decoded[0][1]}
+                      except: pass
+                  
+                  if not real_start_coords:
+                      real_start_coords = goong_geocode_helper(start_query) or {"lat": 0, "lon": 0}
 
-                return jsonify({
-                    "optimized_order": [p["name"] for p in stored_places],
-                    "distance_km": r.total_distance,
-                    "duration_min": r.total_duration,
-                    "polyline_outbound": r.polyline_outbound,
-                    "polyline_return": r.polyline_return,
-                    "start_point_coords": real_start_coords,
-                    "waypoints": [{"id": p["name"], "address": p["address"], "lat": p.get("lat"), "lon": p.get("lng")} for p in stored_places],
-                    "from_cache": True
-                })
-        except Exception as e:
-            print(f"Cache check error: {e}")
-            continue
+                  return jsonify({
+                      "optimized_order": [p["name"] for p in stored_places],
+                      "distance_km": r.total_distance,
+                      "duration_min": r.total_duration,
+                      "polyline_outbound": r.polyline_outbound,
+                      "polyline_return": r.polyline_return,
+                      "start_point_coords": real_start_coords,
+                      "waypoints": [{"id": p["name"], "address": p["address"], "lat": p.get("lat"), "lon": p.get("lng")} for p in stored_places],
+                      "from_cache": True
+                  })
+          except Exception as e:
+              print(f"Cache check error: {e}")
+              continue
+    else:
+      print(">>> MANUAL MODE: Skipping Cache check")
 
     # Cache miss -> Calculate
     print(">>> CACHE MISS. Calling Goong...")

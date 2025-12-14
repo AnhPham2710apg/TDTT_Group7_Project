@@ -4,17 +4,12 @@ from flask import Blueprint, request, jsonify, current_app
 from models import Restaurant
 from sqlalchemy import or_
 
+from recommendation_service import RecommendationService
+
 LIMIT_RESTAURANTS = 50
 
 restaurant_bp = Blueprint("restaurant_bp", __name__)
-
-# --- CẤU HÌNH ---
-# Bạn nên đảm bảo GOONG_API_KEY đã được config trong app.py
-# hoặc lấy từ biến môi trường.
-# Ở đây mình sẽ lấy từ current_app.config.
-# Hoặc tạm thời bạn có thể paste key trực tiếp vào đây để test:
-# GOONG_API_KEY = "YOUR_GOONG_API_KEY"
-
+rec_service = RecommendationService()
 
 def haversine_distance(lat1, lon1, lat2, lon2):
     """Tính khoảng cách giữa 2 điểm (km)"""
@@ -115,116 +110,88 @@ def search_restaurants():
                 type: integer
     """
     try:
-        # 1. Lấy tham số
-        keyword = request.args.get("keyword")
-        foodType = request.args.get("foodType")
-        beverageOrFood = request.args.get("beverageOrFood")
-        cuisines = request.args.getlist("cuisine")
-        flavors = request.args.get("flavors")
+        # 1. Lấy tham số User Profile
+        keyword = request.args.get("keyword", "").strip()
+        user_budget = request.args.get("maxPrice", type=int) # User Budget chính là maxPrice mong muốn
+        flavors = request.args.get("flavors") # Danh sách tag sở thích
+        
+        # Các tham số lọc cứng (Hard Filters)
         districts = request.args.getlist("district")
-
-        # Radius (km)
         radius_km = request.args.get("radius", type=float)
+        foodType = request.args.get("foodType")
+        
+        # Tạo User Profile dict để truyền vào service
+        user_profile = {
+            "keyword": keyword,
+            "budget": user_budget,
+            "flavors": flavors
+        }
 
-        min_price = request.args.get("minPrice", type=int)
-        max_price = request.args.get("maxPrice", type=int)
-        rating_min = request.args.get("ratingMin", type=float)
-
-        # 2. Query cơ bản
+        # 2. Candidate Retrieval (Lọc thô từ DB)
+        # CHÚ Ý: Ở bước này, ta KHÔNG lọc giá (Price) bằng SQL nữa để áp dụng Soft Constraint
         query = Restaurant.query
 
-        # 3. Apply Filters (SQL)
-        if keyword:
-            search_term = f"%{keyword}%"
-            query = query.filter(
-                or_(
-                    Restaurant.name.ilike(search_term),
-                    Restaurant.full_address.ilike(search_term),
-                    Restaurant.description.ilike(search_term),
-                )
-            )
-
+        # Lọc cơ bản (Hard Filter cho Loại món)
         if foodType and foodType != "both":
             query = query.filter(Restaurant.foodType == foodType)
-
-        if beverageOrFood and beverageOrFood != "both":
-            query = query.filter(Restaurant.bevFood == beverageOrFood)
-
-        if cuisines:
-            query = query.filter(Restaurant.cuisine.in_(cuisines))
-
-        if flavors:
-            flavor_list = flavors.split(",")
-            match_conditions = [
-                Restaurant.flavor.ilike(f"%{f}%") for f in flavor_list
-            ]
-            empty_conditions = [
-                Restaurant.flavor == "[]",
-                Restaurant.flavor.is_(None),
-                Restaurant.flavor == "",
-            ]
-            query = query.filter(or_(*match_conditions, *empty_conditions))
-
-        if min_price is not None:
-            query = query.filter(Restaurant.minPrice >= min_price)
-        if max_price is not None:
-            query = query.filter(Restaurant.maxPrice <= max_price)
-        if rating_min is not None:
-            query = query.filter(Restaurant.rating >= rating_min)
-
-        # --- LOGIC MỚI: Dùng API lấy tọa độ Quận ---
-
-        # Case A: Chỉ lọc theo tên Quận (Không Radius) -> Logic cũ
-        if districts and not radius_km:
-            query = query.filter(Restaurant.district.in_(districts))
-            results = query.limit(LIMIT_RESTAURANTS).all()
-
-        # Case B: Có Radius -> Gọi API lấy tâm Quận -> Tính khoảng cách
-        elif districts and radius_km:
+            
+        # [QUAN TRỌNG] Lọc không gian (Spatial Query)
+        candidates = []
+        
+        # Case A: Có Radius -> Lấy tọa độ tâm -> Lọc khoảng cách
+        if districts and radius_km:
             target_district = districts[0]
-
             center_coords = get_coords_from_goong(target_district)
-
-            if not center_coords:
-                print(f"Không tìm thấy tọa độ cho: {target_district}")
-                query = query.filter(Restaurant.district.in_(districts))
-                results = query.limit(LIMIT_RESTAURANTS).all()
-            else:
+            
+            if center_coords:
                 center_lat, center_lon = center_coords
-
-                candidates = query.all() # Lấy hết ra để tính toán
-                results = []
-
-                for r in candidates:
-                    if not r.latitude or not r.longitude:
-                        continue
+                # Lấy toàn bộ quán trong quận (hoặc lân cận) ra để tính khoảng cách
+                # Lưu ý: Nếu DB lớn, cần dùng PostGIS. Với SQLite/Dataset nhỏ, fetch all chấp nhận được.
+                all_places = query.all() 
+                
+                for r in all_places:
+                    if not r.latitude or not r.longitude: continue
                     try:
                         dist = haversine_distance(
                             center_lat, center_lon,
                             float(r.latitude), float(r.longitude)
                         )
                         if dist <= radius_km:
-                            results.append(r)
-                    except ValueError:
-                        continue
-                
-                # --- SỬA LỖI TẠI ĐÂY ---
-                # Cắt danh sách kết quả chỉ lấy đúng số lượng LIMIT
-                results = results[:LIMIT_RESTAURANTS]
-
-        # Case C: Không lọc địa điểm
-        else:
-            results = query.limit(LIMIT_RESTAURANTS).all()
-
-        # Nếu results là list objects (SQLAlchemy Models)
-        final_data = []
-        for r in results:
-            if isinstance(r, Restaurant):
-                final_data.append(r.to_dict())
+                            candidates.append(r)
+                    except ValueError: continue
             else:
-                final_data.append(r)  # Đã là dict rồi
+                # Fallback nếu không geocode được: Lọc theo tên quận
+                candidates = query.filter(Restaurant.district.in_(districts)).all()
+                
+        # Case B: Chỉ lọc theo tên Quận
+        elif districts:
+            candidates = query.filter(Restaurant.district.in_(districts)).all()
+            
+        # Case C: Lấy tất cả (Cần limit để tránh quá tải nếu không có filter nào)
+        else:
+            candidates = query.limit(200).all() # Lấy tập mẫu lớn hơn LIMIT cuối cùng
 
-        return jsonify(final_data)
+        # 3. Scoring & Ranking (Tính điểm & Xếp hạng)
+        scored_candidates = []
+        
+        for place in candidates:
+            # Gọi thuật toán tính điểm
+            score = rec_service.calculate_score(user_profile, place)
+            
+            # [Lọc nhiễu] Loại bỏ các quán có điểm quá thấp (< 0.3) [cite: 277]
+            if score >= 0.3:
+                # Chuyển object thành dict và gán thêm điểm để Frontend hiển thị
+                place_dict = place.to_dict()
+                place_dict['match_score'] = score 
+                scored_candidates.append(place_dict)
+
+        # Sắp xếp giảm dần theo điểm số (Relevance Ranking)
+        scored_candidates.sort(key=lambda x: x['match_score'], reverse=True)
+
+        # 4. Trả về Top N kết quả
+        final_results = scored_candidates[:LIMIT_RESTAURANTS]
+
+        return jsonify(final_results)
 
     except Exception as e:
         print(f"Search error: {e}")
