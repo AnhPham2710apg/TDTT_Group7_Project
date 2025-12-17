@@ -67,6 +67,14 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
             <MapPin className="h-16 w-16 text-muted-foreground/30" />
           </div>
         )}
+
+        {typeof restaurant.match_score === 'number' && (
+            <div className={`absolute top-2 left-2 z-10 px-2 py-1 text-xs font-bold text-white rounded-full shadow-md ${restaurant.match_score >= 80 ? "bg-green-600" :
+                    restaurant.match_score >= 60 ? "bg-yellow-500" : "bg-gray-500"
+                }`}>
+                {restaurant.match_score}% Phù hợp
+            </div>
+        )}
         
         {/* Kiểm tra onToggleFavorite tồn tại mới hiện nút tim */}
         {onToggleFavorite && (

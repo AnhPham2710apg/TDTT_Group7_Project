@@ -27,8 +27,8 @@ const SearchPage = () => {
   const [radius, setRadius] = useState([5]);
   const [district, setDistrict] = useState<string[]>([]); // Array
   const [ratingMin, setRatingMin] = useState(0);
-
   const [isLoading, setIsLoading] = useState(false);
+  const [userType, setUserType] = useState("balanced");
 
   const handleCuisineChange = (val: string) => {
      // Logic demo: Nếu UI vẫn là Select đơn, ta đưa vào mảng 1 phần tử
@@ -56,6 +56,7 @@ const SearchPage = () => {
       const params = new URLSearchParams();
 
       if (keyword) params.append("keyword", keyword);
+      params.append("userType", userType); // Gửi loại user lên URL
       params.append("foodType", foodType);
       params.append("beverageOrFood", beverageOrFood);
       
@@ -108,6 +109,27 @@ const SearchPage = () => {
                   onChange={(e) => setKeyword(e.target.value)}
                 />
               </div>
+
+            <div className="p-4 space-y-2 border rounded-lg bg-slate-50 border-slate-200">
+                <Label className="text-base font-bold text-blue-700">
+                    Phong cách ăn uống (User Persona)
+                </Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                    *Hệ thống sẽ tính điểm phù hợp dựa trên lựa chọn này.
+                </p>
+
+                <Select value={userType} onValueChange={setUserType}>
+                    <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Chọn phong cách" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="balanced">⚖️ Cân bằng (Quan tâm cả Giá & Ngon)</SelectItem>
+                        <SelectItem value="saver">💰 Tiết kiệm (Ưu tiên giá rẻ nhất)</SelectItem>
+                        <SelectItem value="foodie">😋 Sành ăn (Ưu tiên ngon, đúng vị)</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
               {/* Món của quốc gia nào */}
               <div className="space-y-2">
                 <Label>Ẩm thực</Label>

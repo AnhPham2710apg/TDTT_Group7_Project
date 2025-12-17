@@ -15,6 +15,7 @@ export interface Restaurant {
   phone_number?: string;
   website?: string;
   working_hour?: string; // Thêm mới
+  match_score?: number; // Thêm mới tính điểm
 }
 
 export interface SearchFilters {
