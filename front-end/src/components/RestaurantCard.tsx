@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Restaurant } from "@/types";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
-import { Heart, MapPin, Star, DollarSign, Eye, Plus, Trash2, Image as ImageIcon } from "lucide-react";
+import { Heart, MapPin, Star, DollarSign, Eye, Plus, Trash2, Image as ImageIcon, Sparkles } from "lucide-react"; // Import Sparkles
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
 
@@ -18,6 +18,13 @@ const priceRangeMap: { [key: number]: string } = {
   2: "100.000đ – 500.000đ",
   3: "500.000đ – 2.000.000đ",
   4: "2.000.000đ trở lên",
+};
+
+// Hàm lấy màu dựa trên điểm số (Giả sử score thang 0-100)
+const getScoreStyle = (score: number) => {
+  if (score >= 80) return "bg-emerald-600 text-white shadow-emerald-200"; // Rất phù hợp
+  if (score >= 50) return "bg-yellow-500 text-white shadow-yellow-200";   // Khá
+  return "bg-gray-500 text-white shadow-gray-200";                         // Trung bình/Thấp
 };
 
 const getOptimizedImageUrl = (url: string) => {
@@ -59,24 +66,40 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
   };
 
   const optimizedSrc = getOptimizedImageUrl(restaurant.photo_url || "");
+  
+  // Lấy điểm số từ API (Backend trả về field 'match_score')
+  // Nếu chưa có field này trong type, bạn cần thêm vào interface Restaurant (ví dụ: match_score?: number)
+  const score = restaurant.match_score ? Math.round(restaurant.match_score) : 0;
 
   return (
     <Card 
       className="group overflow-hidden hover:shadow-hover transition-all duration-300 
-      flex flex-row md:flex-col h-auto"
+      flex flex-row md:flex-col h-auto bg-white border-muted/60"
     >
       {/* 1. KHUNG CHỨA ẢNH (Image Container) */}
-      <div className="relative w-[110px] h-[110px] md:w-full md:h-48 bg-muted/30 shrink-0 p-2 md:p-0 overflow-hidden">
+      <div className="relative w-[110px] h-[110px] md:w-full md:h-48 bg-muted/30 shrink-0 overflow-hidden">
         
-        {/* --- KHỐI ZOOM (SCALING WRAPPER) ---
-            - Mobile: Chứa ảnh + Nút Tim Mobile (để cùng zoom).
-            - PC: Chỉ chứa ảnh.
+        {/* --- [NEW] MATCH SCORE BADGE --- 
+            Vị trí: Góc trái trên.
+            Hiển thị: Nếu có điểm > 0.
         */}
-        <div className="relative w-full h-full rounded-lg md:rounded-none overflow-hidden transition-transform duration-700 group-hover:scale-110">
+        {score > 0 && (
+          <div className={`
+            absolute top-0 left-0 z-30 px-2 py-1 md:px-3 md:py-1.5 
+            rounded-br-xl md:rounded-br-2xl font-bold text-[10px] md:text-xs flex items-center gap-1 shadow-sm
+            ${getScoreStyle(score)}
+          `}>
+             <Sparkles className="w-3 h-3 md:w-3.5 md:h-3.5" />
+             <span>{score}% Phù hợp</span>
+          </div>
+        )}
+
+        {/* --- KHỐI ZOOM --- */}
+        <div className="relative w-full h-full rounded-none overflow-hidden transition-transform duration-700 group-hover:scale-105">
             
             {/* Skeleton & Image */}
-            <div className={`absolute inset-0 flex items-center justify-center bg-gray-200 z-10 ${!imageLoaded ? "animate-pulse" : "hidden"}`}>
-              <ImageIcon className="h-6 w-6 md:h-8 md:w-8 text-gray-400" />
+            <div className={`absolute inset-0 flex items-center justify-center bg-gray-100 z-10 ${!imageLoaded ? "animate-pulse" : "hidden"}`}>
+              <ImageIcon className="h-6 w-6 md:h-8 md:w-8 text-gray-300" />
             </div>
 
             {optimizedSrc && !imageError ? (
@@ -84,110 +107,116 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
                 src={optimizedSrc}
                 alt={restaurant.name}
                 className={`w-full h-full object-cover transition-opacity duration-500 
-                  ${imageLoaded ? "opacity-100" : "opacity-0"}`}
+                ${imageLoaded ? "opacity-100" : "opacity-0"}`}
                 loading="lazy"
                 decoding="async"
-                referrerPolicy="no-referrer"
                 onLoad={() => setImageLoaded(true)}
                 onError={() => setImageError(true)}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
-                <MapPin className="h-8 w-8 md:h-16 md:w-16 text-muted-foreground/30" />
+              <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                <MapPin className="h-8 w-8 md:h-12 md:w-12 text-gray-300" />
               </div>
-            )}
-
-            {/* --- [A] NÚT TIM MOBILE (CHỈ HIỆN TRÊN MOBILE) --- 
-                - Vị trí: absolute top-1 left-1 (Góc trái trên của ảnh).
-                - Nằm TRONG div scale-110 nên sẽ phóng to theo ảnh.
-                - Style: Trắng mờ (bg-white/70 backdrop-blur).
-            */}
-            {onToggleFavorite && (
-              <Button
-                size="icon"
-                variant="ghost"
-                className="md:hidden absolute top-1 left-1 z-20 h-6 w-6 rounded-full 
-                           bg-white/70 backdrop-blur-[2px] hover:bg-white text-foreground shadow-sm"
-                onClick={handleFavoriteClick}
-              >
-                <Heart className={`h-3.5 w-3.5 ${restaurant.is_favorite ? "fill-red-500 text-red-500" : "text-foreground"}`} />
-              </Button>
             )}
         </div>
 
-        {/* --- [B] NÚT TIM PC (CHỈ HIỆN TRÊN PC) --- 
-            - Vị trí: absolute top-2 right-2 (Góc phải trên như cũ).
-            - Nằm NGOÀI div scale-110 nên đứng yên, độc lập với ảnh.
-            - Style: Trắng rõ (bg-white/90).
+        {/* --- [MODIFIED] NÚT TIM (HEART BUTTON) --- 
+            Thay đổi UX: Di chuyển nút tim Mobile sang bên PHẢI (Right) 
+            để không bị đè lên Badge điểm số ở bên Trái.
         */}
         {onToggleFavorite && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className="hidden md:flex absolute top-2 right-2 z-20 h-9 w-9 rounded-full 
-                       bg-white/90 hover:bg-white text-foreground shadow-sm"
-            onClick={handleFavoriteClick}
-          >
-            <Heart className={`h-5 w-5 ${restaurant.is_favorite ? "fill-red-500 text-red-500" : "text-foreground"}`} />
-          </Button>
+          <>
+            {/* Mobile Heart: Top-Right */}
+            <Button
+              size="icon"
+              variant="ghost"
+              className="md:hidden absolute top-1 right-1 z-20 h-7 w-7 rounded-full 
+                         bg-white/80 backdrop-blur-sm hover:bg-white text-foreground shadow-sm p-0"
+              onClick={handleFavoriteClick}
+            >
+              <Heart className={`h-4 w-4 ${restaurant.is_favorite ? "fill-red-500 text-red-500" : "text-gray-600"}`} />
+            </Button>
+
+            {/* Desktop Heart: Top-Right (Giữ nguyên) */}
+            <Button
+              size="icon"
+              variant="ghost"
+              className="hidden md:flex absolute top-2 right-2 z-20 h-9 w-9 rounded-full 
+                         bg-white/90 hover:bg-white text-foreground shadow-sm transition-transform hover:scale-110"
+              onClick={handleFavoriteClick}
+            >
+              <Heart className={`h-5 w-5 ${restaurant.is_favorite ? "fill-red-500 text-red-500" : "text-gray-600"}`} />
+            </Button>
+          </>
         )}
       </div>
 
       {/* 2. PHẦN THÔNG TIN (Content Section) */}
-      <div className="flex-1 p-2 md:p-4 flex flex-col min-w-0"> 
-        <div className="space-y-1 md:space-y-2">
-          <h3 className="font-semibold text-sm md:text-lg truncate leading-tight text-foreground" title={restaurant.name}>
+      <div className="flex-1 p-3 md:p-4 flex flex-col justify-between min-w-0"> 
+        <div className="space-y-1.5 md:space-y-2">
+          
+          {/* Tên quán */}
+          <h3 className="font-bold text-sm md:text-lg truncate leading-tight text-gray-900" title={restaurant.name}>
               {restaurant.name}
           </h3>
 
-          <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground">
-            <MapPin className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
+          {/* Địa chỉ */}
+          <div className="flex items-center gap-1.5 text-xs md:text-sm text-gray-500">
+            <MapPin className="h-3.5 w-3.5 md:h-4 md:w-4 flex-shrink-0 text-gray-400" />
             <span className="truncate">{restaurant.address}</span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs md:text-sm">
+          {/* Rating & Price */}
+          <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm pt-1">
             {restaurant.rating && (
-              <div className="flex items-center gap-1 bg-yellow-50 px-1.5 rounded-md border border-yellow-100 md:border-none md:bg-transparent md:p-0 shrink-0">
-                <Star className="h-3 w-3 md:h-4 md:w-4 fill-yellow-500 text-yellow-500" />
-                <span className="font-medium text-yellow-700">{restaurant.rating}</span>
+              <div className="flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded-full border border-yellow-100 font-medium">
+                <Star className="h-3 w-3 md:h-3.5 md:w-3.5 fill-yellow-500 text-yellow-500" />
+                <span>{restaurant.rating}</span>
               </div>
             )}
             
+            {/* Dấu chấm ngăn cách trên Desktop */}
+            {restaurant.rating && restaurant.price_level && (
+              <span className="text-gray-300 hidden md:inline">•</span>
+            )}
+
             {restaurant.price_level && priceRangeMap[restaurant.price_level] && (
-              <div className="flex items-center gap-1 text-muted-foreground min-w-0">
-                <div className="hidden md:flex shrink-0">
+              <div className="flex items-center gap-1 text-gray-600 font-medium">
+                <div className="flex shrink-0">
                    {Array.from({ length: restaurant.price_level }).map((_, i) => (
-                    <DollarSign key={i} className="h-4 w-4 text-green-600" />
+                    <DollarSign key={i} className="h-3 w-3 md:h-3.5 md:w-3.5 text-emerald-600" />
+                  ))}
+                  {/* Hiển thị các dấu $ xám còn thiếu để người dùng dễ hình dung scale 4 */}
+                   {Array.from({ length: 4 - restaurant.price_level }).map((_, i) => (
+                    <DollarSign key={i} className="h-3 w-3 md:h-3.5 md:w-3.5 text-gray-300" />
                   ))}
                 </div>
-                <span className="text-xs truncate block">
-                  <span className="md:hidden text-muted-foreground/50 mr-1">•</span> 
-                  {priceRangeMap[restaurant.price_level]}
-                </span>
               </div>
             )}
           </div>
         </div>
 
-        <div className="flex gap-2 mt-2 md:mt-4 justify-end md:justify-start items-center">
+        {/* Action Buttons */}
+        <div className="flex gap-2 mt-3 justify-end md:justify-start items-center border-t md:border-t-0 pt-2 md:pt-0 border-gray-100">
           <Button
             variant={inCart ? "destructive" : "secondary"} 
             size="sm"
-            className="h-7 w-7 px-0 md:h-9 md:w-12 md:px-0 flex-shrink-0 shadow-sm"
+            className={`h-8 w-8 px-0 md:h-9 md:w-auto md:px-3 flex-shrink-0 shadow-sm transition-all 
+              ${inCart ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
             onClick={handleCartAction}
             title={inCart ? "Xóa khỏi danh sách" : "Thêm vào danh sách"}
           >
-            {inCart ? <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" /> : <Plus className="h-4 w-4 md:h-5 md:w-5" />}
+            {inCart ? <Trash2 className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
           </Button>
 
           <Button
             variant="outline"
             size="sm"
-            className="h-7 text-xs px-2 md:h-9 md:text-sm md:flex-1 hover:bg-gray/90 hover:text-green-600 truncate"
+            className="h-8 flex-1 md:h-9 text-xs md:text-sm hover:border-primary hover:text-primary transition-colors"
             onClick={handleViewDetails}
           >
-            <Eye className="mr-1 h-3 w-3 md:h-4 md:w-4" />
-            <span className="md:inline">Chi tiết</span>
+            <Eye className="mr-1.5 h-3.5 w-3.5" />
+            Chi tiết
           </Button>
         </div>
       </div>  

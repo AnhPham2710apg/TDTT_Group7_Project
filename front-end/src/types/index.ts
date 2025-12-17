@@ -1,6 +1,7 @@
 // src/types/index.ts
 
 export interface Restaurant {
+  match_score: number;
   id: string;
   place_id: string;
   name: string;

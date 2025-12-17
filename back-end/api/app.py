@@ -70,7 +70,7 @@ allowed_origins = [
     "http://localhost:5173", 
     "http://localhost:3000",
     "http://localhost:8080",
-    "https://tdtt-group7-project.vercel.app"
+    "https://food-tour-assistant.vercel.app"
 ]
 CORS(app, resources={r"/api/*": {"origins": allowed_origins}}, supports_credentials=True)
 

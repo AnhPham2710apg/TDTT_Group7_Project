@@ -1,6 +1,6 @@
 import { useState, useEffect, KeyboardEvent } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import Navbar from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,12 @@ import { Drawer } from "vaul";
 import { createPortal } from "react-dom";
 
 // --- INTERFACES ---
+
+interface BackendErrorResponse {
+  message?: string;
+  detail?: string;
+}
+
 interface Waypoint {
   id: string;
   address?: string;
@@ -391,8 +397,39 @@ const OptimizeRoutePage = () => {
       
       clearCart();
     } catch (error: unknown) {
-      console.error(error);
-      toast.error("Tối ưu hóa thất bại");
+      console.error("Chi tiết lỗi:", error);
+
+      if (axios.isAxiosError(error)) {
+        // TRƯỜNG HỢP 1: Server phản hồi với mã lỗi (4xx, 5xx)
+        if (error.response) {
+          const status = error.response.status;
+          const data = error.response.data as BackendErrorResponse;
+
+          // Ưu tiên lấy message từ backend trả về (thường là data.message hoặc data.detail)
+          const serverMessage = data?.message || data?.detail || "Lỗi xử lý từ máy chủ";
+
+          if (status === 400) {
+            toast.error(`Dữ liệu không hợp lệ: ${serverMessage}`);
+          } else if (status === 404) {
+            toast.error("Không tìm thấy dữ liệu hoặc API endpoint sai.");
+          } else if (status === 500) {
+            toast.error("Máy chủ gặp sự cố nội bộ (500). Vui lòng thử lại sau.");
+          } else {
+            toast.error(`Lỗi (${status}): ${serverMessage}`);
+          }
+        } 
+        // TRƯỜNG HỢP 2: Không nhận được phản hồi (Server down, sai URL, mất mạng)
+        else if (error.request) {
+          toast.error("Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng hoặc liên hệ admin.");
+        } 
+        // TRƯỜNG HỢP 3: Lỗi khi setup request
+        else {
+          toast.error(`Lỗi cấu hình: ${error.message}`);
+        }
+      } else {
+        // Lỗi không phải do Axios (ví dụ lỗi logic code React)
+        toast.error("Đã xảy ra lỗi không xác định.");
+      }
     } finally {
       setIsOptimizing(false);
     }

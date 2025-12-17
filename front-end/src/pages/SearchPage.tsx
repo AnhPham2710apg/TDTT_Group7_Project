@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,11 +7,13 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import Navbar from "@/components/Navbar";
-import { Search, Check } from "lucide-react";
+// Thêm icons mới: Wallet (Tiết kiệm), Scale (Cân bằng), Sparkles (Sành ăn/Foodie)
+import { Search, Check, Wallet, Scale, Sparkles } from "lucide-react"; 
 import { toast } from "sonner";
-import { API_BASE_URL } from "@/lib/api-config";
 
-// ... (GIỮ NGUYÊN CONST OPTIONS) ...
+// --- OPTIONS ---
+// ... (Các option cũ giữ nguyên) ...
+
 const FOOD_TYPE_OPTIONS = [
   { id: "vegetarian", label: "Chay" },
   { id: "non-vegetarian", label: "Mặn" },
@@ -41,11 +43,37 @@ const CUISINE_OPTIONS = [
   "Ý", "Pháp", "Âu/Mỹ", "Ấn Độ", "Khác"
 ];
 
+// --- MỚI: Cấu hình User Type ---
+const USER_TYPE_OPTIONS = [
+  { 
+    id: "saver", 
+    label: "Tiết kiệm", 
+    desc: "Ưu tiên giá rẻ & khuyến mãi",
+    icon: Wallet 
+  },
+  { 
+    id: "balanced", 
+    label: "Cân bằng", 
+    desc: "Hài hòa giữa giá & vị ngon",
+    icon: Scale 
+  },
+  { 
+    id: "foodie", 
+    label: "Sành ăn", 
+    desc: "Ưu tiên chất lượng & trải nghiệm",
+    icon: Sparkles 
+  },
+];
+
 const SearchPage = () => {
   const navigate = useNavigate();
   
   // --- STATE ---
   const [keyword, setKeyword] = useState("");
+  
+  // MỚI: State cho User Type
+  const [userType, setUserType] = useState("balanced");
+
   const [foodType, setFoodType] = useState("both");
   const [beverageOrFood, setBeverageOrFood] = useState("both");
   const [cuisine, setCuisine] = useState<string[]>([]); 
@@ -65,18 +93,16 @@ const SearchPage = () => {
   // --- AUTO SCROLL & PARALLAX LISTENER ---
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-
     const handleScroll = () => {
       requestAnimationFrame(() => {
         setScrollY(window.scrollY);
       });
     };
-
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // --- MAPPING LOGIC (Giữ nguyên) ---
+  // --- MAPPING LOGIC ---
   const MAPPINGS = {
     foodType: { vegetarian: "chay", "non-vegetarian": "mặn", both: "both" },
     beverageOrFood: { beverage: "nước", food: "khô", both: "both" },
@@ -103,6 +129,10 @@ const SearchPage = () => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
+      
+      // MỚI: Truyền userType lên URL
+      params.append("userType", userType);
+
       if (keyword) params.append("keyword", keyword);
       if (foodType !== 'both') params.append("foodType", MAPPINGS.foodType[foodType as keyof typeof MAPPINGS.foodType]);
       if (beverageOrFood !== 'both') params.append("beverageOrFood", MAPPINGS.beverageOrFood[beverageOrFood as keyof typeof MAPPINGS.beverageOrFood]);
@@ -129,7 +159,7 @@ const SearchPage = () => {
     }
   };
 
-  // --- RENDER HELPER COMPACT ---
+  // --- RENDER HELPERS ---
   const renderCompactCard = (id: string, label: string, isSelected: boolean, onClick: () => void) => (
     <div
       key={id}
@@ -148,7 +178,6 @@ const SearchPage = () => {
     </div>
   );
 
-  // --- RENDER HELPER GRID ---
   const renderGridCard = (id: string, label: string, isSelected: boolean, onClick: () => void, hasCheckmark: boolean = true) => (
     <div
       key={id}
@@ -216,7 +245,7 @@ const SearchPage = () => {
             <Card className="p-6 md:p-8 shadow-2xl border-muted/60 bg-white/80 backdrop-blur-md opacity-0 animate-slide-up delay-200">
                 <form onSubmit={handleSearch} className="space-y-8">
                 
-                {/* ... (TOÀN BỘ NỘI DUNG FORM GIỮ NGUYÊN NHƯ CŨ) ... */}
+                {/* 1. KEYWORD */}
                 <div className="space-y-3">
                     <Label htmlFor="keyword" className="text-base font-bold">Từ khóa</Label>
                     <div className="relative group">
@@ -231,6 +260,46 @@ const SearchPage = () => {
                     </div>
                 </div>
 
+                {/* --- MỚI: SECTION PHONG CÁCH NGƯỜI DÙNG (USER TYPE) --- */}
+                <div className="space-y-3">
+                   <Label className="text-base font-bold">Phong cách của bạn</Label>
+                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                     {USER_TYPE_OPTIONS.map((opt) => {
+                       const Icon = opt.icon;
+                       const isSelected = userType === opt.id;
+                       return (
+                         <div
+                           key={opt.id}
+                           onClick={() => setUserType(opt.id)}
+                           className={`
+                             relative flex flex-col items-center justify-center p-3 cursor-pointer 
+                             rounded-xl border-2 transition-all duration-200 select-none text-center h-24
+                             ${isSelected 
+                               ? "border-primary bg-primary/5 shadow-md scale-[1.02]" 
+                               : "border-muted bg-white hover:border-primary/40 hover:bg-gray-50"
+                             }
+                           `}
+                         >
+                           <Icon className={`h-6 w-6 mb-1 ${isSelected ? "text-primary" : "text-gray-500"}`} />
+                           <span className={`text-sm font-bold ${isSelected ? "text-primary" : "text-gray-700"}`}>
+                             {opt.label}
+                           </span>
+                           <span className="text-[10px] text-muted-foreground line-clamp-1">
+                             {opt.desc}
+                           </span>
+                           
+                           {isSelected && (
+                             <div className="absolute top-2 right-2 text-primary animate-in zoom-in">
+                               <Check className="h-5 w-5" />
+                             </div>
+                           )}
+                         </div>
+                       );
+                     })}
+                   </div>
+                </div>
+
+                {/* 2. CUISINE */}
                 <div className="space-y-3">
                     <Label className="text-base font-bold">Ẩm thực</Label>
                     <Select onValueChange={handleCuisineChange}>
@@ -245,6 +314,7 @@ const SearchPage = () => {
                     </Select>
                 </div>
 
+                {/* 3. HARD FILTERS (Loại, Món, Phân loại) */}
                 <div className="space-y-6">
                     <div className="space-y-3">
                         <Label className="text-base font-bold">Chế độ ăn</Label>
@@ -268,6 +338,7 @@ const SearchPage = () => {
                     </div>
                 </div>
 
+                {/* 4. FLAVORS */}
                 <div className="space-y-3">
                     <Label className="text-base font-bold">Bạn đang thèm vị gì?</Label>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
@@ -275,6 +346,7 @@ const SearchPage = () => {
                     </div>
                 </div>
 
+                {/* 5. PRICE & BUDGET */}
                 <div className="space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
                     <Label className="text-base font-bold">Ngân sách (VNĐ)</Label>
                     <div className="grid grid-cols-2 gap-6 pt-2">
@@ -309,6 +381,7 @@ const SearchPage = () => {
                     </div>
                 </div>
 
+                {/* 6. RADIUS & DISTRICT */}
                 <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                         <div className="flex justify-between items-center">
