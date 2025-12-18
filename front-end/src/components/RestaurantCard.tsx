@@ -22,7 +22,7 @@ const priceRangeMap: { [key: number]: string } = {
 
 const getScoreStyle = (score: number) => {
   if (score >= 70) return "bg-emerald-600 text-white shadow-emerald-200";
-  if (score >= 50) return "bg-yellow-4`00 text-white shadow-yellow-200";
+  if (score >= 50) return "bg-yellow-400 text-white shadow-yellow-200";
   return "bg-gray-500 text-white shadow-gray-200";
 };
 
