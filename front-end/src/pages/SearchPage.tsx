@@ -36,7 +36,7 @@ const FLAVOR_OPTIONS = [
   { id: "sour", label: "Chua" },
   { id: "bitter", label: "Đắng" },
   { id: "fatty", label: "Béo" },
-  { id: "light", label: "Thanh đạm" },
+  { id: "light", label: "Thanh" },
 ];
 const CUISINE_OPTIONS = [
   "Việt Nam", "Hàn Quốc", "Nhật Bản", "Thái Lan", "Trung Quốc", 
@@ -109,7 +109,7 @@ const SearchPage = () => {
     courseType: { main: "món chính", dessert: "tráng miệng", both: "both" },
     flavors: {
       sweet: "ngọt", salty: "mặn", spicy: "cay", sour: "chua",
-      bitter: "đắng", fatty: "béo", light: "thanh đạm"
+      bitter: "đắng", fatty: "béo", light: "thanh"
     }
   };
 
