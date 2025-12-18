@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Heart, MapPin, Star, User, Edit, Loader2, Trash2, Calendar, Pencil, MessageSquare, Settings } from "lucide-react"; 
+import { Heart, MapPin, Star, User, Edit, Loader2, Trash2, Calendar, Pencil, MessageSquare, Settings, Image as ImageIcon } from "lucide-react"; 
 import RestaurantCard from "@/components/RestaurantCard";
 import { Restaurant } from "@/types";
 import { toast } from "sonner";
@@ -33,6 +33,49 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { API_BASE_URL } from "@/lib/api-config";
+
+// --- HELPERS ---
+const getOptimizedImageUrl = (url: string) => {
+  if (!url) return "";
+  if (url.includes("googleusercontent.com")) {
+    const baseUrl = url.split("=")[0];
+    return `${baseUrl}=w400-h400-c`;
+  }
+  return url;
+};
+
+// --- SUB-COMPONENT: REVIEW IMAGE (Tự quản lý state loading) ---
+const ReviewImage = ({ src, alt, className }: { src?: string, alt?: string, className?: string }) => {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const optimizedSrc = getOptimizedImageUrl(src || "");
+
+  return (
+    <div className={`relative w-full h-full overflow-hidden ${className || ""}`}>
+       {/* Skeleton Loader */}
+       <div className={`absolute inset-0 flex items-center justify-center bg-gray-100 z-10 ${!imageLoaded ? "animate-pulse" : "hidden"}`}>
+         <ImageIcon className="h-6 w-6 text-gray-300" />
+       </div>
+
+       {/* Image or Error Fallback */}
+       {optimizedSrc && !imageError ? (
+         <img
+           src={optimizedSrc}
+           alt={alt || "Review image"}
+           className={`w-full h-full object-cover transition-opacity duration-500 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
+           loading="lazy"
+           decoding="async"
+           onLoad={() => setImageLoaded(true)}
+           onError={() => setImageError(true)}
+         />
+       ) : (
+         <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-300">
+           <StoreIcon />
+         </div>
+       )}
+    </div>
+  );
+};
 
 // --- INTERFACES ---
 interface RouteHistoryItem {
@@ -357,7 +400,7 @@ const ProfilePage = () => {
             )}
           </TabsContent>
 
-          {/* 2. Routes Content (Đã chỉnh sửa 3 cột cho PC) */}
+          {/* 2. Routes Content */}
           <TabsContent value="routes" className="min-h-[300px] space-y-3 mt-4">
             {routes.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground bg-gray-50 rounded-xl border border-dashed">
@@ -366,7 +409,7 @@ const ProfilePage = () => {
                 </div>
             ) : (
                 <>
-                  {/* --- GIAO DIỆN MOBILE (GIỮ NGUYÊN) --- */}
+                  {/* --- GIAO DIỆN MOBILE --- */}
                   <div className="md:hidden space-y-3">
                     {routes.map((route) => (
                       <div key={route.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col gap-3">
@@ -412,7 +455,7 @@ const ProfilePage = () => {
                     ))}
                   </div>
 
-                  {/* --- GIAO DIỆN PC (3 CỘT & THẺ NHỎ) --- */}
+                  {/* --- GIAO DIỆN PC --- */}
                   <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {routes.map((route) => (
                       <Card key={route.id} className="group hover:shadow-md transition-shadow border-gray-200 flex flex-col justify-between">
@@ -431,7 +474,7 @@ const ProfilePage = () => {
                                 </div>
                             </div>
                             
-                            {/* Nút thao tác PC (Icon nhỏ gọn) */}
+                            {/* Nút thao tác PC */}
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-gray/90" onClick={(e) => openRenameDialog(route, e)} title="Đổi tên">
                                   <Pencil className="h-3.5 w-3.5" />
@@ -469,25 +512,28 @@ const ProfilePage = () => {
           </TabsContent>
 
           {/* 3. Reviews Content */}
-          <TabsContent value="reviews" className="min-h-[300px] space-y-3 mt-4">
+          <TabsContent value="reviews" className="min-h-[300px] mt-4">
             {myReviews.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground bg-gray-50 rounded-xl border border-dashed">
-                    <MessageSquare className="h-10 w-10 mb-2 opacity-20" />
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground bg-gray-50 rounded-xl border border-dashed">
+                    <MessageSquare className="h-12 w-12 mb-3 opacity-20" />
                     <p>Bạn chưa viết đánh giá nào</p>
                 </div>
             ) : (
-                <div className="space-y-3">
+                <>
+                {/* --- GIAO DIỆN MOBILE --- */}
+                <div className="md:hidden space-y-3">
                     {myReviews.map((review) => (
                         <div key={review.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                            {/* Review Header: Tên quán + Rating */}
+                             {/* Header Mobile: Avatar nhỏ + Tên */}
                             <div className="flex justify-between items-start mb-3">
                                 <div className="flex gap-3">
                                     <div className="h-12 w-12 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
-                                        {review.images && review.images.length > 0 ? (
-                                            <img src={review.images[0]} alt="thumb" className="h-full w-full object-cover" />
-                                        ) : (
-                                            <div className="h-full w-full flex items-center justify-center text-gray-400"><StoreIcon /></div>
-                                        )}
+                                        {/* SỬ DỤNG REVIEW IMAGE COMPONENT */}
+                                        <ReviewImage 
+                                            src={review.images && review.images.length > 0 ? review.images[0] : ""} 
+                                            alt="thumb" 
+                                            className="h-full w-full"
+                                        />
                                     </div>
                                     <div>
                                         <h4 className="font-bold text-sm text-gray-800 line-clamp-1" onClick={() => navigate(`/restaurant/${review.place_id}`)}>
@@ -504,13 +550,91 @@ const ProfilePage = () => {
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
                             </div>
-
                             <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg line-clamp-3 italic">
                                 "{review.comment}"
                             </p>
                         </div>
                     ))}
                 </div>
+
+                {/* --- GIAO DIỆN PC MỚI (Card ngang, Ảnh lớn full chiều cao) --- */}
+                <div className="hidden md:grid md:grid-cols-2 gap-4">
+                    {myReviews.map((review) => (
+                        <Card key={review.id} className="group overflow-hidden flex flex-row h-44 hover:shadow-md transition-all border-muted/60">
+                            
+                            {/* 1. KHUNG ẢNH BÊN TRÁI (Lớn & Full Height) */}
+                            <div className="w-48 h-full shrink-0 relative bg-muted/20 cursor-pointer" onClick={() => navigate(`/restaurant/${review.place_id}`)}>
+                                
+                                {/* SỬ DỤNG REVIEW IMAGE COMPONENT - Tự động quản lý loading, error, resize */}
+                                <ReviewImage 
+                                    src={review.images && review.images.length > 0 ? review.images[0] : ""}
+                                    alt="review-thumb"
+                                    className="w-full h-full group-hover:scale-105 transition-transform duration-700" 
+                                />
+
+                                {/* Rating Badge đè lên ảnh */}
+                                <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-md shadow-sm flex items-center gap-1 text-xs font-bold text-gray-800 z-20">
+                                     <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                     {review.rating}.0
+                                </div>
+                            </div>
+
+                            {/* 2. NỘI DUNG BÊN PHẢI */}
+                            <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
+                                <div>
+                                    <div className="flex justify-between items-start gap-2">
+                                        <h4 
+                                            className="font-bold text-base text-gray-900 truncate hover:text-primary cursor-pointer transition-colors"
+                                            onClick={() => navigate(`/restaurant/${review.place_id}`)}
+                                            title={review.restaurantName}
+                                        >
+                                            {review.restaurantName || "Đang tải tên quán..."}
+                                        </h4>
+                                        
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-6 w-6 -mr-2 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-full"
+                                            onClick={(e) => confirmDelete(review.id, "review", e)}
+                                            title="Xóa đánh giá"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+                                        <Calendar className="h-3 w-3" />
+                                        <span>{new Date(review.created_at).toLocaleDateString("vi-VN")}</span>
+                                        {review.restaurantAddress && (
+                                            <>
+                                                <span>•</span>
+                                                <span className="truncate max-w-[150px]" title={review.restaurantAddress}>{review.restaurantAddress}</span>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {/* Nội dung đánh giá */}
+                                    <div className="relative">
+                                        <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed italic pr-2">
+                                            "{review.comment}"
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="pt-2 mt-2 border-t border-gray-100 flex justify-end">
+                                    <Button 
+                                        variant="link" 
+                                        className="h-auto p-0 text-xs text-primary hover:no-underline flex items-center gap-1"
+                                        onClick={() => navigate(`/restaurant/${review.place_id}`)}
+                                    >
+                                        Xem chi tiết <MessageSquare className="h-3 w-3" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </Card>
+                    ))}
+                </div>
+                </>
             )}
           </TabsContent>
         </Tabs>
