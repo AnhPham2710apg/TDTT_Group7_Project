@@ -845,12 +845,12 @@ const HomePage = () => {
             >
               <div className="relative aspect-video rounded-2xl bg-black shadow-2xl border border-border/50 overflow-hidden">
                 <iframe
-                  className="w-full h-full"
-                  src="https://www.youtube.com/embed/Qdobcs56upE"
-                  title="Food Tour Intro"
-                  frameBorder="0"
+                  className="absolute top-0 left-0 w-full h-full"
+                  src={`https://www.youtube.com/embed/0Wb9kpBHRqg`}
+                  title="Food Tour Assistant - Video Demo"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
+                  loading="lazy"
                 ></iframe>
               </div>
             </motion.div>
