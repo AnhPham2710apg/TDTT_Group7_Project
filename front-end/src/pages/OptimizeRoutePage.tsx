@@ -500,54 +500,65 @@ const OptimizeRoutePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col md:block overflow-hidden">
+    // SỬ DỤNG h-[100dvh] thay vì min-h-screen để fix lỗi trình duyệt mobile
+    <div className="h-[100dvh] w-full bg-background flex flex-col md:block overflow-hidden relative">
+      
       {/* PC Navbar */}
       <div className="hidden md:block">
          <Navbar />
       </div>
 
       {/* --- MOBILE LAYOUT --- */}
-      <div className="md:hidden fixed inset-0 w-full h-[100dvh] bg-background">
-         <div className="absolute top-10 left-4 z-20 pointer-events-auto">
+      {/* Container chính full màn hình mobile */}
+      <div className="md:hidden absolute inset-0 w-full h-full z-0">
+         
+         {/* NÚT BACK: Thêm pt-safe và top-4 để tránh tai thỏ */}
+         <div className="absolute top-0 left-4 z-20 pt-safe mt-4 pointer-events-auto">
              <Button 
                variant="outline" 
                size="icon" 
-               className="h-10 w-10 rounded-full shadow-lg bg-white text-green-600 border border-green-600 hover:bg-green-600 hover:text-white" 
+               className="h-10 w-10 rounded-full shadow-lg bg-white/90 backdrop-blur-sm text-green-600 border-green-600/20 hover:bg-green-600 hover:text-white transition-all" 
                onClick={() => navigate(-1)}
              >
                  <ArrowLeft className="h-5 w-5" />
              </Button>
          </div>
 
-         <div className={`absolute inset-0 z-0 bg-gray-100 transition-opacity duration-300 ${snap === "190px" ? "" : "pointer-events-none"}`}>
+         {/* BẢN ĐỒ: Full height */}
+         <div className={`absolute inset-0 z-0 bg-gray-100 transition-all duration-500 ease-in-out`}>
              <RouteMap 
                polylineOutbound={polyOutbound} 
                polylineReturn={polyReturn}
                points={mapPoints} 
                focusPoint={focusPoint}
              />
+             {/* Lớp phủ mờ khi Drawer kéo lên Full màn hình để tập trung nội dung */}
+             <div className={`absolute inset-0 bg-black/20 pointer-events-none transition-opacity duration-300 ${snap === 1 ? 'opacity-100' : 'opacity-0'}`} />
          </div>
 
+         {/* --- DRAWER (VAUL) --- */}
          <Drawer.Root 
-           // [KEY LOGIC] Khi đang Drag (isDragging=true), ép snapPoints chỉ còn 1 giá trị hiện tại.
-           // Điều này khiến Drawer bị "kẹt" lại, không thể trượt đi đâu được.
-           snapPoints={isDragging && snap ? [snap] : ["190px", 0.61, 0.95]} 
-           activeSnapPoint={snap} 
-           setActiveSnapPoint={setSnap}
-           modal={false} 
-           open={true}
-           // [KEY LOGIC] Không cho phép vuốt đóng/mở khi đang drag
-           dismissible={!isDragging} 
+            snapPoints={isDragging && snap ? [snap] : ["190px", 0.55, 1]} 
+            activeSnapPoint={snap} 
+            setActiveSnapPoint={setSnap}
+            modal={false} 
+            open={true}
+            dismissible={false} // Không cho phép đóng hẳn Drawer
          >
            <Drawer.Content 
-             className="fixed flex flex-col bg-white border border-gray-200 border-b-none rounded-t-[20px] bottom-0 left-0 right-0 h-full max-h-[96%] mx-[-1px] z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] outline-none"
-             style={{ display: 'flex', flexDirection: 'column' }}
+             // Cập nhật CSS cho Drawer:
+             // max-h-[96dvh]: Chừa lại 1 chút xíu ở trên cùng để người dùng thấy map phía sau
+             // pb-safe: Đẩy nội dung lên trên thanh Home Indicator của iPhone
+             className="fixed flex flex-col bg-white border border-gray-200 border-b-none rounded-t-[20px] bottom-0 left-0 right-0 h-full max-h-[96dvh] mx-[-1px] z-30 shadow-[0_-5px_40px_rgba(0,0,0,0.1)] outline-none"
            >
-             <div className="w-full mx-auto flex flex-col items-center pt-3 pb-2 bg-white rounded-t-[20px] flex-shrink-0 cursor-grab active:cursor-grabbing z-10">
-               <div className="w-12 h-1.5 bg-gray-300 rounded-full mb-2" />
+             
+             {/* THANH KÉO (HANDLE) */}
+             <div className="w-full mx-auto flex flex-col items-center pt-3 pb-2 bg-white rounded-t-[20px] flex-shrink-0 z-10 cursor-grab active:cursor-grabbing">
+               <div className="w-12 h-1.5 bg-gray-300 rounded-full mb-1" />
              </div>
 
-             <div className="px-4 pb-2 pt-2 bg-white border-b border-gray-50 flex-shrink-0">
+             {/* HEADER CỦA DRAWER (Ô TÌM KIẾM) */}
+             <div className="px-4 pb-2 bg-white border-b border-gray-50 flex-shrink-0 pt-1">
                  <div className="relative mb-3">
                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
                    <Input 
@@ -555,26 +566,18 @@ const OptimizeRoutePage = () => {
                      value={startPoint}
                      onChange={(e) => setStartPoint(e.target.value)}
                      onKeyDown={handleKeyDown}
-                     spellCheck={false}
-                     onFocus={(e) => {
-                        // Chỉ xử lý nếu đang ở trạng thái thu gọn
-                        if (snap === "190px") {
-                          // Delay 300ms (thời gian chuẩn animation bàn phím iOS)
-                          setTimeout(() => {
-                            setSnap(0.61);
-                            
-                            // (Tuỳ chọn) Đảm bảo input nằm giữa màn hình sau khi drawer mở rộng
-                            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                          }, 300);
-                        }
-                      }}
-                     className="pl-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-green-500 h-10 shadow-sm rounded-lg text-base md:text-sm"
+                     // Khi focus vào input, tự động nhảy lên mức Medium (0.55) hoặc Full
+                     onFocus={() => {
+                        if (snap === "190px") setSnap(0.55);
+                     }}
+                     className="pl-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-green-500 h-10 shadow-sm rounded-lg text-base" 
+                     // text-base quan trọng trên iOS để tránh tự động zoom in khi nhập liệu
                    />
                  </div>
 
                  <Button 
                    onClick={handleOptimize}
-                   className="w-full bg-green-600 hover:bg-green-700 text-white font-medium h-10 rounded-lg shadow-sm"
+                   className="w-full bg-green-600 hover:bg-green-700 text-white font-medium h-10 rounded-lg shadow-sm active:scale-[0.98] transition-transform"
                    disabled={isOptimizing}
                  >
                    {isOptimizing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Navigation className="h-4 w-4 mr-2" />}
@@ -582,40 +585,42 @@ const OptimizeRoutePage = () => {
                  </Button>
              </div>
 
-             <div className="flex-1 overflow-y-auto px-4 pt-2 pb-safe bg-white overscroll-contain">
-               <div className="pb-20">
-                 {optimizedRoute.length === 0 && initialPlaces.length > 0 && 
-                   <DragDropList 
-                     initialPlaces={initialPlaces} 
-                     useManualOrder={useManualOrder} 
-                     setUseManualOrder={setUseManualOrder} 
-                     onDragEnd={onDragEnd}
-                     onDragStart={handleDragStart} // Truyền handler xuống
-                   />
-                 }
-                 {optimizedRoute.length > 0 && (
-                  <div className="space-y-3"> {/* Bọc trong div để spacing đẹp */}
-                    <ResultList 
-                      optimizedRoute={optimizedRoute} 
-                      handleCardClick={handleCardClick} 
-                      routeInfo={routeInfo} 
+             {/* BODY CỦA DRAWER (LIST QUÁN ĂN) */}
+             {/* Thêm pb-safe để nội dung cuối cùng không bị thanh Home đè lên */}
+             <div className="flex-1 overflow-y-auto px-4 pt-2 pb-safe overscroll-contain bg-white">
+                <div className="pb-4"> 
+                  {optimizedRoute.length === 0 && initialPlaces.length > 0 && 
+                    <DragDropList 
+                      initialPlaces={initialPlaces} 
+                      useManualOrder={useManualOrder} 
+                      setUseManualOrder={setUseManualOrder} 
+                      onDragEnd={onDragEnd}
+                      onDragStart={handleDragStart} 
                     />
-                    
-                    {/* NÚT SAVE CHO MOBILE */}
-                    {isLoggedIn && (
-                      <Button 
-                        variant="outline" 
-                        className="w-full border-green-600 text-green-700 hover:bg-green-600"
-                        onClick={handleSaveRoute}
-                        disabled={isSaving}
-                      >
-                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        Lưu lộ trình này
-                      </Button>
-                    )}
-                  </div>
-                )}
-               </div>
+                  }
+                  
+                  {optimizedRoute.length > 0 && (
+                   <div className="space-y-3 animate-slide-up">
+                     <ResultList 
+                       optimizedRoute={optimizedRoute} 
+                       handleCardClick={handleCardClick} 
+                       routeInfo={routeInfo} 
+                     />
+                     
+                     {isLoggedIn && (
+                       <Button 
+                         variant="outline" 
+                         className="w-full border-green-600 text-green-700 hover:bg-green-50 h-12 text-base font-medium"
+                         onClick={handleSaveRoute}
+                         disabled={isSaving}
+                       >
+                         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                         Lưu lộ trình này
+                       </Button>
+                     )}
+                   </div>
+                  )}
+                </div>
              </div>
            </Drawer.Content>
          </Drawer.Root>

@@ -133,3 +133,31 @@ All colors MUST be HSL.
   .delay-200 { animation-delay: 200ms; }
   .delay-300 { animation-delay: 300ms; }
 }
+
+@layer utilities {
+  /* Hỗ trợ biến môi trường Safe Area của thiết bị */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .top-safe {
+    top: env(safe-area-inset-top);
+  }
+  .bottom-safe {
+    bottom: env(safe-area-inset-bottom);
+  }
+  .h-safe-screen {
+    height: 100dvh; /* dvh: Dynamic Viewport Height - Tự động trừ thanh địa chỉ */
+  }
+}
+
+/* Tùy chỉnh thanh cuộn cho đẹp hơn trên mobile */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
