@@ -135,29 +135,25 @@ All colors MUST be HSL.
 }
 
 @layer utilities {
-  /* Hỗ trợ biến môi trường Safe Area của thiết bị */
-  .pt-safe {
-    padding-top: env(safe-area-inset-top);
-  }
+  /* Hỗ trợ vùng an toàn cho tai thỏ và thanh home ảo */
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
   }
-  .top-safe {
-    top: env(safe-area-inset-top);
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
   }
-  .bottom-safe {
-    bottom: env(safe-area-inset-bottom);
+  
+  /* Chiều cao động chuẩn cho mobile */
+  .h-dvh {
+    height: 100dvh;
   }
-  .h-safe-screen {
-    height: 100dvh; /* dvh: Dynamic Viewport Height - Tự động trừ thanh địa chỉ */
+  
+  /* Ẩn thanh cuộn nhưng vẫn cuộn được (cho trải nghiệm app sạch hơn) */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
-}
-
-/* Tùy chỉnh thanh cuộn cho đẹp hơn trên mobile */
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.hide-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }

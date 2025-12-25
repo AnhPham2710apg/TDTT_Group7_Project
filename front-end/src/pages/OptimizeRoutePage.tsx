@@ -1,6 +1,6 @@
-import { useState, useEffect, KeyboardEvent } from "react";
+import { useState, useEffect, KeyboardEvent, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 import Navbar from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,12 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   MapPin, Loader2, Navigation, ListChecks,
-  GripVertical, ArrowLeft, Save, Info
+  GripVertical, ArrowLeft, Save
 } from "lucide-react";
 import { toast } from "sonner";
 import RouteMap from "@/components/RouteMap";
 import { useCart } from "@/context/CartContext";
-import { DragDropContext, Droppable, Draggable, DropResult, DragStart } from "@hello-pangea/dnd";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE_URL } from "@/lib/api-config";
@@ -59,7 +59,6 @@ interface DragDropListProps {
   onDragEnd: (result: DropResult) => void;
   onDragStart: () => void;
 }
-
 const DragDropList = ({ 
     initialPlaces, 
     useManualOrder, 
@@ -218,38 +217,35 @@ interface ResultListProps {
 
 // 2. Áp dụng interface vào component thay vì dùng 'any'
 const ResultList = ({ optimizedRoute, handleCardClick, routeInfo }: ResultListProps) => (
-  <div className="space-y-4 mt-4 pb-20 md:pb-0">
-      <Card className="p-4 bg-green-50 dark:bg-green-900/10 border-green-200 shadow-sm">
-          <h3 className="font-semibold text-sm mb-3 text-green-800 flex items-center gap-2">
-          <MapPin className="h-4 w-4" /> Lộ trình gợi ý
-          </h3>
-          <div className="space-y-2">
-          {optimizedRoute.map((stop, index) => (
-              <div
-              key={index}
-              onClick={() => handleCardClick(index)}
-              className="flex items-start gap-2 p-2 rounded-lg bg-white shadow-sm cursor-pointer active:scale-95 transition-transform border border-transparent hover:border-green-400"
-              >
-              <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs text-white ${index === 0 || index === optimizedRoute.length - 1 ? 'bg-green-700' : 'bg-green-500'}`}>
-                  {index === 0 || index === optimizedRoute.length - 1 ? <Navigation className="h-3 w-3" /> : index}
-              </div>
-              <div className="flex-1">
-                  <p className="text-xs font-medium text-gray-800 line-clamp-2">{stop}</p>
-              </div>
-              </div>
-          ))}
+  <div className="space-y-3 mt-2">
+      <div className="flex items-center justify-between bg-green-50 p-3 rounded-lg border border-green-100">
+          <div className="text-center w-1/2 border-r border-green-200">
+            <span className="block text-[10px] text-green-600 uppercase font-bold">Quãng đường</span>
+            <span className="text-sm font-bold text-green-800">{routeInfo.distance}</span>
           </div>
-      </Card>
-      <Card className="p-4 shadow-sm">
-          <div className="flex justify-between text-sm border-b pb-2 mb-2">
-              <span className="text-muted-foreground">Quãng đường:</span>
-              <span className="font-bold text-green-600">{routeInfo.distance}</span>
+          <div className="text-center w-1/2">
+            <span className="block text-[10px] text-green-600 uppercase font-bold">Thời gian</span>
+            <span className="text-sm font-bold text-green-800">{routeInfo.duration}</span>
           </div>
-          <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Thời gian:</span>
-              <span className="font-bold text-green-600">{routeInfo.duration}</span>
+      </div>
+
+      <div className="space-y-2">
+      {optimizedRoute.map((stop: string, index: number) => (
+          <div
+            key={index}
+            onClick={() => handleCardClick(index)}
+            className="flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-100 shadow-sm active:bg-gray-50 transition-colors"
+          >
+            <div className={`
+                flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm
+                ${index === 0 || index === optimizedRoute.length - 1 ? 'bg-black' : 'bg-green-600'}
+            `}>
+                {index === 0 || index === optimizedRoute.length - 1 ? <Navigation className="h-3 w-3" /> : index}
+            </div>
+            <p className="text-sm font-medium text-gray-800 line-clamp-1 flex-1">{stop}</p>
           </div>
-      </Card>
+      ))}
+      </div>
   </div>
 );
 
@@ -271,20 +267,20 @@ const OptimizeRoutePage = () => {
   const { clearCart } = useCart();
   const { username, isLoggedIn } = useAuth();
 
-  // === VAUL DRAWER CONFIG ===
+  // === DRAWER & MOBILE LOGIC ===
+  // 190px: Mini (chỉ hiện ô tìm kiếm)
+  // 0.55: Medium (~55% màn hình)
+  // 1: Max (Full màn hình - dùng khi keyboard bật hoặc xem full list)
+  const SNAP_POINTS = ["190px", 0.55, 1]; 
   const [snap, setSnap] = useState<number | string | null>("190px");
-  
-  // STATE MỚI: Theo dõi trạng thái đang kéo
   const [isDragging, setIsDragging] = useState(false);
-
   const [isSaving, setIsSaving] = useState(false);
-  // State để lưu dữ liệu thô từ API optimize (để gửi lại cho API save)
-  const [rawRouteData, setRawRouteData] = useState<{
-    distance: number;
-    duration: number;
-  } | null>(null);
+  const [rawRouteData, setRawRouteData] = useState<{ distance: number; duration: number; } | null>(null);
 
-  // --- EFFECT: Parse URL & Tạo ID duy nhất ---
+  // Ref để xử lý scroll khi focus input
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // --- INIT DATA ---
   useEffect(() => {
     const separator = "|||";
     const namesStr = searchParams.get("names") || "";
@@ -294,13 +290,11 @@ const OptimizeRoutePage = () => {
     const startParam = searchParams.get("start");
 
     if (startParam) setStartPoint(startParam);
-
     if (namesStr && addressesStr) {
       const names = namesStr.split(separator);
       const addresses = addressesStr.split(separator);
       const lats = latsStr.split(separator);
       const lngs = lngsStr.split(separator);
-
       const places = names.map((name, index) => ({
         id: `place-${index}-${Date.now()}`, 
         name: name,
@@ -312,16 +306,11 @@ const OptimizeRoutePage = () => {
     }
   }, [searchParams]);
 
-  // --- HANDLERS CHO DRAG ---
-  const handleDragStart = () => {
-      // Khi bắt đầu kéo -> Khóa Drawer lại
-      setIsDragging(true);
-  };
-
+  // --- HANDLERS ---
+  const handleDragStart = () => setIsDragging(true);
+  
   const onDragEnd = (result: DropResult) => {
-    // Khi thả ra -> Mở khóa Drawer
     setIsDragging(false);
-
     if (!result.destination) return;
     const items = Array.from(initialPlaces);
     const [reorderedItem] = items.splice(result.source.index, 1);
@@ -329,7 +318,6 @@ const OptimizeRoutePage = () => {
     setInitialPlaces(items);
   };
 
-  // --- OPTIMIZE LOGIC ---
   // --- OPTIMIZE LOGIC ---
   const handleOptimize = async () => {
     if (!startPoint) { toast.error("Vui lòng nhập điểm xuất phát"); return; }
@@ -346,10 +334,8 @@ const OptimizeRoutePage = () => {
     try {
       if (initialPlaces.length === 0) {
         toast.error("Không có địa điểm nào để tối ưu.");
-        setIsOptimizing(false);
         return;
       }
-      
       const placesPayload = initialPlaces.map((place) => ({
         name: place.name, address: place.address, lat: place.lat || 0, lng: place.lon || 0
       }));
@@ -360,41 +346,22 @@ const OptimizeRoutePage = () => {
       );
       
       const data = response.data;
-      
-      // 1. Cập nhật UI hiển thị
       const formattedRoute = [
         `Xuất phát: ${startPoint}`,
         ...data.optimized_order.map((placeName, index) => `${index + 1}. ${placeName}`),
         `Kết thúc: ${startPoint}`
       ];
       setOptimizedRoute(formattedRoute);
-      
-      // Hiển thị dạng chuỗi đẹp
-      setRouteInfo({
-        distance: `${data.distance_km.toFixed(1)} km`,
-        duration: `${Math.round(data.duration_min)} phút`,
-      });
-
-      // 2. LƯU DỮ LIỆU THÔ (Để dùng cho nút Save) [NEW]
-      setRawRouteData({
-        distance: data.distance_km,
-        duration: data.duration_min
-      });
-
+      setRouteInfo({ distance: `${data.distance_km.toFixed(1)} km`, duration: `${Math.round(data.duration_min)} phút` });
+      setRawRouteData({ distance: data.distance_km, duration: data.duration_min });
       setPolyOutbound(data.polyline_outbound);
       setPolyReturn(data.polyline_return);
-      
-      const start_Point: Waypoint = {
-        id: 'Điểm xuất phát', address: startPoint, ...data.start_point_coords,
-      };
-      setMapPoints([start_Point, ...data.waypoints]);
+      setMapPoints([{ id: 'start', address: startPoint, ...data.start_point_coords }, ...data.waypoints]);
       
       toast.success("Đã tối ưu hóa lộ trình!");
-      setSnap(0.61); 
-
-      // --- XÓA ĐOẠN CODE AUTO-SAVE CŨ Ở ĐÂY ---
-      // (Chúng ta sẽ chuyển nó sang nút bấm riêng)
       
+      // UX Tinh tế: Khi có kết quả, tự động mở Drawer lên mức Medium để user xem ngay
+      setSnap(0.55); 
       clearCart();
     } catch (error: unknown) {
       console.error("Chi tiết lỗi:", error);
@@ -480,17 +447,19 @@ const OptimizeRoutePage = () => {
 
   const handleCardClick = (index: number) => {
       if (mapPoints.length === 0) return;
+      // Logic mapping index từ list UI sang list MapPoints
+      // Index 0 UI = Xuất phát = mapPoints[0]
+      // Index last UI = Kết thúc = mapPoints[0]
       let targetPoint;
-      if (index === 0 || index === optimizedRoute.length - 1) {
-          targetPoint = mapPoints[0];
-      } else {
-          targetPoint = mapPoints[index];
-      }
+      if (index === 0 || index === optimizedRoute.length - 1) targetPoint = mapPoints[0];
+      else targetPoint = mapPoints[index];
+
       if (targetPoint) {
           setFocusPoint({ lat: targetPoint.lat, lon: targetPoint.lon });
+          // Khi click xem map, thu gọn drawer xuống Mini để nhìn rõ map
           setSnap("190px"); 
       }
-  };
+    };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !isOptimizing && startPoint) {
@@ -500,127 +469,115 @@ const OptimizeRoutePage = () => {
   };
 
   return (
-    // SỬ DỤNG h-[100dvh] thay vì min-h-screen để fix lỗi trình duyệt mobile
     <div className="h-[100dvh] w-full bg-background flex flex-col md:block overflow-hidden relative">
-      
       {/* PC Navbar */}
-      <div className="hidden md:block">
-         <Navbar />
-      </div>
+      <div className="hidden md:block"><Navbar /></div>
 
       {/* --- MOBILE LAYOUT --- */}
-      {/* Container chính full màn hình mobile */}
-      <div className="md:hidden absolute inset-0 w-full h-full z-0">
-         
-         {/* NÚT BACK: Thêm pt-safe và top-4 để tránh tai thỏ */}
-         <div className="absolute top-0 left-4 z-20 pt-safe mt-4 pointer-events-auto">
+      <div className="md:hidden fixed inset-0 z-0 bg-gray-100">
+         {/* Nút Back: Dùng absolute và z-index cao để luôn nổi trên map */}
+         <div className="absolute top-4 left-4 z-20 pt-safe">
              <Button 
-               variant="outline" 
-               size="icon" 
-               className="h-10 w-10 rounded-full shadow-lg bg-white/90 backdrop-blur-sm text-green-600 border-green-600/20 hover:bg-green-600 hover:text-white transition-all" 
+               variant="secondary" size="icon" 
+               className="h-10 w-10 rounded-full shadow-lg bg-white/90 backdrop-blur text-green-700 border border-green-100" 
                onClick={() => navigate(-1)}
              >
                  <ArrowLeft className="h-5 w-5" />
              </Button>
          </div>
 
-         {/* BẢN ĐỒ: Full height */}
-         <div className={`absolute inset-0 z-0 bg-gray-100 transition-all duration-500 ease-in-out`}>
+         {/* Bản đồ nền */}
+         <div className="absolute inset-0 z-0 h-full w-full">
              <RouteMap 
-               polylineOutbound={polyOutbound} 
-               polylineReturn={polyReturn}
-               points={mapPoints} 
-               focusPoint={focusPoint}
+               polylineOutbound={polyOutbound} polylineReturn={polyReturn}
+               points={mapPoints} focusPoint={focusPoint}
              />
-             {/* Lớp phủ mờ khi Drawer kéo lên Full màn hình để tập trung nội dung */}
-             <div className={`absolute inset-0 bg-black/20 pointer-events-none transition-opacity duration-300 ${snap === 1 ? 'opacity-100' : 'opacity-0'}`} />
          </div>
 
-         {/* --- DRAWER (VAUL) --- */}
+         {/* VAUL DRAWER */}
          <Drawer.Root 
-            snapPoints={isDragging && snap ? [snap] : ["190px", 0.55, 1]} 
-            activeSnapPoint={snap} 
-            setActiveSnapPoint={setSnap}
-            modal={false} 
-            open={true}
-            dismissible={false} // Không cho phép đóng hẳn Drawer
+           snapPoints={isDragging && snap ? [snap] : SNAP_POINTS} 
+           activeSnapPoint={snap} 
+           setActiveSnapPoint={setSnap}
+           modal={false} 
+           open={true}
+           dismissible={false} // Không cho phép đóng hẳn Drawer
          >
            <Drawer.Content 
-             // Cập nhật CSS cho Drawer:
-             // max-h-[96dvh]: Chừa lại 1 chút xíu ở trên cùng để người dùng thấy map phía sau
-             // pb-safe: Đẩy nội dung lên trên thanh Home Indicator của iPhone
-             className="fixed flex flex-col bg-white border border-gray-200 border-b-none rounded-t-[20px] bottom-0 left-0 right-0 h-full max-h-[96dvh] mx-[-1px] z-30 shadow-[0_-5px_40px_rgba(0,0,0,0.1)] outline-none"
+             className="fixed flex flex-col bg-white border border-gray-200 border-b-none rounded-t-[24px] bottom-0 left-0 right-0 h-[96dvh] z-30 shadow-2xl outline-none"
+             // Quan trọng: pb-safe để tránh thanh home
+             style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
            >
-             
              {/* THANH KÉO (HANDLE) */}
-             <div className="w-full mx-auto flex flex-col items-center pt-3 pb-2 bg-white rounded-t-[20px] flex-shrink-0 z-10 cursor-grab active:cursor-grabbing">
-               <div className="w-12 h-1.5 bg-gray-300 rounded-full mb-1" />
+             <div className="w-full flex items-center justify-center pt-3 pb-2 bg-white rounded-t-[24px] flex-shrink-0 cursor-grab active:cursor-grabbing touch-none">
+               <div className="w-12 h-1.5 bg-gray-200 rounded-full" />
              </div>
 
-             {/* HEADER CỦA DRAWER (Ô TÌM KIẾM) */}
-             <div className="px-4 pb-2 bg-white border-b border-gray-50 flex-shrink-0 pt-1">
-                 <div className="relative mb-3">
-                   <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
+             {/* HEADER: INPUT TÌM KIẾM */}
+             <div className="px-4 pb-3 bg-white border-b border-gray-50 flex-shrink-0">
+                 <div className="relative mb-3 shadow-sm rounded-xl">
+                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <MapPin className="h-4 w-4 text-green-600" />
+                   </div>
                    <Input 
-                     placeholder="Nhập điểm xuất phát..." 
+                     ref={inputRef}
+                     placeholder="Điểm xuất phát (VD: Quận 1)..." 
                      value={startPoint}
                      onChange={(e) => setStartPoint(e.target.value)}
-                     onKeyDown={handleKeyDown}
-                     // Khi focus vào input, tự động nhảy lên mức Medium (0.55) hoặc Full
-                     onFocus={() => {
-                        if (snap === "190px") setSnap(0.55);
-                     }}
-                     className="pl-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-green-500 h-10 shadow-sm rounded-lg text-base" 
-                     // text-base quan trọng trên iOS để tránh tự động zoom in khi nhập liệu
+                     // UX FIX: Khi focus input, mở Drawer full màn hình để bàn phím ko che
+                     onFocus={() => setSnap(1)}
+                     className="pl-9 bg-gray-50 border-gray-100 focus:bg-white focus:border-green-500 h-11 rounded-xl text-base"
+                     // 'text-base' để tránh iOS zoom khi focus
                    />
                  </div>
 
                  <Button 
                    onClick={handleOptimize}
-                   className="w-full bg-green-600 hover:bg-green-700 text-white font-medium h-10 rounded-lg shadow-sm active:scale-[0.98] transition-transform"
                    disabled={isOptimizing}
+                   className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold h-11 rounded-xl shadow-green-200 shadow-md"
                  >
-                   {isOptimizing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Navigation className="h-4 w-4 mr-2" />}
-                   {optimizedRoute.length > 0 ? "Tối ưu lại" : "Tìm lộ trình"}
+                   {isOptimizing ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Navigation className="h-5 w-5 mr-2" />}
+                   {optimizedRoute.length > 0 ? "Tối ưu lại lộ trình" : "Tìm lộ trình tối ưu"}
                  </Button>
              </div>
 
-             {/* BODY CỦA DRAWER (LIST QUÁN ĂN) */}
-             {/* Thêm pb-safe để nội dung cuối cùng không bị thanh Home đè lên */}
-             <div className="flex-1 overflow-y-auto px-4 pt-2 pb-safe overscroll-contain bg-white">
-                <div className="pb-4"> 
-                  {optimizedRoute.length === 0 && initialPlaces.length > 0 && 
-                    <DragDropList 
-                      initialPlaces={initialPlaces} 
-                      useManualOrder={useManualOrder} 
-                      setUseManualOrder={setUseManualOrder} 
-                      onDragEnd={onDragEnd}
-                      onDragStart={handleDragStart} 
-                    />
-                  }
-                  
-                  {optimizedRoute.length > 0 && (
-                   <div className="space-y-3 animate-slide-up">
-                     <ResultList 
-                       optimizedRoute={optimizedRoute} 
-                       handleCardClick={handleCardClick} 
-                       routeInfo={routeInfo} 
-                     />
-                     
-                     {isLoggedIn && (
-                       <Button 
-                         variant="outline" 
-                         className="w-full border-green-600 text-green-700 hover:bg-green-50 h-12 text-base font-medium"
-                         onClick={handleSaveRoute}
-                         disabled={isSaving}
-                       >
-                         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                         Lưu lộ trình này
-                       </Button>
-                     )}
-                   </div>
-                  )}
-                </div>
+             {/* BODY: LIST SCROLLABLE */}
+             {/* flex-1 và overflow-y-auto giúp nội dung cuộn bên trong Drawer mà ko kéo Drawer đi */}
+             <div className="flex-1 overflow-y-auto bg-white p-4 pt-2 pb-20 overscroll-contain no-scrollbar">
+                
+                {/* LIST CHỌN ĐIỂM (CHƯA TỐI ƯU) */}
+                {optimizedRoute.length === 0 && initialPlaces.length > 0 && 
+                  <DragDropList 
+                    initialPlaces={initialPlaces} 
+                    useManualOrder={useManualOrder} 
+                    setUseManualOrder={setUseManualOrder} 
+                    onDragEnd={onDragEnd}
+                    onDragStart={handleDragStart}
+                  />
+                }
+
+                {/* KẾT QUẢ TỐI ƯU */}
+                {optimizedRoute.length > 0 && (
+                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                   <ResultList 
+                     optimizedRoute={optimizedRoute} 
+                     handleCardClick={handleCardClick} 
+                     routeInfo={routeInfo} 
+                   />
+                   
+                   {isLoggedIn && (
+                     <Button 
+                       variant="outline" 
+                       className="w-full mt-4 border-dashed border-green-600 text-green-700 h-11 bg-green-50 hover:bg-green-100"
+                       onClick={handleSaveRoute}
+                       disabled={isSaving}
+                     >
+                       {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                       Lưu vào lịch sử chuyến đi
+                     </Button>
+                   )}
+                 </div>
+                )}
              </div>
            </Drawer.Content>
          </Drawer.Root>
