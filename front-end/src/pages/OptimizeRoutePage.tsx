@@ -124,16 +124,6 @@ const DragDropList = ({
 interface ResultListProps { optimizedRoute: string[]; handleCardClick: (index: number) => void; routeInfo: { distance: string; duration: string; }; }
 const ResultList = ({ optimizedRoute, handleCardClick, routeInfo }: ResultListProps) => (
   <div className="space-y-3 pb-safe">
-      <div className="grid grid-cols-2 gap-3 mb-2">
-         <div className="bg-green-50 p-3 rounded-xl border border-green-100 flex flex-col items-center justify-center">
-            <span className="text-xs text-green-600 uppercase font-bold">Quãng đường</span>
-            <span className="text-lg font-bold text-green-700">{routeInfo.distance}</span>
-         </div>
-         <div className="bg-green-50 p-3 rounded-xl border border-green-100 flex flex-col items-center justify-center">
-            <span className="text-xs text-green-600 uppercase font-bold">Thời gian</span>
-            <span className="text-lg font-bold text-green-700">{routeInfo.duration}</span>
-         </div>
-      </div>
 
       <div className="space-y-2">
       {optimizedRoute.map((stop, index) => (
@@ -148,6 +138,16 @@ const ResultList = ({ optimizedRoute, handleCardClick, routeInfo }: ResultListPr
              </div>
           </div>
       ))}
+      </div>
+      <div className="grid grid-cols-2 gap-3 mb-2">
+         <div className="bg-green-50 p-3 rounded-xl border border-green-100 flex flex-col items-center justify-center">
+            <span className="text-xs text-green-600 uppercase font-bold">Quãng đường</span>
+            <span className="text-lg font-bold text-green-700">{routeInfo.distance}</span>
+         </div>
+         <div className="bg-green-50 p-3 rounded-xl border border-green-100 flex flex-col items-center justify-center">
+            <span className="text-xs text-green-600 uppercase font-bold">Thời gian</span>
+            <span className="text-lg font-bold text-green-700">{routeInfo.duration}</span>
+         </div>
       </div>
   </div>
 );
@@ -228,7 +228,7 @@ const OptimizeRoutePage = () => {
       switch(drawerLevel) {
           case 0: 
               // Mini: Dùng px cố định để đảm bảo hiển thị đủ nội dung tối thiểu (khoảng 2 dòng list)
-              return "180px"; 
+              return "100px"; 
           case 1: 
               // Medium: 50% màn hình
               return "50dvh"; 
@@ -468,7 +468,6 @@ const OptimizeRoutePage = () => {
                               <h3 className="font-bold text-lg text-green-800 flex items-center gap-2">
                                 <MapPin className="h-5 w-5" /> Lộ trình tối ưu
                               </h3>
-                              <Button variant="ghost" size="sm" className="text-xs h-8 hover:bg-gray-100 rounded-full" onClick={() => setDrawerLevel(0)}>Ẩn danh sách</Button>
                           </div>
                           
                           <ResultList 
