@@ -223,12 +223,21 @@ const OptimizeRoutePage = () => {
   };
 
   // Tính toán chiều cao dựa trên level
+  // Tính toán chiều cao dựa trên level
   const getDrawerHeight = () => {
       switch(drawerLevel) {
-          case 0: return "20vh"; // Mini
-          case 1: return "50vh"; // Medium
-          case 2: return "85vh"; // Max
-          default: return "50vh";
+          case 0: 
+              // Mini: Dùng px cố định để đảm bảo hiển thị đủ nội dung tối thiểu (khoảng 2 dòng list)
+              return "180px"; 
+          case 1: 
+              // Medium: 50% màn hình
+              return "50dvh"; 
+          case 2: 
+              // Max: 100% màn hình trừ đi 120px (Khoảng cách an toàn cho thanh Input phía trên)
+              // 120px bao gồm: Tai thỏ + Margin top + Chiều cao Input + Khoảng hở thẩm mỹ
+              return "calc(100dvh - 120px)"; 
+          default: 
+              return "50dvh";
       }
   };
 
