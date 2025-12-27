@@ -1,3 +1,4 @@
+// OptimizeRoutePage.tsx
 import { useState, useEffect, KeyboardEvent, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import axios, { AxiosError } from "axios";
@@ -20,7 +21,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE_URL } from "@/lib/api-config";
 import { createPortal } from "react-dom";
-// 1. Import hook
 import { useTranslation } from 'react-i18next';
 
 // --- INTERFACES ---
@@ -37,7 +37,7 @@ interface InitialPlace { id: string; name: string; address: string; lat?: number
 // NEW TYPE FOR VEHICLE
 type VehicleType = "car" | "bike" | "taxi";
 
-// --- NEW COMPONENT: VEHICLE SELECTOR ---
+// --- VEHICLE SELECTOR ---
 interface VehicleSelectorProps {
     value: VehicleType;
     onChange: (v: VehicleType) => void;
@@ -112,14 +112,14 @@ const VehicleSelectorMobile = ({ value, onChange }: VehicleSelectorProps) => {
     );
 };
 
-// --- COMPONENT CON: DRAG LIST ---
+// --- DRAG LIST (OPTIMIZED) ---
 interface DragDropListProps {
   initialPlaces: InitialPlace[]; useManualOrder: boolean;
   setUseManualOrder: (val: boolean) => void;
   onDragEnd: (result: DropResult) => void;
   onDragStart: () => void;
 }
-// --- COMPONENT CON: DRAG LIST (Fixed Drag UX) ---
+
 const DragDropList = ({ 
     initialPlaces, 
     useManualOrder, 
@@ -130,19 +130,17 @@ const DragDropList = ({
   const { t } = useTranslation();
 
   return (
-    <div className="w-full md:border-2 md:border-dashed md:border-green-600 md:rounded-3xl md:p-5 md:bg-green-50/20">
-        {/* Header */}
+    <div className="w-full md:border-4 md:border-dashed md:border-green-600/30 md:rounded-3xl md:p-5 md:bg-green-50/20">
         <div className="flex items-center justify-between mb-3 px-1">
           <div className="flex items-center gap-2">
               <ListChecks className="h-4 w-4 text-green-600" />
               <h3 className="font-semibold text-sm text-gray-700">{t('optimize.stops_list_title', 'Điểm cần đến')} ({initialPlaces.length})</h3>
           </div>
 
-          {/* --- TOOLTIP --- */}
           <TooltipProvider>
                 <Tooltip delayDuration={300}>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg cursor-help select-none">
+                    <div className="flex items-center gap-2 bg-gray/100 p-1 rounded-lg cursor-help select-none">
                        <span className={`text-[10px] font-bold uppercase ${useManualOrder ? "text-green-600" : "text-gray-500"}`}>
                           {useManualOrder ? t('optimize.mode_manual', "Thủ công") : t('optimize.mode_auto', "Tự động")}
                        </span>
@@ -186,8 +184,8 @@ const DragDropList = ({
                        const originalStyle = provided.draggableProps.style as React.CSSProperties;
                        const style: React.CSSProperties = {
                           ...originalStyle,
-                          // PERFORMANCE: Use will-change to promote to GPU layer
-                          willChange: 'transform', 
+                          // PERFORMANCE: Promote to GPU layer for smoother dragging
+                          willChange: 'transform',
                           ...(snapshot.isDragging ? { 
                               position: "fixed", 
                               zIndex: 99999, 
@@ -207,7 +205,7 @@ const DragDropList = ({
                          <div 
                            ref={provided.innerRef} 
                            {...provided.draggableProps} 
-                           // CRITICAL FIX: Removed dragHandleProps from the main container
+                           // CRITICAL FIX: Removed dragHandleProps from parent
                            style={style}
                            className={`
                                 relative flex items-center gap-3 p-4 rounded-2xl border text-sm select-none transition-all
@@ -229,12 +227,12 @@ const DragDropList = ({
                              <p className="text-gray-500 text-xs truncate mt-0.5">{place.address}</p>
                            </div>
                            
-                           {/* CRITICAL FIX: Isolate Drag Handle & Touch Action */}
+                           {/* CRITICAL FIX: Drag Handle ISOLATED here with touch-action: none */}
                            {useManualOrder && (
                                <div 
                                    {...provided.dragHandleProps}
-                                   className="p-3 -mr-3 cursor-grab active:cursor-grabbing" // Hit slop: Increase touch area
-                                   style={{ touchAction: 'none' }} // PREVENT SCROLL INTERFERENCE
+                                   className="p-3 -mr-3 cursor-grab active:cursor-grabbing" // Hit slop for better touch target
+                                   style={{ touchAction: 'none' }} // Stops browser scroll hijacking
                                >
                                    <GripVertical className="h-5 w-5 text-gray-300" />
                                </div>
@@ -281,12 +279,12 @@ const ResultList = ({ optimizedRoute, handleCardClick, routeInfo, vehicle = "car
                   <div key={index} onClick={() => handleCardClick(index)}
                    className="flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-100 shadow-sm active:scale-[0.98] transition-transform"
                   >
-                      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-green-600 shadow-sm ${index === 0 || index === optimizedRoute.length - 1 ? 'bg-green-600' : 'bg-white border-2 border-green-500 text-green-700'}`}>
-                         {index === 0 || index === optimizedRoute.length - 1 ? <Navigation className="h-4 w-4 text-white" /> : index}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                         <p className={`text-sm ${index === 0 || index === optimizedRoute.length - 1 ? 'font-bold text-green-800' : 'font-medium text-gray-700'} truncate`}>{stop}</p>
-                      </div>
+                     <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-green-600 shadow-sm ${index === 0 || index === optimizedRoute.length - 1 ? 'bg-green-600' : 'bg-white border-2 border-green-500 text-green-700'}`}>
+                        {index === 0 || index === optimizedRoute.length - 1 ? <Navigation className="h-4 w-4 text-white" /> : index}
+                     </div>
+                     <div className="flex-1 min-w-0">
+                        <p className={`text-sm ${index === 0 || index === optimizedRoute.length - 1 ? 'font-bold text-green-800' : 'font-medium text-gray-700'} truncate`}>{stop}</p>
+                     </div>
                   </div>
               ))}
           </div>
@@ -302,7 +300,7 @@ const ResultList = ({ optimizedRoute, handleCardClick, routeInfo, vehicle = "car
 
           {/* --- GRID THÔNG TIN --- */}
           <div className="grid grid-cols-3 gap-2 mb-2">
-           
+            
               <div className="bg-green-50 p-2 rounded-xl border border-green-300 flex flex-col items-center justify-center text-center mb-2">
                  <span className="text-[10px] text-green-600 uppercase font-bold mb-1">{t('common.distance', 'Quãng đường')}</span>
                  <span className="text-sm font-bold text-green-700">{routeInfo.distance}</span>
@@ -334,7 +332,7 @@ const OptimizeRoutePage = () => {
   const { clearCart } = useCart();
   const { username, isLoggedIn } = useAuth();
 
-  // State dữ liệu
+  // State
   const [startPoint, setStartPoint] = useState("");
   const [initialPlaces, setInitialPlaces] = useState<InitialPlace[]>([]);
   const [optimizedRoute, setOptimizedRoute] = useState<string[]>([]);
@@ -345,18 +343,15 @@ const OptimizeRoutePage = () => {
   const [focusPoint, setFocusPoint] = useState<{lat: number, lon: number} | null>(null);
   const [rawRouteData, setRawRouteData] = useState<{ distance: number; duration: number; } | null>(null);
 
-  // State điều khiển UI
+  // UI State
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [useManualOrder, setUseManualOrder] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
-  // 1. Selection State (Input)
   const [vehicle, setVehicle] = useState<VehicleType>("car");
-  // 2. Display State (Result)
   const [calculatedVehicle, setCalculatedVehicle] = useState<VehicleType | null>(null);
   const [showVehicleSelector, setShowVehicleSelector] = useState(false);
-   
-  // Custom Drawer State
+    
+  // Drawer State
   const [drawerLevel, setDrawerLevel] = useState<0 | 1 | 2>(1); 
   const [isDragging, setIsDragging] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -389,7 +384,7 @@ const OptimizeRoutePage = () => {
     }
   }, [searchParams]);
 
-  // TOUCH LOGIC
+  // Touch Logic
   const handleTouchStart = (e: React.TouchEvent) => {
     if (!drawerRef.current) return;
     const currentHeight = drawerRef.current.getBoundingClientRect().height;
@@ -438,7 +433,6 @@ const OptimizeRoutePage = () => {
 
     try {
       if (initialPlaces.length === 0) throw new Error(t('optimize.error_no_places', "Không có địa điểm."));
-      
       const placesPayload = initialPlaces.map(p => ({ name: p.name, address: p.address, lat: p.lat || 0, lng: p.lon || 0 }));
       
       const response = await axios.post<OptimizeResponse>(`${API_BASE_URL}/api/optimize`, {
@@ -513,7 +507,6 @@ const OptimizeRoutePage = () => {
     }
   };
 
-  // --- DRAG HANDLERS (LIST) ---
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     const items = Array.from(initialPlaces);
@@ -525,7 +518,7 @@ const OptimizeRoutePage = () => {
   return (
     <div className="min-h-[100dvh] w-full bg-white md:bg-gray-50 overflow-hidden relative">
       
-      {/* ================= PC UI ================= */}
+      {/* PC UI */}
       <div className="hidden md:block">
          <Navbar />
          <div className="container mx-auto px-4 py-8 min-h-[calc(100vh-80px)]">
@@ -575,10 +568,10 @@ const OptimizeRoutePage = () => {
          </div>
       </div>
 
-      {/* ================= MOBILE UI ================= */}
+      {/* MOBILE UI */}
       <div className="md:hidden w-full h-[100dvh] relative flex flex-col">
           
-          {/* 1. TOP BAR FLOATING */}
+          {/* Top Bar */}
           <div className="absolute top-0 left-0 right-0 z-[50] px-4 pt-safe pointer-events-none">
               <div className="mt-4 flex flex-col pointer-events-auto pb-2">
                    <div className="flex items-center gap-3">
@@ -624,7 +617,6 @@ const OptimizeRoutePage = () => {
                         </Button>
                    </div>
 
-                   {/* PILL VEHICLE SELECTOR (FLOATING) */}
                    <div 
                        className={`
                            overflow-hidden transition-all duration-300 ease-in-out
@@ -636,17 +628,10 @@ const OptimizeRoutePage = () => {
               </div>
           </div>
 
-          {/* 2. MAP BACKGROUND */}
           <div className="absolute inset-0 z-0">
-             <RouteMap 
-                 polylineOutbound={polyOutbound} 
-                 polylineReturn={polyReturn}
-                 points={mapPoints} 
-                 focusPoint={focusPoint}
-             />
+             <RouteMap polylineOutbound={polyOutbound} polylineReturn={polyReturn} points={mapPoints} focusPoint={focusPoint} />
           </div>
 
-          {/* 3. CUSTOM DRAWER */}
           <div 
             className={`absolute inset-0 bg-black/30 z-[30] transition-opacity duration-300 ${drawerLevel === 2 ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
             onClick={() => setDrawerLevel(1)} 
@@ -664,7 +649,6 @@ const OptimizeRoutePage = () => {
                   touchAction: 'none'
               }}
           >
-              {/* Handle Bar */}
               <div 
                   className="w-full flex flex-col items-center justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
                   onTouchStart={handleTouchStart}
@@ -675,7 +659,6 @@ const OptimizeRoutePage = () => {
                   <div className="w-12 h-1.5 bg-gray-300 rounded-full mb-1" />
               </div>
 
-              {/* Drawer Content */}
               <div className="flex-1 overflow-y-auto px-4 pb-safe pt-1 overscroll-contain no-scrollbar select-none">
                   {optimizedRoute.length === 0 && (
                       <div className="animate-slide-up">
