@@ -4,6 +4,7 @@ from flask import Blueprint, request, jsonify, current_app
 from models import Restaurant, db
 from sqlalchemy import or_
 from recommendation_service import RecommendationService
+from utils import check_is_open
 
 restaurant_bp = Blueprint("restaurant_bp", __name__)
 rec_service = RecommendationService()
@@ -136,6 +137,10 @@ def search_restaurants():
                 # --- TRUYỀN NGÔN NGỮ VÀO to_dict ---
                 r_dict = r.to_dict(lang=current_lang) 
                 
+                is_active = check_is_open(r.open_time, r.close_time)
+                
+                r_dict['is_open'] = is_active
+                
                 r_dict['match_score'] = score
                 scored_results.append(r_dict)
 
@@ -167,7 +172,12 @@ def get_restaurant_detail(param):
             return jsonify({"error": "Không tìm thấy nhà hàng"}), 404
             
         # --- TRUYỀN NGÔN NGỮ VÀO to_dict ---
-        return jsonify(restaurant.to_dict(lang=current_lang))
+        
+        r_dict = restaurant.to_dict(lang=current_lang)
+        
+        r_dict['is_open'] = check_is_open(restaurant.open_time, restaurant.close_time)
+        
+        return jsonify(r_dict)
         
     except Exception as e:
         print(f"Detail Error: {e}")

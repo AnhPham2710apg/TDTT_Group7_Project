@@ -63,6 +63,9 @@ class Restaurant(db.Model):
     district = db.Column(db.String)
     minPrice = db.Column("minprice", db.Integer)     
     maxPrice = db.Column("maxprice", db.Integer)     
+    
+    open_time = db.Column(db.String(10), nullable=True)  # VD: "08:00"
+    close_time = db.Column(db.String(10), nullable=True) # VD: "22:00"
 
     def to_dict(self, lang='vi'):
         """
@@ -98,7 +101,10 @@ class Restaurant(db.Model):
             "food_type": self.foodType or "",
             "district": self.district or "",
             "min_price": self.minPrice or 0,
-            "max_price": self.maxPrice or 0
+            "max_price": self.maxPrice or 0,
+            
+            "open_time": self.open_time,
+            "close_time": self.close_time
         }
 
 # ----------------------------------------------------
