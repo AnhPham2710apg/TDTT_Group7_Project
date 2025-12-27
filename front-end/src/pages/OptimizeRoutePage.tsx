@@ -178,9 +178,22 @@ const OptimizeRoutePage = () => {
   // Custom Drawer State
   // 0: Mini (20%), 1: Medium (50%), 2: Max (85%)
   const [drawerLevel, setDrawerLevel] = useState<0 | 1 | 2>(1); 
-  const [isDraggingDrawer, setIsDraggingDrawer] = useState(false);
-  const touchStartY = useRef<number>(0);
+  const [isDragging, setIsDragging] = useState(false);
+  // Refs lưu trữ giá trị tạm thời để tính toán (tránh re-render)
   const drawerRef = useRef<HTMLDivElement>(null);
+  const touchStartY = useRef<number>(0);       // Vị trí ngón tay lúc chạm
+  const drawerStartHeight = useRef<number>(0); // Chiều cao drawer lúc chạm
+
+  // Hàm tính chiều cao đích (Target Height) dựa trên Level hiện tại
+  // Dùng để Snap về sau khi thả tay
+  const getTargetHeightStyle = (level: 0 | 1 | 2) => {
+      switch(level) {
+          case 0: return "100px"; 
+          case 1: return "50dvh"; 
+          case 2: return "calc(100dvh - 120px)"; 
+          default: return "50dvh";
+      }
+  };
 
   // Parse URL
   useEffect(() => {
@@ -200,26 +213,73 @@ const OptimizeRoutePage = () => {
     }
   }, [searchParams]);
 
-  // --- LOGIC CUSTOM DRAWER ---
+  // 1. CHẠM VÀO (TOUCH START)
   const handleTouchStart = (e: React.TouchEvent) => {
+    setIsDragging(true); // Bắt đầu kéo -> Tắt transition
     touchStartY.current = e.touches[0].clientY;
-    setIsDraggingDrawer(true);
+    
+    // Lưu lại chiều cao hiện tại của Drawer bằng Pixel để tính toán mượt mà
+    if (drawerRef.current) {
+        drawerStartHeight.current = drawerRef.current.getBoundingClientRect().height;
+    }
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    setIsDraggingDrawer(false);
-    const touchEndY = e.changedTouches[0].clientY;
-    const diff = touchStartY.current - touchEndY; // > 0 là vuốt lên, < 0 là vuốt xuống
+  // 2. DI CHUYỂN (TOUCH MOVE) - Real-time tracking 1:1
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || !drawerRef.current) return;
 
-    if (Math.abs(diff) > 50) { // Ngưỡng vuốt là 50px
-        if (diff > 0) {
-            // Vuốt lên -> Tăng level
-            setDrawerLevel(prev => prev === 2 ? 2 : (prev + 1) as 0|1|2);
-        } else {
-            // Vuốt xuống -> Giảm level
-            setDrawerLevel(prev => prev === 0 ? 0 : (prev - 1) as 0|1|2);
-        }
+    // Ngăn chặn hành vi cuộn mặc định của trình duyệt nếu cần (tùy chọn)
+    // e.preventDefault(); 
+
+    const currentY = e.touches[0].clientY;
+    const deltaY = touchStartY.current - currentY; // Kéo lên = dương, Kéo xuống = âm
+    
+    // Tính chiều cao mới = Chiều cao cũ + khoảng dịch chuyển
+    let newHeight = drawerStartHeight.current + deltaY;
+
+    // Giới hạn (Clamping): Không cho kéo thấp hơn Mini hoặc cao hơn Max
+    const maxHeight = window.innerHeight - 120; // Max level
+    const minHeight = 100; // Mini level
+    
+    // Thêm hệ số cản (Resistance) nếu kéo vượt quá giới hạn (tạo cảm giác elastic)
+    if (newHeight > maxHeight) newHeight = maxHeight + (newHeight - maxHeight) * 0.2;
+    if (newHeight < minHeight) newHeight = minHeight - (minHeight - newHeight) * 0.2;
+
+    // Cập nhật trực tiếp vào DOM (Hiệu năng cao nhất)
+    drawerRef.current.style.height = `${newHeight}px`;
+  };
+
+  // 3. THẢ TAY (TOUCH END) - Snap Logic
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    setIsDragging(false); // Kết thúc kéo -> Bật lại transition để snap mượt
+    if (!drawerRef.current) return;
+
+    const endY = e.changedTouches[0].clientY;
+    const deltaY = touchStartY.current - endY; // Tổng quãng đường đã kéo
+    
+    // Ngưỡng quyết định (Threshold): 10% chiều cao màn hình
+    // Nếu kéo quá 10% màn hình thì mới đổi trạng thái, không thì trả về cũ
+    const threshold = window.innerHeight * 0.10; 
+
+    // Logic xác định Level tiếp theo
+    let nextLevel = drawerLevel;
+
+    if (deltaY > threshold) {
+        // KÉO LÊN (UP)
+        if (drawerLevel === 0) nextLevel = 1;      // Mini -> Medium
+        else if (drawerLevel === 1) nextLevel = 2; // Medium -> Max
+    } 
+    else if (deltaY < -threshold) {
+        // KÉO XUỐNG (DOWN)
+        if (drawerLevel === 2) nextLevel = 1;      // Max -> Medium
+        else if (drawerLevel === 1) nextLevel = 0; // Medium -> Mini
     }
+    
+    // Cập nhật State để React render lại chiều cao chuẩn (dvh/calc)
+    setDrawerLevel(nextLevel);
+    
+    // Xóa style inline (px) để style từ class/style prop có hiệu lực trở lại
+    drawerRef.current.style.height = ''; 
   };
 
   // Tính toán chiều cao dựa trên level
@@ -423,35 +483,45 @@ const OptimizeRoutePage = () => {
 
           <div 
              ref={drawerRef}
-             className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[24px] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] z-[40] flex flex-col transition-height will-change-transform"
+             // CẬP NHẬT CLASS: 
+             // Nếu đang kéo (isDragging) -> tắt transition-all (xóa class duration...) để ko bị trễ
+             // Nếu thả tay (!isDragging) -> bật transition để snap mượt
+             className={`
+                absolute bottom-0 left-0 right-0 bg-white rounded-t-[24px] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] z-[40] flex flex-col 
+                will-change-height
+                ${isDragging ? '' : 'transition-all duration-300 cubic-bezier(0.25, 1, 0.5, 1)'}
+             `}
              style={{ 
-                 height: getDrawerHeight(),
-                 touchAction: 'none' 
+                 // Nếu đang kéo, style height sẽ do hàm handleTouchMove set trực tiếp (inline style)
+                 // Nếu không kéo, dùng style từ tính toán Level
+                 height: isDragging ? undefined : getTargetHeightStyle(drawerLevel),
+                 touchAction: 'none' // Quan trọng: Tắt scroll mặc định của trình duyệt
              }}
           >
-              {/* Handle Bar */}
+              {/* Handle Bar - Vùng nhận sự kiện kéo */}
               <div 
-                  className="w-full flex flex-col items-center justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing flex-shrink-0"
+                  className="w-full flex flex-col items-center justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
+                  // Gắn 3 sự kiện quan trọng
                   onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
-                  onClick={() => setDrawerLevel(prev => prev === 0 ? 1 : prev === 1 ? 2 : 1)}
+                  // Click đơn giản để toggle (fallback)
+                  onClick={(e) => {
+                      // Chỉ toggle nếu không phải là thao tác kéo (delta nhỏ)
+                      if (!isDragging) setDrawerLevel(prev => prev === 0 ? 1 : prev === 1 ? 2 : 1)
+                  }}
               >
                   <div className="w-12 h-1.5 bg-gray-300 rounded-full mb-1" />
               </div>
 
               {/* Drawer Content */}
-              <div className="flex-1 overflow-y-auto px-4 pb-safe pt-1 overscroll-contain no-scrollbar">
+              {/* Thêm padding-bottom lớn hơn ở mức Mini để không bị che nội dung */}
+              <div className="flex-1 overflow-y-auto px-4 pb-safe pt-1 overscroll-contain no-scrollbar select-none">
                   
                   {/* Trạng thái 1: Chưa tối ưu */}
                   {optimizedRoute.length === 0 && (
                       <div className="animate-slide-up">
-                          <DragDropList 
-                             initialPlaces={initialPlaces} 
-                             useManualOrder={useManualOrder} 
-                             setUseManualOrder={setUseManualOrder} 
-                             onDragEnd={onDragEnd}
-                             onDragStart={() => {}} 
-                          />
+                          <DragDropList initialPlaces={initialPlaces} useManualOrder={useManualOrder} setUseManualOrder={setUseManualOrder} onDragEnd={onDragEnd} onDragStart={() => {}} />
                           {initialPlaces.length > 0 && (
                             <div className="flex items-start gap-2 mt-4 p-3 bg-green-50 text-green-700 rounded-xl text-xs">
                                 <Info className="h-4 w-4 shrink-0 mt-0.5" />
@@ -464,29 +534,20 @@ const OptimizeRoutePage = () => {
                   {/* Trạng thái 2: Đã tối ưu */}
                   {optimizedRoute.length > 0 && (
                       <div className="animate-slide-up space-y-4">
-                          <div className="flex items-center justify-between top-0 bg-white z-10 py-2 border-b border-gray-50">
+                          <div className="flex items-center justify-between sticky top-0 bg-white z-10 py-2 border-b border-gray-50">
                               <h3 className="font-bold text-lg text-green-800 flex items-center gap-2">
                                 <MapPin className="h-5 w-5" /> Lộ trình tối ưu
                               </h3>
                           </div>
                           
-                          <ResultList 
-                             optimizedRoute={optimizedRoute} 
-                             routeInfo={routeInfo} 
-                             handleCardClick={(i) => {
+                          <ResultList optimizedRoute={optimizedRoute} routeInfo={routeInfo} handleCardClick={(i) => {
                                  const p = mapPoints[i] || mapPoints[0];
                                  if (p) setFocusPoint({lat: p.lat, lon: p.lon});
                                  setDrawerLevel(0); 
                              }} 
                           />
-
-                          {isLoggedIn && (
-                             <Button onClick={handleSaveRoute} disabled={isSaving} className="w-full h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white shadow-md text-base font-medium">
-                                 {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-                                 Lưu chuyến đi này
-                             </Button>
-                          )}
-                          <div className="h-6" /> {/* Spacer bottom */}
+                          {isLoggedIn && (<Button onClick={handleSaveRoute} disabled={isSaving} className="w-full h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white shadow-md text-base font-medium">{isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />} Lưu chuyến đi này</Button>)}
+                          <div className="h-6" />
                       </div>
                   )}
               </div>

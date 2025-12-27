@@ -154,7 +154,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
           <h3 className="
             font-bold text-sm md:text-lg text-gray-900 leading-tight
             pr-6 md:pr-0 
-            line-clamp-1 md:line-clamp-none
+            line-clamp-1 md:line-clamp-1
           " title={restaurant.name}>
               {restaurant.name}
           </h3>
@@ -192,8 +192,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
 
                 {/* 2. Phần hiển thị Text giá tiền (MỚI THÊM) */}
                 {priceRangeMap[restaurant.price_level] && (
-                  <span className="text-[10px] md:text-xs text-gray-500 ml-1 truncate">|
-                    {priceRangeMap[restaurant.price_level]}
+                  <span className="text-[10px] md:text-xs text-gray-500 ml-1 truncate">| {priceRangeMap[restaurant.price_level]}
                   </span>
                 )}
               </div>
