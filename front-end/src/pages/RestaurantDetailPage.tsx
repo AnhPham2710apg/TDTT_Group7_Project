@@ -113,6 +113,7 @@ const RestaurantDetailPage = () => {
       }
     };
     fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, t, i18n.language]); 
 
   const handleImageError = () => {

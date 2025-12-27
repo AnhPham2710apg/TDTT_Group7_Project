@@ -119,7 +119,7 @@ interface DragDropListProps {
   onDragEnd: (result: DropResult) => void;
   onDragStart: () => void;
 }
-// --- COMPONENT CON: DRAG LIST (Đã chỉnh sửa UI số đếm) ---
+// --- COMPONENT CON: DRAG LIST (Fixed Drag UX) ---
 const DragDropList = ({ 
     initialPlaces, 
     useManualOrder, 
@@ -130,7 +130,7 @@ const DragDropList = ({
   const { t } = useTranslation();
 
   return (
-    <div className="w-full md:border-2 md:border-dashed md:border-green-600 md:rounded-3xl md:p-5 md:bg-green-50/20">
+    <div className="w-full md:border-4 md:border-dashed md:border-green-600/50 md:rounded-3xl md:p-5 md:bg-green-50/20">
         {/* Header */}
         <div className="flex items-center justify-between mb-3 px-1">
           <div className="flex items-center gap-2">
@@ -140,35 +140,40 @@ const DragDropList = ({
 
           {/* --- TOOLTIP --- */}
           <TooltipProvider>
-            <Tooltip delayDuration={300}>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg cursor-help select-none">
-                   <span className={`text-[10px] font-bold uppercase ${useManualOrder ? "text-green-600" : "text-gray-500"}`}>
-                      {useManualOrder ? t('optimize.mode_manual', "Thủ công") : t('optimize.mode_auto', "Tự động")}
-                   </span>
-                   <Switch checked={useManualOrder} onCheckedChange={setUseManualOrder} className="scale-75 data-[state=checked]:bg-green-600" />
-                </div>
-              </TooltipTrigger>
-              
-              <TooltipContent side="left" className="max-w-[220px] bg-slate-800 text-white border-none shadow-xl p-3">
-                {useManualOrder ? (
-                  <div className="space-y-1">
-                    <p className="font-bold text-green-400 text-xs flex items-center gap-1">{t('optimize.tooltip_manual_title', 'Chế độ Thủ công')}</p>
-                    <p className="text-[11px] leading-tight text-gray-300">
-                      {t('optimize.tooltip_manual_desc', 'Bạn tự do kéo thả để sắp xếp thứ tự đi. Hệ thống sẽ giữ nguyên thứ tự này khi tìm đường.')}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <p className="font-bold text-blue-400 text-xs">{t('optimize.tooltip_auto_title', 'Chế độ Tự động')}</p>
-                    <p className="text-[11px] leading-tight text-gray-300">
-                      {t('optimize.tooltip_auto_desc', 'Hệ thống sẽ tự động sắp xếp lại thứ tự các điểm đến sao cho tổng quãng đường đi là ngắn nhất.')}
-                    </p>
-                  </div>
-                )}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+                <Tooltip delayDuration={300}>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg cursor-help select-none">
+                       <span className={`text-[10px] font-bold uppercase ${useManualOrder ? "text-green-600" : "text-gray-500"}`}>
+                          {useManualOrder ? t('optimize.mode_manual', "Thủ công") : t('optimize.mode_auto', "Tự động")}
+                       </span>
+                       <Switch checked={useManualOrder} onCheckedChange={setUseManualOrder} className="scale-75 data-[state=checked]:bg-green-600" />
+                    </div>
+                  </TooltipTrigger>
+                  
+                  <TooltipContent 
+                    side="bottom" 
+                    align="end" 
+                    className="z-[100] max-w-[250px] bg-slate-800 text-white border-none shadow-xl p-3"
+                    sideOffset={5} 
+                  >
+                    {useManualOrder ? (
+                      <div className="space-y-1">
+                        <p className="font-bold text-green-400 text-xs flex items-center gap-1">{t('optimize.tooltip_manual_title', 'Chế độ Thủ công')}</p>
+                        <p className="text-[11px] leading-tight text-gray-300">
+                          {t('optimize.tooltip_manual_desc', 'Bạn tự do kéo thả để sắp xếp thứ tự đi. Hệ thống sẽ giữ nguyên thứ tự này khi tìm đường.')}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <p className="font-bold text-blue-400 text-xs">{t('optimize.tooltip_auto_title', 'Chế độ Tự động')}</p>
+                        <p className="text-[11px] leading-tight text-gray-300">
+                          {t('optimize.tooltip_auto_desc', 'Hệ thống sẽ tự động sắp xếp lại thứ tự các điểm đến sao cho tổng quãng đường đi là ngắn nhất.')}
+                        </p>
+                      </div>
+                    )}
+                  </TooltipContent>
+                </Tooltip>
+             </TooltipProvider>
         </div>
         
         <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
@@ -178,39 +183,64 @@ const DragDropList = ({
                 {initialPlaces.map((place, index) => (
                   <Draggable key={place.id} draggableId={place.id} index={index} isDragDisabled={!useManualOrder}>
                     {(provided, snapshot) => {
-                        const originalStyle = provided.draggableProps.style as React.CSSProperties;
-                        const style: React.CSSProperties = {
+                       const originalStyle = provided.draggableProps.style as React.CSSProperties;
+                       const style: React.CSSProperties = {
                           ...originalStyle,
-                          ...(snapshot.isDragging ? { position: "fixed", zIndex: 99999, background: "white", border: "1px solid #16a34a", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", opacity: 0.95, borderRadius: "0.5rem" } : { transform: originalStyle.transform })
-                        };
-                        
-                        const content = (
-                          <div ref={provided.innerRef} {...provided.draggableProps} {...(useManualOrder ? provided.dragHandleProps : {})}
-                            style={{ ...style, touchAction: useManualOrder ? 'none' : 'pan-y' }}
-                            className={`
+                          // Only modify style when dragging
+                          ...(snapshot.isDragging ? { 
+                              position: "fixed", 
+                              zIndex: 99999, 
+                              background: "white", 
+                              border: "1px solid #16a34a", 
+                              boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", 
+                              opacity: 0.95, 
+                              borderRadius: "0.5rem",
+                              left: originalStyle.left, // Keep x position
+                              top: originalStyle.top   // Keep y position
+                          } : { 
+                              transform: originalStyle.transform 
+                          })
+                       };
+                       
+                       const content = (
+                         <div 
+                           ref={provided.innerRef} 
+                           {...provided.draggableProps} 
+                           // REMOVED dragHandleProps from here
+                           style={style}
+                           className={`
                                 relative flex items-center gap-3 p-4 rounded-2xl border text-sm select-none transition-all
                                 ${snapshot.isDragging ? "shadow-lg" : "bg-white border-gray-100 shadow-sm"}
-                            `}
-                          >
-                            <div className={`
+                           `}
+                         >
+                           <div className={`
                                 flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold flex-shrink-0 border-2
                                 ${useManualOrder 
                                     ? 'border-green-500 text-green-600 bg-white' 
                                     : 'border-green-500 text-green-700 bg-white'
                                 }
-                            `}>
+                           `}>
                                 {index + 1}
-                            </div>
+                           </div>
 
-                            <div className="flex-1 min-w-0 pointer-events-none">
-                              <p className="font-semibold text-gray-800 truncate text-base">{place.name}</p>
-                              <p className="text-gray-500 text-xs truncate mt-0.5">{place.address}</p>
-                            </div>
-                            
-                            {useManualOrder && <GripVertical className="h-5 w-5 text-gray-300" />}
-                          </div>
-                        );
-                        return snapshot.isDragging ? createPortal(content, document.body) : content;
+                           <div className="flex-1 min-w-0 pointer-events-none">
+                             <p className="font-semibold text-gray-800 truncate text-base">{place.name}</p>
+                             <p className="text-gray-500 text-xs truncate mt-0.5">{place.address}</p>
+                           </div>
+                           
+                           {/* MOVED dragHandleProps to the Grip Icon only */}
+                           {useManualOrder && (
+                               <div 
+                                   {...provided.dragHandleProps}
+                                   className="p-2 -mr-2 cursor-grab active:cursor-grabbing touch-none" // Added touch-none
+                                   style={{ touchAction: 'none' }} // Explicit touch-action: none
+                               >
+                                   <GripVertical className="h-5 w-5 text-gray-300" />
+                               </div>
+                           )}
+                         </div>
+                       );
+                       return snapshot.isDragging ? createPortal(content, document.body) : content;
                     }}
                   </Draggable>
                 ))}
