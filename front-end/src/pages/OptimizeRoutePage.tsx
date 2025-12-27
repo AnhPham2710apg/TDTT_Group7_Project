@@ -130,7 +130,7 @@ const DragDropList = ({
   const { t } = useTranslation();
 
   return (
-    <div className="w-full md:border-4 md:border-dashed md:border-green-600/50 md:rounded-3xl md:p-5 md:bg-green-50/20">
+    <div className="w-full md:border-2 md:border-dashed md:border-green-600 md:rounded-3xl md:p-5 md:bg-green-50/20">
         {/* Header */}
         <div className="flex items-center justify-between mb-3 px-1">
           <div className="flex items-center gap-2">
@@ -186,7 +186,8 @@ const DragDropList = ({
                        const originalStyle = provided.draggableProps.style as React.CSSProperties;
                        const style: React.CSSProperties = {
                           ...originalStyle,
-                          // Only modify style when dragging
+                          // PERFORMANCE: Use will-change to promote to GPU layer
+                          willChange: 'transform', 
                           ...(snapshot.isDragging ? { 
                               position: "fixed", 
                               zIndex: 99999, 
@@ -195,8 +196,8 @@ const DragDropList = ({
                               boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", 
                               opacity: 0.95, 
                               borderRadius: "0.5rem",
-                              left: originalStyle.left, // Keep x position
-                              top: originalStyle.top   // Keep y position
+                              left: originalStyle.left, 
+                              top: originalStyle.top   
                           } : { 
                               transform: originalStyle.transform 
                           })
@@ -206,7 +207,7 @@ const DragDropList = ({
                          <div 
                            ref={provided.innerRef} 
                            {...provided.draggableProps} 
-                           // REMOVED dragHandleProps from here
+                           // CRITICAL FIX: Removed dragHandleProps from the main container
                            style={style}
                            className={`
                                 relative flex items-center gap-3 p-4 rounded-2xl border text-sm select-none transition-all
@@ -228,12 +229,12 @@ const DragDropList = ({
                              <p className="text-gray-500 text-xs truncate mt-0.5">{place.address}</p>
                            </div>
                            
-                           {/* MOVED dragHandleProps to the Grip Icon only */}
+                           {/* CRITICAL FIX: Isolate Drag Handle & Touch Action */}
                            {useManualOrder && (
                                <div 
                                    {...provided.dragHandleProps}
-                                   className="p-2 -mr-2 cursor-grab active:cursor-grabbing touch-none" // Added touch-none
-                                   style={{ touchAction: 'none' }} // Explicit touch-action: none
+                                   className="p-3 -mr-3 cursor-grab active:cursor-grabbing" // Hit slop: Increase touch area
+                                   style={{ touchAction: 'none' }} // PREVENT SCROLL INTERFERENCE
                                >
                                    <GripVertical className="h-5 w-5 text-gray-300" />
                                </div>
