@@ -119,7 +119,7 @@ interface DragDropListProps {
   onDragEnd: (result: DropResult) => void;
   onDragStart: () => void;
 }
-
+// --- COMPONENT CON: DRAG LIST (Đã chỉnh sửa UI số đếm) ---
 const DragDropList = ({ 
     initialPlaces, 
     useManualOrder, 
