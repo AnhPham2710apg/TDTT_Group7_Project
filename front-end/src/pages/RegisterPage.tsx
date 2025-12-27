@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,12 +15,34 @@ const RegisterPage = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+
+  const checkPasswordStrength = (pwd: string) => {
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
+    return passwordRegex.test(pwd);
+  };
+
+  const handleConfirmPasswordFocus = () => {
+    if (!checkPasswordStrength(password)) {
+      toast.error(
+        "Please create a strong password first! (At least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char)"
+      );
+      passwordInputRef.current?.focus();
+    }
+  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (password !== confirmPassword) {
       toast.error("Passwords do not match!");
+      return;
+    }
+
+    if (!checkPasswordStrength(password)) {
+      toast.error(
+        "Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, a number, and a special character (!@#$%^&*)."
+      );
       return;
     }
 
@@ -80,6 +102,7 @@ const RegisterPage = () => {
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
+                ref={passwordInputRef}
                 id="password"
                 type="password"
                 placeholder="Create a password"
@@ -97,6 +120,7 @@ const RegisterPage = () => {
                 placeholder="Confirm your password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                onFocus={handleConfirmPasswordFocus}
                 required
               />
             </div>
