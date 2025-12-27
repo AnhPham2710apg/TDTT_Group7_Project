@@ -1,4 +1,3 @@
-// OptimizeRoutePage.tsx
 import { useState, useEffect, KeyboardEvent, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import axios, { AxiosError } from "axios";
@@ -16,12 +15,35 @@ import {
 import { toast } from "sonner";
 import RouteMap from "@/components/RouteMap";
 import { useCart } from "@/context/CartContext";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE_URL } from "@/lib/api-config";
-import { createPortal } from "react-dom";
 import { useTranslation } from 'react-i18next';
+
+// --- DND-KIT IMPORTS (NEW) ---
+import {
+  DndContext, 
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  TouchSensor,
+  MouseSensor,
+  DragEndEvent,
+  DragOverlay,
+  defaultDropAnimationSideEffects,
+  DropAnimation
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 
 // --- INTERFACES ---
 interface BackendErrorResponse { message?: string; detail?: string; }
@@ -37,7 +59,7 @@ interface InitialPlace { id: string; name: string; address: string; lat?: number
 // NEW TYPE FOR VEHICLE
 type VehicleType = "car" | "bike" | "taxi";
 
-// --- VEHICLE SELECTOR ---
+// --- VEHICLE SELECTOR COMPONENTS (Giữ nguyên code cũ của bạn) ---
 interface VehicleSelectorProps {
     value: VehicleType;
     onChange: (v: VehicleType) => void;
@@ -60,13 +82,7 @@ const VehicleSelector = ({ value, onChange }: VehicleSelectorProps) => {
                     <button
                         key={opt.id}
                         onClick={() => onChange(opt.id)}
-                        className={`
-                            flex-1 flex items-center justify-center gap-2 py-1.5 px-2 rounded-md text-sm font-medium transition-all duration-200
-                            ${isActive 
-                                ? "bg-white text-green-700 shadow-sm border border-green-200" 
-                                : "text-gray-500 hover:bg-gray-200/50 hover:text-gray-700"
-                            }
-                        `}
+                        className={`flex-1 flex items-center justify-center gap-2 py-1.5 px-2 rounded-md text-sm font-medium transition-all duration-200 ${isActive ? "bg-white text-green-700 shadow-sm border border-green-200" : "text-gray-500 hover:bg-gray-200/50 hover:text-gray-700"}`}
                     >
                         <Icon className={`h-4 w-4 ${isActive ? "fill-green-100" : ""}`} />
                         <span className="hidden sm:inline lg:hidden xl:inline">{opt.label}</span>
@@ -77,7 +93,6 @@ const VehicleSelector = ({ value, onChange }: VehicleSelectorProps) => {
     );
 };
 
-// --- VEHICLE SELECTOR (MOBILE PILL) ---
 const VehicleSelectorMobile = ({ value, onChange }: VehicleSelectorProps) => {
     const { t } = useTranslation();
     const options: { id: VehicleType; label: string; icon: LucideIcon }[] = [
@@ -95,13 +110,7 @@ const VehicleSelectorMobile = ({ value, onChange }: VehicleSelectorProps) => {
                     <button
                         key={opt.id}
                         onClick={() => onChange(opt.id)}
-                        className={`
-                            flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium shadow-md transition-all duration-200 active:scale-95
-                            ${isActive 
-                                ? "bg-white text-green-600 ring-1 ring-green-100 border border-green-600 " 
-                                : "bg-white text-gray-600 border border-transparent"
-                            }
-                        `}
+                        className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium shadow-md transition-all duration-200 active:scale-95 ${isActive ? "bg-white text-green-600 ring-1 ring-green-100 border border-green-600 " : "bg-white text-gray-600 border border-transparent"}`}
                     >
                         <Icon className={`h-3.5 w-3.5 ${isActive ? "text-green-600 fill-green-50" : "text-gray-500"}`} />
                         <span>{opt.label}</span>
@@ -112,25 +121,107 @@ const VehicleSelectorMobile = ({ value, onChange }: VehicleSelectorProps) => {
     );
 };
 
-// --- DRAG LIST (OPTIMIZED) ---
+// --- NEW COMPONENT: SortableItem (DND-KIT Implementation) ---
+interface SortableItemProps {
+  id: string;
+  place: InitialPlace;
+  index: number;
+  useManualOrder: boolean;
+}
+
+const SortableItem = ({ id, place, index, useManualOrder }: SortableItemProps) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: id, disabled: !useManualOrder });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 999 : 'auto',
+    opacity: isDragging ? 1 : 1, // Visual feedback placeholder
+    touchAction: 'none' // Important for preventing scroll interference on the item itself if needed
+  };
+
+  return (
+    <div 
+        ref={setNodeRef} 
+        style={style} 
+        className={`
+            relative flex items-center gap-3 p-4 rounded-2xl border text-sm select-none transition-colors
+            ${isDragging ? "bg-green-50 border-green-500 shadow-xl ring-2 ring-green-200" : "bg-white border-gray-100 shadow-sm"}
+        `}
+    >
+        <div className={`
+            flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold flex-shrink-0 border-2
+            ${useManualOrder ? 'border-green-500 text-green-600 bg-white' : 'border-green-500 text-green-700 bg-white'}
+        `}>
+            {index + 1}
+        </div>
+
+        <div className="flex-1 min-w-0 pointer-events-none">
+            <p className="font-semibold text-gray-800 truncate text-base">{place.name}</p>
+            <p className="text-gray-500 text-xs truncate mt-0.5">{place.address}</p>
+        </div>
+        
+        {/* DRAG HANDLE: Only applied Listeners here */}
+        {useManualOrder && (
+            <div 
+                {...attributes} 
+                {...listeners} 
+                className="p-3 -mr-3 cursor-grab active:cursor-grabbing touch-none" // touch-none is CRITICAL
+            >
+                <GripVertical className="h-5 w-5 text-gray-300 hover:text-green-600 transition-colors" />
+            </div>
+        )}
+    </div>
+  );
+};
+
+// --- COMPONENT CON: DRAG LIST (Refactored with Dnd-Kit) ---
 interface DragDropListProps {
-  initialPlaces: InitialPlace[]; useManualOrder: boolean;
+  initialPlaces: InitialPlace[]; 
+  useManualOrder: boolean;
   setUseManualOrder: (val: boolean) => void;
-  onDragEnd: (result: DropResult) => void;
-  onDragStart: () => void;
+  onDragEnd: (event: DragEndEvent) => void; // Updated type
 }
 
 const DragDropList = ({ 
     initialPlaces, 
     useManualOrder, 
     setUseManualOrder, 
-    onDragEnd,
-    onDragStart 
+    onDragEnd
 }: DragDropListProps) => {
   const { t } = useTranslation();
 
+  // --- SENSORS CONFIGURATION (MOBILE FIX) ---
+  const sensors = useSensors(
+    // 1. Mouse: Kéo ngay khi di chuyển 10px (tránh click nhầm)
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 10,
+      },
+    }),
+    // 2. Touch: Phải giữ 250ms mới bắt đầu Drag.
+    // Nếu vuốt nhanh hơn hoặc sai lệch quá 5px, nó sẽ hiểu là Scroll.
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   return (
-    <div className="w-full md:border-4 md:border-dashed md:border-green-600/30 md:rounded-3xl md:p-5 md:bg-green-50/20">
+    <div className="w-full md:border-2 md:border-dashed md:border-green-600 md:rounded-3xl md:p-5">
+        {/* Header */}
         <div className="flex items-center justify-between mb-3 px-1">
           <div className="flex items-center gap-2">
               <ListChecks className="h-4 w-4 text-green-600" />
@@ -140,33 +231,23 @@ const DragDropList = ({
           <TooltipProvider>
                 <Tooltip delayDuration={300}>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center gap-2 bg-gray/100 p-1 rounded-lg cursor-help select-none">
-                       <span className={`text-[10px] font-bold uppercase ${useManualOrder ? "text-green-600" : "text-gray-500"}`}>
+                    <div className="flex gap-2 bg-gray/100 rounded-lg cursor-help select-none justify-center items-center px-2 py-1">
+                        <span className={`text-[10px] font-bold uppercase ${useManualOrder ? "text-green-600" : "text-gray-500"}`}>
                           {useManualOrder ? t('optimize.mode_manual', "Thủ công") : t('optimize.mode_auto', "Tự động")}
-                       </span>
-                       <Switch checked={useManualOrder} onCheckedChange={setUseManualOrder} className="scale-75 data-[state=checked]:bg-green-600" />
+                        </span>
+                        <Switch checked={useManualOrder} onCheckedChange={setUseManualOrder} className="scale-75 data-[state=checked]:bg-green-600" />
                     </div>
                   </TooltipTrigger>
-                  
-                  <TooltipContent 
-                    side="bottom" 
-                    align="end" 
-                    className="z-[100] max-w-[250px] bg-slate-800 text-white border-none shadow-xl p-3"
-                    sideOffset={5} 
-                  >
+                  <TooltipContent side="bottom" align="end" className="z-[100] max-w-[250px] bg-slate-800 text-white border-none shadow-xl p-3" sideOffset={5}>
                     {useManualOrder ? (
                       <div className="space-y-1">
                         <p className="font-bold text-green-400 text-xs flex items-center gap-1">{t('optimize.tooltip_manual_title', 'Chế độ Thủ công')}</p>
-                        <p className="text-[11px] leading-tight text-gray-300">
-                          {t('optimize.tooltip_manual_desc', 'Bạn tự do kéo thả để sắp xếp thứ tự đi. Hệ thống sẽ giữ nguyên thứ tự này khi tìm đường.')}
-                        </p>
+                        <p className="text-[11px] leading-tight text-gray-300">{t('optimize.tooltip_manual_desc', 'Bạn tự do kéo thả để sắp xếp thứ tự đi.')}</p>
                       </div>
                     ) : (
                       <div className="space-y-1">
                         <p className="font-bold text-blue-400 text-xs">{t('optimize.tooltip_auto_title', 'Chế độ Tự động')}</p>
-                        <p className="text-[11px] leading-tight text-gray-300">
-                          {t('optimize.tooltip_auto_desc', 'Hệ thống sẽ tự động sắp xếp lại thứ tự các điểm đến sao cho tổng quãng đường đi là ngắn nhất.')}
-                        </p>
+                        <p className="text-[11px] leading-tight text-gray-300">{t('optimize.tooltip_auto_desc', 'Hệ thống sẽ tự động sắp xếp lại thứ tự.')}</p>
                       </div>
                     )}
                   </TooltipContent>
@@ -174,85 +255,35 @@ const DragDropList = ({
              </TooltipProvider>
         </div>
         
-        <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
-          <Droppable droppableId="places-list">
-            {(provided) => (
-              <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-3 pb-2">
-                {initialPlaces.map((place, index) => (
-                  <Draggable key={place.id} draggableId={place.id} index={index} isDragDisabled={!useManualOrder}>
-                    {(provided, snapshot) => {
-                       const originalStyle = provided.draggableProps.style as React.CSSProperties;
-                       const style: React.CSSProperties = {
-                          ...originalStyle,
-                          // PERFORMANCE: Promote to GPU layer for smoother dragging
-                          willChange: 'transform',
-                          ...(snapshot.isDragging ? { 
-                              position: "fixed", 
-                              zIndex: 99999, 
-                              background: "white", 
-                              border: "1px solid #16a34a", 
-                              boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", 
-                              opacity: 0.95, 
-                              borderRadius: "0.5rem",
-                              left: originalStyle.left, 
-                              top: originalStyle.top   
-                          } : { 
-                              transform: originalStyle.transform 
-                          })
-                       };
-                       
-                       const content = (
-                         <div 
-                           ref={provided.innerRef} 
-                           {...provided.draggableProps} 
-                           // CRITICAL FIX: Removed dragHandleProps from parent
-                           style={style}
-                           className={`
-                                relative flex items-center gap-3 p-4 rounded-2xl border text-sm select-none transition-all
-                                ${snapshot.isDragging ? "shadow-lg" : "bg-white border-gray-100 shadow-sm"}
-                           `}
-                         >
-                           <div className={`
-                                flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold flex-shrink-0 border-2
-                                ${useManualOrder 
-                                    ? 'border-green-500 text-green-600 bg-white' 
-                                    : 'border-green-500 text-green-700 bg-white'
-                                }
-                           `}>
-                                {index + 1}
-                           </div>
-
-                           <div className="flex-1 min-w-0 pointer-events-none">
-                             <p className="font-semibold text-gray-800 truncate text-base">{place.name}</p>
-                             <p className="text-gray-500 text-xs truncate mt-0.5">{place.address}</p>
-                           </div>
-                           
-                           {/* CRITICAL FIX: Drag Handle ISOLATED here with touch-action: none */}
-                           {useManualOrder && (
-                               <div 
-                                   {...provided.dragHandleProps}
-                                   className="p-3 -mr-3 cursor-grab active:cursor-grabbing" // Hit slop for better touch target
-                                   style={{ touchAction: 'none' }} // Stops browser scroll hijacking
-                               >
-                                   <GripVertical className="h-5 w-5 text-gray-300" />
-                               </div>
-                           )}
-                         </div>
-                       );
-                       return snapshot.isDragging ? createPortal(content, document.body) : content;
-                    }}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
-        </DragDropContext>
+        {/* DND CONTEXT */}
+        <DndContext 
+            sensors={sensors} 
+            collisionDetection={closestCenter} 
+            onDragEnd={onDragEnd}
+            modifiers={[restrictToVerticalAxis]}
+        >
+            <SortableContext 
+                items={initialPlaces.map(p => p.id)} 
+                strategy={verticalListSortingStrategy}
+            >
+                <div className="space-y-3 pb-2 overflow-x-hidden w-full max-w-full">
+                    {initialPlaces.map((place, index) => (
+                        <SortableItem 
+                            key={place.id} 
+                            id={place.id} 
+                            place={place} 
+                            index={index} 
+                            useManualOrder={useManualOrder} 
+                        />
+                    ))}
+                </div>
+            </SortableContext>
+        </DndContext>
     </div>
   );
 };
 
-// 2. ResultList
+// 2. ResultList (Giữ nguyên)
 interface ResultListProps { 
     optimizedRoute: string[]; 
     handleCardClick: (index: number) => void; 
@@ -279,38 +310,32 @@ const ResultList = ({ optimizedRoute, handleCardClick, routeInfo, vehicle = "car
                   <div key={index} onClick={() => handleCardClick(index)}
                    className="flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-100 shadow-sm active:scale-[0.98] transition-transform"
                   >
-                     <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-green-600 shadow-sm ${index === 0 || index === optimizedRoute.length - 1 ? 'bg-green-600' : 'bg-white border-2 border-green-500 text-green-700'}`}>
-                        {index === 0 || index === optimizedRoute.length - 1 ? <Navigation className="h-4 w-4 text-white" /> : index}
-                     </div>
-                     <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${index === 0 || index === optimizedRoute.length - 1 ? 'font-bold text-green-800' : 'font-medium text-gray-700'} truncate`}>{stop}</p>
-                     </div>
+                      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-green-600 shadow-sm ${index === 0 || index === optimizedRoute.length - 1 ? 'bg-green-600' : 'bg-white border-2 border-green-500 text-green-700'}`}>
+                         {index === 0 || index === optimizedRoute.length - 1 ? <Navigation className="h-4 w-4 text-white" /> : index}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                         <p className={`text-sm ${index === 0 || index === optimizedRoute.length - 1 ? 'font-bold text-green-800' : 'font-medium text-gray-700'} truncate`}>{stop}</p>
+                      </div>
                   </div>
               ))}
           </div>
-
-          {/* --- HEADER TỔNG QUAN --- */}
-          <div className="pt-2 pb-1">
+          {/* ... Phần Grid thông tin giữ nguyên ... */}
+           <div className="pt-2 pb-1">
               <div className="h-px w-full bg-gray-200" />
               <h4 className="text-md font-bold text-gray-700 flex items-center gap-2 mt-2">
                   <Info className="h-5 w-5 text-green-600" />
                   {t('optimize.summary_title', 'Tổng quan chuyến đi')}
               </h4>
           </div>
-
-          {/* --- GRID THÔNG TIN --- */}
           <div className="grid grid-cols-3 gap-2 mb-2">
-            
               <div className="bg-green-50 p-2 rounded-xl border border-green-300 flex flex-col items-center justify-center text-center mb-2">
                  <span className="text-[10px] text-green-600 uppercase font-bold mb-1">{t('common.distance', 'Quãng đường')}</span>
                  <span className="text-sm font-bold text-green-700">{routeInfo.distance}</span>
               </div>
-
               <div className="bg-green-50 p-2 rounded-xl border border-green-300 flex flex-col items-center justify-center text-center mb-2">
                  <span className="text-[10px] text-green-600 uppercase font-bold mb-1">{t('common.duration', 'Thời gian')}</span>
                  <span className="text-sm font-bold text-green-700">{routeInfo.duration}</span>
               </div>
-
               <div className="bg-green-50 p-2 rounded-xl border border-green-300 flex flex-col items-center justify-center text-center mb-2">
                  <span className="text-[10px] text-green-600 uppercase font-bold mb-1">{t('optimize.vehicle_label', 'Phương tiện')}</span>
                  <div className="flex items-center justify-center gap-1 text-green-700">
@@ -318,7 +343,6 @@ const ResultList = ({ optimizedRoute, handleCardClick, routeInfo, vehicle = "car
                      <span className="text-sm font-bold">{currentVehicle.label}</span>
                  </div>
               </div>
-              
           </div>
       </div>
   );
@@ -332,7 +356,7 @@ const OptimizeRoutePage = () => {
   const { clearCart } = useCart();
   const { username, isLoggedIn } = useAuth();
 
-  // State
+  // State dữ liệu
   const [startPoint, setStartPoint] = useState("");
   const [initialPlaces, setInitialPlaces] = useState<InitialPlace[]>([]);
   const [optimizedRoute, setOptimizedRoute] = useState<string[]>([]);
@@ -343,15 +367,17 @@ const OptimizeRoutePage = () => {
   const [focusPoint, setFocusPoint] = useState<{lat: number, lon: number} | null>(null);
   const [rawRouteData, setRawRouteData] = useState<{ distance: number; duration: number; } | null>(null);
 
-  // UI State
+  // State điều khiển UI
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [useManualOrder, setUseManualOrder] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Selection State
   const [vehicle, setVehicle] = useState<VehicleType>("car");
   const [calculatedVehicle, setCalculatedVehicle] = useState<VehicleType | null>(null);
   const [showVehicleSelector, setShowVehicleSelector] = useState(false);
-    
-  // Drawer State
+   
+  // Custom Drawer State
   const [drawerLevel, setDrawerLevel] = useState<0 | 1 | 2>(1); 
   const [isDragging, setIsDragging] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -384,7 +410,7 @@ const OptimizeRoutePage = () => {
     }
   }, [searchParams]);
 
-  // Touch Logic
+  // TOUCH LOGIC FOR DRAWER (Keep existing)
   const handleTouchStart = (e: React.TouchEvent) => {
     if (!drawerRef.current) return;
     const currentHeight = drawerRef.current.getBoundingClientRect().height;
@@ -392,7 +418,6 @@ const OptimizeRoutePage = () => {
     touchStartY.current = e.touches[0].clientY;
     setIsDragging(true);
   };
-
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isDragging || !drawerRef.current) return;
     const currentY = e.touches[0].clientY;
@@ -404,7 +429,6 @@ const OptimizeRoutePage = () => {
     if (newHeight < minHeight) newHeight = minHeight - (minHeight - newHeight) * 0.2;
     drawerRef.current.style.height = `${newHeight}px`;
   };
-
   const handleTouchEnd = (e: React.TouchEvent) => {
     setIsDragging(false); 
     if (!drawerRef.current) return;
@@ -433,6 +457,7 @@ const OptimizeRoutePage = () => {
 
     try {
       if (initialPlaces.length === 0) throw new Error(t('optimize.error_no_places', "Không có địa điểm."));
+      
       const placesPayload = initialPlaces.map(p => ({ name: p.name, address: p.address, lat: p.lat || 0, lng: p.lon || 0 }));
       
       const response = await axios.post<OptimizeResponse>(`${API_BASE_URL}/api/optimize`, {
@@ -456,7 +481,6 @@ const OptimizeRoutePage = () => {
       setPolyOutbound(data.polyline_outbound);
       setPolyReturn(data.polyline_return);
       setMapPoints([{ id: 'start', address: startPoint, ...data.start_point_coords }, ...data.waypoints]);
-      
       setCalculatedVehicle(vehicle);
 
       toast.success(t('optimize.success_optimized', "Đã tối ưu hóa lộ trình!"));
@@ -507,18 +531,23 @@ const OptimizeRoutePage = () => {
     }
   };
 
-  const onDragEnd = (result: DropResult) => {
-    if (!result.destination) return;
-    const items = Array.from(initialPlaces);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-    setInitialPlaces(items);
+  // --- DND-KIT HANDLER (UPDATED) ---
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+        setInitialPlaces((items) => {
+            const oldIndex = items.findIndex((item) => item.id === active.id);
+            const newIndex = items.findIndex((item) => item.id === over.id);
+            return arrayMove(items, oldIndex, newIndex);
+        });
+    }
   };
 
   return (
     <div className="min-h-[100dvh] w-full bg-white md:bg-gray-50 overflow-hidden relative">
       
-      {/* PC UI */}
+      {/* ================= PC UI ================= */}
       <div className="hidden md:block">
          <Navbar />
          <div className="container mx-auto px-4 py-8 min-h-[calc(100vh-80px)]">
@@ -539,7 +568,17 @@ const OptimizeRoutePage = () => {
                             {isOptimizing ? t('optimize.btn_optimizing', "Đang xử lý...") : t('optimize.btn_create_optimal', "Tối ưu ngay")}
                         </Button>
                     </Card>
-                    {optimizedRoute.length === 0 && <DragDropList initialPlaces={initialPlaces} useManualOrder={useManualOrder} setUseManualOrder={setUseManualOrder} onDragEnd={onDragEnd} onDragStart={() => {}} />}
+                    
+                    {/* DRAG LIST REFACTORED */}
+                    {optimizedRoute.length === 0 && (
+                        <DragDropList 
+                            initialPlaces={initialPlaces} 
+                            useManualOrder={useManualOrder} 
+                            setUseManualOrder={setUseManualOrder} 
+                            onDragEnd={handleDragEnd} 
+                        />
+                    )}
+
                     {optimizedRoute.length > 0 && (
                         <div className="space-y-4">
                             <div className="flex items-center gap-2 pb-2 border-b border-gray-100 animate-slide-up">
@@ -568,10 +607,9 @@ const OptimizeRoutePage = () => {
          </div>
       </div>
 
-      {/* MOBILE UI */}
+      {/* ================= MOBILE UI ================= */}
       <div className="md:hidden w-full h-[100dvh] relative flex flex-col">
-          
-          {/* Top Bar */}
+          {/* 1. TOP BAR FLOATING (Keep existing) */}
           <div className="absolute top-0 left-0 right-0 z-[50] px-4 pt-safe pointer-events-none">
               <div className="mt-4 flex flex-col pointer-events-auto pb-2">
                    <div className="flex items-center gap-3">
@@ -616,53 +654,46 @@ const OptimizeRoutePage = () => {
                             {isOptimizing ? <Loader2 className="h-5 w-5 text-white animate-spin" /> : <Navigation className="h-5 w-5 text-white" />}
                         </Button>
                    </div>
-
-                   <div 
-                       className={`
-                           overflow-hidden transition-all duration-300 ease-in-out
-                           ${showVehicleSelector ? 'max-h-[60px] opacity-100 mt-1' : 'max-h-0 opacity-0 mt-0'}
-                       `}
-                   >
-                       <VehicleSelectorMobile value={vehicle} onChange={setVehicle} />
+                   {/* PILL VEHICLE SELECTOR */}
+                   <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showVehicleSelector ? 'max-h-[60px] opacity-100 mt-1' : 'max-h-0 opacity-0 mt-0'}`}>
+                        <VehicleSelectorMobile value={vehicle} onChange={setVehicle} />
                    </div>
               </div>
           </div>
 
+          {/* 2. MAP BACKGROUND */}
           <div className="absolute inset-0 z-0">
              <RouteMap polylineOutbound={polyOutbound} polylineReturn={polyReturn} points={mapPoints} focusPoint={focusPoint} />
           </div>
 
-          <div 
-            className={`absolute inset-0 bg-black/30 z-[30] transition-opacity duration-300 ${drawerLevel === 2 ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
-            onClick={() => setDrawerLevel(1)} 
-          />
+          {/* 3. CUSTOM DRAWER */}
+          <div className={`absolute inset-0 bg-black/30 z-[30] transition-opacity duration-300 ${drawerLevel === 2 ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} onClick={() => setDrawerLevel(1)} />
 
           <div 
               ref={drawerRef}
-              className={`
-                absolute bottom-0 left-0 right-0 bg-white rounded-t-[24px] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] z-[40] flex flex-col 
-                will-change-height
-                ${isDragging ? '' : 'transition-all duration-300 cubic-bezier(0.25, 1, 0.5, 1)'}
-              `}
-              style={{ 
-                  height: isDragging ? `${drawerStartHeight.current}px` : getTargetHeightStyle(drawerLevel),
-                  touchAction: 'none'
-              }}
+              className={`absolute bottom-0 left-0 right-0 bg-white rounded-t-[24px] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] z-[40] flex flex-col will-change-height ${isDragging ? '' : 'transition-all duration-300 cubic-bezier(0.25, 1, 0.5, 1)'}`}
+              style={{ height: isDragging ? `${drawerStartHeight.current}px` : getTargetHeightStyle(drawerLevel), touchAction: 'none' }}
           >
+              {/* Handle Bar */}
               <div 
                   className="w-full flex flex-col items-center justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
-                  onTouchStart={handleTouchStart}
-                  onTouchMove={handleTouchMove}
-                  onTouchEnd={handleTouchEnd}
+                  onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
                   onClick={(e) => { if (!isDragging) setDrawerLevel(prev => prev === 0 ? 1 : prev === 1 ? 2 : 1) }}
               >
                   <div className="w-12 h-1.5 bg-gray-300 rounded-full mb-1" />
               </div>
 
+              {/* Drawer Content */}
               <div className="flex-1 overflow-y-auto px-4 pb-safe pt-1 overscroll-contain no-scrollbar select-none">
                   {optimizedRoute.length === 0 && (
                       <div className="animate-slide-up">
-                          <DragDropList initialPlaces={initialPlaces} useManualOrder={useManualOrder} setUseManualOrder={setUseManualOrder} onDragEnd={onDragEnd} onDragStart={() => {}} />
+                          {/* DRAG LIST REFACTORED */}
+                          <DragDropList 
+                            initialPlaces={initialPlaces} 
+                            useManualOrder={useManualOrder} 
+                            setUseManualOrder={setUseManualOrder} 
+                            onDragEnd={handleDragEnd} 
+                          />
                           {initialPlaces.length > 0 && (
                             <div className="flex items-start gap-2 mt-4 p-3 bg-green-50 text-green-700 rounded-xl text-xs">
                                 <Info className="h-4 w-4 shrink-0 mt-0.5" />
@@ -677,10 +708,10 @@ const OptimizeRoutePage = () => {
                               <h3 className="font-bold text-lg text-green-800 flex items-center gap-2"><MapPin className="h-5 w-5" /> {t('optimize.result_title', 'Lộ trình tối ưu')}</h3>
                           </div>
                           <ResultList optimizedRoute={optimizedRoute} routeInfo={routeInfo} vehicle={calculatedVehicle ?? vehicle} handleCardClick={(i) => {
-                              const p = mapPoints[i] || mapPoints[0];
-                              if (p) setFocusPoint({lat: p.lat, lon: p.lon});
-                              setDrawerLevel(0); 
-                             }} 
+                             const p = mapPoints[i] || mapPoints[0];
+                             if (p) setFocusPoint({lat: p.lat, lon: p.lon});
+                             setDrawerLevel(0); 
+                            }} 
                           />
                           {isLoggedIn && (
                               <Button onClick={handleSaveRoute} disabled={isSaving} className="w-full h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white shadow-md text-base font-medium">
