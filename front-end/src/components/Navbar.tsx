@@ -100,13 +100,13 @@ const LanguageSwitcherDropdown = ({
                     onClick={() => changeLanguage('vi')} 
                     className={`cursor-pointer ${currentLang === 'vi' ? 'bg-primary/10 font-bold text-primary' : ''}`}
                 >
-                    🇻🇳 Tiếng Việt
+                    Tiếng Việt
                 </DropdownMenuItem>
                 <DropdownMenuItem 
                     onClick={() => changeLanguage('en')} 
                     className={`cursor-pointer ${currentLang === 'en' ? 'bg-primary/10 font-bold text-primary' : ''}`}
                 >
-                    🇺🇸 English
+                    English
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
@@ -323,6 +323,18 @@ const Navbar = ({ hideAuthButtons = false }: NavbarProps) => {
                         </div>
                     </motion.div>
 
+                    
+
+                    <motion.div variants={itemVariants}>
+                        <NavItem to="/search" icon={MapPin} label={t('common.search', "Tìm kiếm")} onClick={() => setIsMobileMenuOpen(false)} />
+                    </motion.div>
+                    <motion.div variants={itemVariants}>
+                        <NavItem to="/favorites" icon={Heart} label={t('profile.tab_favorites', "Yêu thích")} onClick={() => setIsMobileMenuOpen(false)} />
+                    </motion.div>
+                    <motion.div variants={itemVariants}>
+                        <NavItem to="/about" icon={Info} label={t('restaurant_detail.tab_about', "Giới thiệu")} onClick={() => setIsMobileMenuOpen(false)} />
+                    </motion.div>
+                    <div className="border-t my-1 border-border/50" />
                     {/* Mobile Language Accordion */}
                     <motion.div variants={itemVariants} className="overflow-hidden bg-white rounded-xl border border-gray-100 mb-2">
                         <button 
@@ -371,17 +383,6 @@ const Navbar = ({ hideAuthButtons = false }: NavbarProps) => {
                             )}
                         </AnimatePresence>
                     </motion.div>
-
-                    <motion.div variants={itemVariants}>
-                        <NavItem to="/search" icon={MapPin} label={t('common.search', "Tìm kiếm")} onClick={() => setIsMobileMenuOpen(false)} />
-                    </motion.div>
-                    <motion.div variants={itemVariants}>
-                        <NavItem to="/favorites" icon={Heart} label={t('profile.tab_favorites', "Yêu thích")} onClick={() => setIsMobileMenuOpen(false)} />
-                    </motion.div>
-                    <motion.div variants={itemVariants}>
-                        <NavItem to="/about" icon={Info} label={t('restaurant_detail.tab_about', "Giới thiệu")} onClick={() => setIsMobileMenuOpen(false)} />
-                    </motion.div>
-                    <div className="border-t my-1 border-border/50" />
                     <motion.div variants={itemVariants}>
                         <NavItem to="/profile" icon={User} label={t('common.profile', "Hồ sơ cá nhân")} onClick={() => setIsMobileMenuOpen(false)} />
                     </motion.div>
