@@ -18,6 +18,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { API_BASE_URL } from "@/lib/api-config";
+// 1. Import hook đa ngôn ngữ
+import { useTranslation } from 'react-i18next';
 
 interface Review {
   id: number;
@@ -38,6 +40,9 @@ interface ReviewSectionProps {
 const MAX_CHARS = 1000;
 
 const ReviewSection = ({ placeId }: ReviewSectionProps) => {
+  // 2. Khởi tạo hook
+  const { t, i18n } = useTranslation();
+  
   const { username, isLoggedIn } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [rating, setRating] = useState(0);
@@ -51,6 +56,14 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [deleteReviewId, setDeleteReviewId] = useState<number | null>(null);
+
+  // 1. Thêm hàm cleanup useEffect
+  useEffect(() => {
+    // Cleanup function khi component unmount
+    return () => {
+      previewUrls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [previewUrls]); // Lưu ý dependency
 
   useEffect(() => {
     if (!placeId) return;
@@ -71,7 +84,7 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
       if (selectedFiles.length + filesArray.length > 10) {
-          toast.error("Bạn chỉ được chọn tối đa 10 ảnh!");
+          toast.error(t('reviews.toast_max_img', "Bạn chỉ được chọn tối đa 10 ảnh!"));
           return;
       }
       const newPreviews = filesArray.map(file => URL.createObjectURL(file));
@@ -80,15 +93,19 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
     }
   };
 
+  // 2. Sửa hàm removeImage để revoke ngay lập tức
   const removeImage = (index: number) => {
+      const urlToRemove = previewUrls[index];
+      URL.revokeObjectURL(urlToRemove); // <--- THÊM DÒNG NÀY
+      
       setSelectedFiles(prev => prev.filter((_, i) => i !== index));
       setPreviewUrls(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async () => {
-    if (!isLoggedIn) { toast.error("Bạn cần đăng nhập"); return; }
-    if (rating === 0) { toast.error("Vui lòng chọn số sao"); return; }
-    if (!comment.trim()) { toast.error("Vui lòng nhập nội dung"); return; }
+    if (!isLoggedIn) { toast.error(t('common.login_required', "Bạn cần đăng nhập")); return; }
+    if (rating === 0) { toast.error(t('reviews.toast_rating', "Vui lòng chọn số sao")); return; }
+    if (!comment.trim()) { toast.error(t('reviews.toast_content', "Vui lòng nhập nội dung")); return; }
 
     setIsSubmitting(true);
     try {
@@ -115,9 +132,9 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
       if (fileInputRef.current) fileInputRef.current.value = "";
       if (textareaRef.current) textareaRef.current.style.height = "auto";
 
-      toast.success("Đánh giá thành công!");
+      toast.success(t('reviews.toast_success', "Đánh giá thành công!"));
     } catch (error) {
-      toast.error("Gửi đánh giá thất bại");
+      toast.error(t('reviews.toast_fail', "Gửi đánh giá thất bại"));
     } finally {
       setIsSubmitting(false);
     }
@@ -132,18 +149,34 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
       try {
           await axios.delete(`${API_BASE_URL}/api/reviews/${deleteReviewId}`);
           setReviews(prev => prev.filter(r => r.id !== deleteReviewId));
-          toast.success("Đã xóa đánh giá");
+          toast.success(t('reviews.toast_delete_success', "Đã xóa đánh giá"));
       } catch (error) {
-          toast.error("Lỗi khi xóa đánh giá");
+          toast.error(t('reviews.toast_delete_fail', "Lỗi khi xóa đánh giá"));
       } finally {
           setDeleteReviewId(null);
       }
   };
 
+  // Helper để format ngày tháng theo ngôn ngữ
+  const formatDate = (dateString: string) => {
+    try {
+        const locale = i18n.language === 'en' ? 'en-US' : 'vi-VN';
+        return new Date(dateString).toLocaleDateString(locale, {
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric'
+        });
+    } catch {
+        return dateString;
+    }
+  };
+
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex items-center justify-between">
-        <h3 className="text-xl md:text-2xl font-bold text-gray-800">Đánh giá ({reviews.length})</h3>
+        <h3 className="text-xl md:text-2xl font-bold text-gray-800">
+            {t('reviews.title', 'Đánh giá')} ({reviews.length})
+        </h3>
       </div>
 
       {/* INPUT CARD */}
@@ -184,7 +217,7 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
             <div className="relative">
                 <Textarea 
                   ref={textareaRef}
-                  placeholder="Chia sẻ trải nghiệm chân thực của bạn..."
+                  placeholder={t('reviews.placeholder', "Chia sẻ trải nghiệm chân thực của bạn...")}
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   disabled={!isLoggedIn}
@@ -239,7 +272,7 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
                         disabled={!isLoggedIn}
                     >
                         <ImagePlus className="h-5 w-5 mr-2" />
-                        <span className="text-sm font-medium">Thêm ảnh ({selectedFiles.length}/10)</span>
+                        <span className="text-sm font-medium">{t('reviews.add_photo', 'Thêm ảnh')} ({selectedFiles.length}/10)</span>
                     </Button>
                 </div>
 
@@ -255,7 +288,7 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
                         // Mobile: w-full, h-11 (to hơn), PC: w-auto
                         className="w-full md:w-auto h-11 md:h-10 bg-green-600 hover:bg-green-700 text-white rounded-lg md:rounded-full font-semibold shadow-sm"
                     >
-                        {isSubmitting ? "Đang gửi..." : <><Send className="w-4 h-4 mr-2" /> Gửi đánh giá</>}
+                        {isSubmitting ? t('reviews.submitting', "Đang gửi...") : <><Send className="w-4 h-4 mr-2" /> {t('reviews.submit', "Gửi đánh giá")}</>}
                     </Button>
                 </div>
             </div>
@@ -278,7 +311,7 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
                 <div>
                   <h4 className="font-bold text-gray-900 text-sm">{review.user.username}</h4>
                   <span className="text-xs text-gray-400 font-medium">
-                    {new Date(review.created_at).toLocaleDateString("vi-VN")}
+                    {formatDate(review.created_at)}
                   </span>
                 </div>
                 
@@ -311,7 +344,7 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
                       key={idx} 
                       src={img} 
                       alt="review-img" 
-                      className="h-20 w-20 md:h-24 md:w-24 rounded-lg object-cover border border-gray-100 flex-shrink-0"
+                      className="h-20 w-20 md:h-24 md:w-24 rounded-lg object-cover border border-gray-100 flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
                       onClick={() => window.open(img, '_blank')}
                     />
                   ))}
@@ -325,15 +358,17 @@ const ReviewSection = ({ placeId }: ReviewSectionProps) => {
       <AlertDialog open={!!deleteReviewId} onOpenChange={(open) => !open && setDeleteReviewId(null)}>
         <AlertDialogContent className="rounded-xl w-[90%] md:w-full">
           <AlertDialogHeader>
-            <AlertDialogTitle>Xóa đánh giá?</AlertDialogTitle>
+            <AlertDialogTitle>{t('reviews.delete_title', "Xóa đánh giá?")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn có chắc chắn muốn xóa đánh giá này không? Hành động này không thể hoàn tác.
+              {t('reviews.delete_desc', "Bạn có chắc chắn muốn xóa đánh giá này không? Hành động này không thể hoàn tác.")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row gap-2 justify-end">
-            <AlertDialogCancel className="rounded-lg mt-0 flex-1 md:flex-none">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-lg mt-0 flex-1 md:flex-none">
+                {t('common.cancel', "Hủy bỏ")}
+            </AlertDialogCancel>
             <AlertDialogAction onClick={executeDelete} className="bg-red-600 hover:bg-red-700 text-white rounded-lg flex-1 md:flex-none">
-                Xóa ngay
+                {t('profile.btn_delete', "Xóa")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

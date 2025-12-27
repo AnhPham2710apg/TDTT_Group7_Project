@@ -47,7 +47,11 @@ class Restaurant(db.Model):
     category = db.Column(db.String)
     review_tags = db.Column(db.String)
     subtypes = db.Column(db.String)
-    description = db.Column(db.String)
+    
+    # --- CỘT MÔ TẢ ĐA NGÔN NGỮ ---
+    description = db.Column(db.String)      # Tiếng Việt (Mặc định)
+    description_en = db.Column(db.String)   # Tiếng Anh (Mới thêm)
+    
     range = db.Column(db.String)  
 
     # --- MAP TÊN CỘT CHÍNH XÁC (Lower Case cho Postgres) ---
@@ -60,47 +64,36 @@ class Restaurant(db.Model):
     minPrice = db.Column("minprice", db.Integer)     
     maxPrice = db.Column("maxprice", db.Integer)     
 
-    def to_dict(self):
+    def to_dict(self, lang='vi'):
         """
         Chuyển đổi object thành dict chuẩn cho Frontend.
+        lang: 'vi' hoặc 'en' để chọn ngôn ngữ hiển thị.
         """
-        # Logic tính Price Level (1: Rẻ -> 4: Sang trọng)
-        # Ưu tiên tính theo maxPrice thực tế
-        level = 1
-        if self.maxPrice:
-            if self.maxPrice >= 2000000:   # Trên 500k -> Sang trọng ($$$$)
-                level = 4
-            elif self.maxPrice >= 500000: # 200k - 500k -> Khá ($$$)
-                level = 3
-            elif self.maxPrice >= 100000:  # 50k - 200k -> Trung bình ($$)
-                level = 2
-            else:                         # Dưới 50k -> Rẻ ($)
-                level = 1
-        
-        # Nếu không có maxPrice, thử đoán qua range (nếu có chuỗi '$$')
-        elif self.range:
-            level = len(self.range) if len(self.range) <= 4 else 2
+
+        # --- LOGIC CHỌN NGÔN NGỮ ---
+        # Mặc định lấy tiếng Việt
+        final_description = self.description
+        # Nếu yêu cầu tiếng Anh VÀ có dữ liệu tiếng Anh thì lấy
+        if lang == 'en' and self.description_en:
+            final_description = self.description_en
 
         return {
             "id": str(self.id), 
             "place_id": self.place_id or "",
             "name": self.name or "Tên đang cập nhật",
-            # Map full_address thành address cho Frontend dễ dùng
             "address": self.full_address or self.district or "Đang cập nhật",
-            
-            # Map latitude/longitude thành lat/lng
             "lat": self.latitude or 0.0,
             "lng": self.longitude or 0.0,
-            
             "rating": self.rating or 0.0,
             "price_level": self.range,
             "photo_url": self.photo_url or "",
-            "description": self.description or "",
+            
+            # TRẢ VỀ FIELD ĐÃ ĐƯỢC DỊCH
+            "description": final_description or "",
+            
             "phone_number": self.phone or "",
             "website": self.site or "",
             "working_hour": self.working_hour or "",
-            
-            # Trả về metadata để filter
             "cuisine": self.cuisine or "",
             "food_type": self.foodType or "",
             "district": self.district or "",

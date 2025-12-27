@@ -1,3 +1,5 @@
+// src/pages/CartPage.tsx
+
 import Navbar from "@/components/Navbar";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
@@ -5,14 +7,19 @@ import RestaurantCard from "@/components/RestaurantCard";
 import { Route, Search, Trash2, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+// 1. Import hook
+import { useTranslation } from 'react-i18next';
 
 const CartPage = () => {
+  // 2. Khởi tạo hook
+  const { t } = useTranslation();
   const { cartItems, clearCart } = useCart();
   const navigate = useNavigate();
 
   const handleOptimizeRoute = () => {
     if (cartItems.length < 1) {
-      toast.error("Cần ít nhất 1 địa điểm để tối ưu lộ trình!");
+      // Thay text trong toast
+      toast.error(t('cart.toast_error_min', "Cần ít nhất 1 địa điểm để tối ưu lộ trình!"));
       return;
     }
 
@@ -37,19 +44,19 @@ const CartPage = () => {
       
       <div className="container mx-auto px-4 py-4 md:py-6">
         
-        {/* --- 1. NÚT BACK (ĐÃ SỬA LỖI VỊ TRÍ) --- */}
-        {/* Bỏ 'absolute', dùng 'mb-4' để đẩy nội dung bên dưới xuống */}
+        {/* --- 1. NÚT BACK --- */}
         <div className="mb-4">
             <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={() => navigate(-1)}
-                // Style: Tròn, Xanh lá, Đổ bóng (Giữ nguyên yêu cầu của bạn)
                 className="h-9 rounded-full shadow-sm border border-green-600 text-green-600 bg-white 
                            hover:bg-green-600 hover:text-white transition-all px-4 gap-2"
             >
                 <ArrowLeft className="h-4 w-4" /> 
-                <span className="font-medium">Quay lại</span>
+                <span className="font-medium">
+                  {t('common.back', 'Quay lại')}
+                </span>
             </Button>
         </div>
 
@@ -58,9 +65,13 @@ const CartPage = () => {
           
           {/* Thông tin Text */}
           <div className="w-full md:w-auto">
-            <h1 className="text-2xl md:text-3xl font-bold mb-1">Danh sách đã chọn</h1>
+            <h1 className="text-2xl md:text-3xl font-bold mb-1">
+              {t('cart.title', 'Danh sách đã chọn')}
+            </h1>
             <p className="text-muted-foreground text-sm">
-              Bạn đã chọn <span className="font-medium text-foreground">{cartItems.length}</span> địa điểm.
+              {t('cart.selected_prefix', 'Bạn đã chọn')}{" "}
+              <span className="font-medium text-foreground">{cartItems.length}</span>{" "}
+              {t('cart.selected_suffix', 'địa điểm.')}
             </p>
           </div>
           
@@ -75,7 +86,7 @@ const CartPage = () => {
                   className="flex-shrink-0 text-destructive border-destructive/50 hover:bg-destructive/10 hover:border-destructive h-8 md:h-9 text-xs md:text-sm hover:text-red-500 px-3 whitespace-nowrap rounded-full"
                 >
                    <Trash2 className="mr-1.5 h-3.5 w-3.5 md:h-4 md:w-4" /> 
-                   Xóa hết
+                   {t('cart.clear_all', 'Xóa hết')}
                 </Button>
              )}
 
@@ -86,7 +97,7 @@ const CartPage = () => {
                 className="flex-shrink-0 hover:bg-gray/90 hover:text-primary h-8 md:h-9 text-xs md:text-sm px-3 whitespace-nowrap rounded-full"
              >
                 <Search className="mr-1.5 h-3.5 w-3.5 md:h-4 md:w-4" /> 
-                Tìm thêm
+                {t('cart.find_more', 'Tìm thêm')}
              </Button>
 
              {/* Nút Tối ưu (Gradient) */}
@@ -95,7 +106,7 @@ const CartPage = () => {
                 className="flex-shrink-0 bg-hero-gradient shadow-md hover:shadow-lg hover:opacity-90 h-8 md:h-9 text-xs md:text-sm px-4 whitespace-nowrap rounded-full font-semibold"
              >
                 <Route className="mr-1.5 h-3.5 w-3.5 md:h-4 md:w-4" /> 
-                Tối ưu ngay
+                {t('cart.optimize_now', 'Tối ưu ngay')}
              </Button>
           </div>
         </div>
@@ -106,12 +117,14 @@ const CartPage = () => {
              <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
                 <Search className="h-8 w-8 text-muted-foreground" />
             </div>
-            <p className="text-lg font-medium mb-1">Danh sách trống</p>
+            <p className="text-lg font-medium mb-1">
+              {t('cart.empty_title', 'Danh sách trống')}
+            </p>
             <p className="text-muted-foreground text-sm mb-6 max-w-xs">
-              Bạn chưa chọn địa điểm nào cho hành trình food tour của mình.
+              {t('cart.empty_desc', 'Bạn chưa chọn địa điểm nào cho hành trình food tour của mình.')}
             </p>
             <Button onClick={() => navigate("/search")} className="bg-primary rounded-full px-6">
-              Khám phá quán ăn
+              {t('cart.explore_action', 'Khám phá quán ăn')}
             </Button>
           </div>
         ) : (

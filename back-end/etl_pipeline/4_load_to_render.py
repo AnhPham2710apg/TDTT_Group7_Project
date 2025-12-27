@@ -171,6 +171,11 @@ def transfer_data_final():
                 phone=row['phone'],
                 site=row['site'],
                 description=row['description'],
+                description_en=row['description_en'],
+
+                street_view=row['street_view'],
+                category=row['category'],
+                subtypes=row['subtypes'],
                 
                 # Cột range giờ là số nguyên (Integer)
                 range=val_range,

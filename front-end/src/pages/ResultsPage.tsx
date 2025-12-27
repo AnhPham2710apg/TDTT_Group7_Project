@@ -1,3 +1,5 @@
+// src/pages/ResultsPage.tsx
+
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -19,8 +21,12 @@ import {
 import { toast } from "sonner";
 import axios from "axios";
 import { API_BASE_URL } from "@/lib/api-config";
+// 1. Import hook
+import { useTranslation } from 'react-i18next';
 
 const ResultsPage = () => {
+  // 2. Khởi tạo hook
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   
@@ -58,7 +64,7 @@ const ResultsPage = () => {
       setRestaurants(syncedResults);
     } catch (error) {
       console.error("Fetch error:", error);
-      toast.error("Không tìm thấy kết quả phù hợp.");
+      toast.error(t('results.toast_no_results', "Không tìm thấy kết quả phù hợp."));
       setRestaurants([]);
     } finally {
       setIsLoading(false);
@@ -100,7 +106,7 @@ const ResultsPage = () => {
 
   const handleToggleFavorite = async (restaurant: Restaurant) => {
     const username = localStorage.getItem("username"); 
-    if (!username) { toast.error("Bạn cần đăng nhập"); return; }
+    if (!username) { toast.error(t('common.login_required', "Bạn cần đăng nhập")); return; }
 
     const isCurrentlyFavorite = restaurant.is_favorite;
     const method = isCurrentlyFavorite ? "delete" : "post";
@@ -111,14 +117,14 @@ const ResultsPage = () => {
       setRestaurants(prev => prev.map(r => r.id === restaurant.id ? { ...r, is_favorite: !r.is_favorite } : r));
       if (method === "post") {
         await axios.post(url, data);
-        toast.success("Đã thêm vào yêu thích!");
+        toast.success(t('favorite.added_success', "Đã thêm vào yêu thích!"));
       } else {
         await axios.delete(url, { data: data });
-        toast.success("Đã xóa khỏi yêu thích");
+        toast.success(t('favorite.removed_success', "Đã xóa khỏi yêu thích"));
       }
     } catch (error) {
       setRestaurants(prev => prev.map(r => r.id === restaurant.id ? { ...r, is_favorite: isCurrentlyFavorite } : r));
-      toast.error("Lỗi cập nhật");
+      toast.error(t('common.error', "Lỗi cập nhật"));
     }
   };
 
@@ -135,20 +141,24 @@ const ResultsPage = () => {
           >
             <ListFilter className={`${isMobile ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} />
             <span className="font-medium">
-              {sortBy === "price" ? "Giá cả" : sortBy === "rating" ? "Đánh giá" : "Sắp xếp"}
+              {sortBy === "price" 
+                ? t('results.sort_price', 'Giá cả') 
+                : sortBy === "rating" 
+                    ? t('results.sort_rating', 'Đánh giá') 
+                    : t('results.sort_label', 'Sắp xếp')}
             </span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-40">
           <DropdownMenuItem onClick={() => { setSortBy("rating"); setSortOrder("desc"); }} className="cursor-pointer">
-            <Star className="mr-2 h-4 w-4 text-yellow-500" /> Đánh giá
+            <Star className="mr-2 h-4 w-4 text-yellow-500" /> {t('results.sort_rating', 'Đánh giá')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => { setSortBy("price"); setSortOrder("asc"); }} className="cursor-pointer">
-            <DollarSign className="mr-2 h-4 w-4 text-green-600" /> Giá cả
+            <DollarSign className="mr-2 h-4 w-4 text-green-600" /> {t('results.sort_price', 'Giá cả')}
           </DropdownMenuItem>
           {sortBy && (
             <DropdownMenuItem onClick={() => setSortBy(null)} className="text-muted-foreground border-t mt-1 cursor-pointer">
-                Mặc định
+                {t('results.sort_default', 'Mặc định')}
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
@@ -162,7 +172,7 @@ const ResultsPage = () => {
             size="sm" 
             className={`${isMobile ? 'h-7 w-7' : 'h-8 w-8'} p-0 hover:bg-background rounded-md`}
             onClick={toggleOrder}
-            title={sortOrder === "asc" ? "Tăng dần" : "Giảm dần"}
+            title={sortOrder === "asc" ? t('results.sort_asc', "Tăng dần") : t('results.sort_desc', "Giảm dần")}
           >
             {sortOrder === "asc" ? (
               <ArrowUp className={`${isMobile ? 'h-3.5 w-3.5' : 'h-4 w-4'} text-primary animate-in zoom-in duration-200`} />
@@ -198,9 +208,13 @@ const ResultsPage = () => {
           {/* GROUP TRÁI: Tiêu đề + Nút Sắp xếp (Chỉ hiện Sắp xếp trên PC) */}
           <div className="flex flex-col sm:flex-row sm:items-end gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold mb-1 leading-none">Kết quả tìm kiếm</h1>
+              <h1 className="text-2xl md:text-3xl font-bold mb-1 leading-none">
+                {t('results.title', 'Kết quả tìm kiếm')}
+              </h1>
               <p className="text-muted-foreground text-sm">
-                Tìm thấy <span className="font-medium text-foreground">{restaurants.length}</span> quán phù hợp.
+                {t('results.found_prefix', 'Tìm thấy')}{" "}
+                <span className="font-medium text-foreground">{restaurants.length}</span>{" "}
+                {t('results.found_suffix', 'quán phù hợp.')}
               </p>
             </div>
             
@@ -225,7 +239,7 @@ const ResultsPage = () => {
                 onClick={() => navigate("/search")} 
                 className="flex-1 lg:flex-none hover:bg-gray/90 hover:text-primary text-xs md:text-sm h-8 md:h-9 whitespace-nowrap"
              >
-              <Search className="mr-2 h-3 w-3 md:h-4 md:w-4" /> Tìm kiếm khác
+              <Search className="mr-2 h-3 w-3 md:h-4 md:w-4" /> {t('results.btn_search_other', 'Tìm kiếm khác')}
             </Button>
             
             {/* Nút Xem danh sách */}
@@ -234,7 +248,7 @@ const ResultsPage = () => {
                 onClick={() => navigate("/cart")} 
                 className="flex-1 lg:flex-none bg-primary/90 hover:bg-primary text-xs md:text-sm h-8 md:h-9 whitespace-nowrap"
             >
-              Xem danh sách
+              {t('results.btn_view_list', 'Xem danh sách')}
             </Button>
 
 
@@ -258,12 +272,14 @@ const ResultsPage = () => {
             <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
                 <Search className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h3 className="text-lg font-semibold mb-1">Không tìm thấy kết quả</h3>
+            <h3 className="text-lg font-semibold mb-1">
+                {t('results.empty_title', 'Không tìm thấy kết quả')}
+            </h3>
             <p className="text-muted-foreground max-w-xs mx-auto">
-              Hãy thử thay đổi từ khóa hoặc bộ lọc tìm kiếm của bạn.
+              {t('results.empty_desc', 'Hãy thử thay đổi từ khóa hoặc bộ lọc tìm kiếm của bạn.')}
             </p>
             <Button variant="link" onClick={() => navigate("/search")} className="mt-4 text-primary">
-                Quay lại tìm kiếm
+                {t('results.btn_back_search', 'Quay lại tìm kiếm')}
             </Button>
           </div>
         )}

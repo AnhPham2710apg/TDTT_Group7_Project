@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import { Heart, MapPin, Star, DollarSign, Eye, Plus, Trash2, Image as ImageIcon, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
+import { useTranslation } from 'react-i18next';
 
 interface RestaurantCardProps {
   restaurant: Restaurant;
@@ -13,12 +14,7 @@ interface RestaurantCardProps {
   isSelected?: boolean;
 }
 
-const priceRangeMap: { [key: number]: string } = {
-  1: "1.000đ – 100.000đ",
-  2: "100.000đ – 500.000đ",
-  3: "500.000đ – 2.000.000đ",
-  4: "2.000.000đ trở lên",
-};
+// --- Đã xóa priceRangeMap ở đây để đưa vào trong component ---
 
 const getScoreStyle = (score: number) => {
   if (score >= 70) return "bg-emerald-600 text-white shadow-emerald-200";
@@ -39,12 +35,26 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
   restaurant,
   onToggleFavorite,
 }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { isInCart, addToCart, removeFromCart } = useCart();
   const inCart = isInCart(restaurant.id);
 
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+
+  // --- LOGIC MỚI: Đồng bộ với RestaurantDetailPage ---
+  const getPriceLabel = (level: number | string) => {
+    const levelNum = parseInt(String(level), 10);
+    switch (levelNum) {
+        case 1: return "1.000đ – 100.000đ";
+        case 2: return "100.000đ – 500.000đ";
+        case 3: return "500.000đ – 2.000.000đ";
+        // Sử dụng key dịch chung với trang chi tiết để đảm bảo đồng bộ
+        case 4: return `2.000.000đ ${t('restaurant_detail.price_above', 'trở lên')}`;
+        default: return "";
+    }
+  };
 
   const handleCartAction = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -66,6 +76,9 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
 
   const optimizedSrc = getOptimizedImageUrl(restaurant.photo_url || "");
   const score = restaurant.match_score ? Math.round(restaurant.match_score) : 0;
+  
+  // Lấy text hiển thị giá trước khi render
+  const priceText = restaurant.price_level ? getPriceLabel(restaurant.price_level) : "";
 
   return (
     <Card 
@@ -182,17 +195,18 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
               <div className="flex items-center gap-1 text-gray-600 font-medium">
                 {/* 1. Phần hiển thị icon Dollar */}
                 <div className="flex shrink-0">
-                  {Array.from({ length: restaurant.price_level }).map((_, i) => (
+                  {Array.from({ length: Number(restaurant.price_level) || 0 }).map((_, i) => (
                     <DollarSign key={i} className="h-3 w-3 md:h-3.5 md:w-3.5 text-emerald-600" />
                   ))}
-                  {Array.from({ length: 4 - restaurant.price_level }).map((_, i) => (
+                  {Array.from({ length: Math.max(0, 4 - (Number(restaurant.price_level) || 0)) }).map((_, i) => (
                     <DollarSign key={i} className="h-3 w-3 md:h-3.5 md:w-3.5 text-gray-300" />
                   ))}
                 </div>
 
-                {/* 2. Phần hiển thị Text giá tiền (MỚI THÊM) */}
-                {priceRangeMap[restaurant.price_level] && (
-                  <span className="text-[10px] md:text-xs text-gray-500 ml-1 truncate">| {priceRangeMap[restaurant.price_level]}
+                {/* 2. Phần hiển thị Text giá tiền (ĐÃ CẬP NHẬT) */}
+                {priceText && (
+                  <span className="text-[10px] md:text-xs text-gray-500 ml-1 truncate">|
+                    {priceText}
                   </span>
                 )}
               </div>
@@ -219,7 +233,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
             onClick={handleViewDetails}
           >
             <Eye className="mr-1.5 h-3 w-3 md:h-3.5 md:w-3.5" />
-            Chi tiết
+             {t('card.detail', 'Chi tiết')}
           </Button>
         </div>
       </div>  

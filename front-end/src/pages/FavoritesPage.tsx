@@ -8,26 +8,31 @@ import { Heart, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
 import { API_BASE_URL } from "@/lib/api-config";
+// 1. Import hook
+import { useTranslation } from 'react-i18next';
 
 const FavoritesPage = () => {
+  // 2. Khởi tạo hook
+  const { t, i18n } = useTranslation();
+  
   const [favorites, setFavorites] = useState<Restaurant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     fetchFavorites();
-  }, []);
+    // Thêm i18n.language vào dependency để fetch lại dữ liệu khi đổi ngôn ngữ
+  }, [i18n.language]);
 
   const fetchFavorites = async () => {
     setIsLoading(true);
     try {
       const username = localStorage.getItem("username");
       if (!username) {
-        // Nếu chưa đăng nhập, dừng lại
         setIsLoading(false);
         return;
       }
 
-      // Bước 1: Lấy danh sách place_id (VD: ["place_1", "place_5"])
+      // Bước 1: Lấy danh sách place_id
       const favResponse = await axios.get(
         `${API_BASE_URL}/api/favorite/${username}`
       );
@@ -39,23 +44,20 @@ const FavoritesPage = () => {
         return;
       }
 
-      // Bước 2: Từ place_id, gọi API lấy chi tiết từng nhà hàng
-      // Chúng ta dùng Promise.all để gọi nhiều request cùng lúc
+      // Bước 2: Gọi API lấy chi tiết (Có truyền tham số lang)
       const detailPromises = placeIds.map(async (id) => {
         try {
-            // Gọi vào API chi tiết nhà hàng bạn đã có
-            const res = await axios.get(`${API_BASE_URL}/api/restaurant/${id}`);
+            // Thêm param lang vào request
+            const res = await axios.get(`${API_BASE_URL}/api/restaurant/${id}?lang=${i18n.language}`);
             return res.data;
         } catch (error) {
             console.error(`Không tải được chi tiết cho ID: ${id}`, error);
-            return null; // Trả về null nếu lỗi
+            return null;
         }
       });
 
-      // Chờ tất cả request hoàn thành
       const restaurantsRaw = await Promise.all(detailPromises);
 
-      // Lọc bỏ những cái bị null và gán is_favorite = true
       const validRestaurants = restaurantsRaw
         .filter((r) => r !== null)
         .map((r) => ({ ...r, is_favorite: true }));
@@ -64,7 +66,7 @@ const FavoritesPage = () => {
 
     } catch (error) {
       console.error("Lỗi tải favorites:", error);
-      toast.error("Không thể tải danh sách yêu thích");
+      toast.error(t('favorite.error_loading', "Không thể tải danh sách yêu thích"));
     } finally {
       setIsLoading(false);
     }
@@ -73,27 +75,29 @@ const FavoritesPage = () => {
   const handleRemoveFavorite = async (restaurant: Restaurant) => {
     const username = localStorage.getItem("username");
     if (!username) {
-      toast.error("Bạn cần đăng nhập");
+      toast.error(t('common.login_required', "Bạn cần đăng nhập"));
       return;
     }
 
-    // 1. Optimistic Update (Cập nhật giao diện trước cho mượt)
     const previousFavorites = favorites;
     setFavorites((prev) => prev.filter((f) => f.id !== restaurant.id));
 
-    // 2. Gọi API Xóa
     try {
-      await axios.delete("${API_BASE_URL}/api/favorite", {
+      await axios.delete(`${API_BASE_URL}/api/favorite`, {
         data: {
           username: username,
-          place_id: restaurant.place_id, // Lưu ý dùng place_id
+          place_id: restaurant.place_id,
         },
       });
-      toast.success(`Đã xóa ${restaurant.name} khỏi yêu thích`);
+      // Dùng interpolate {{name}} để truyền tên động vào text
+      toast.success(t('favorite.removed_success', { 
+          name: restaurant.name, 
+          defaultValue: `Đã xóa ${restaurant.name} khỏi yêu thích` 
+      }));
+
     } catch (error) {
       console.error("Lỗi xóa favorite:", error);
-      toast.error("Xóa thất bại, đang hoàn tác...");
-      // Rollback nếu lỗi
+      toast.error(t('favorite.remove_fail', "Xóa thất bại, đang hoàn tác..."));
       setFavorites(previousFavorites);
     }
   };
@@ -117,10 +121,10 @@ const FavoritesPage = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
             <Heart className="h-8 w-8 text-red-500 fill-red-500" />
-            Danh Sách Yêu Thích
+            {t('favorite.title', 'Danh Sách Yêu Thích')}
           </h1>
           <p className="text-muted-foreground">
-            Những quán ăn bạn đã lưu lại
+            {t('favorite.subtitle', 'Những quán ăn bạn đã lưu lại')}
           </p>
         </div>
 
@@ -130,7 +134,6 @@ const FavoritesPage = () => {
               <RestaurantCard
                 key={restaurant.id}
                 restaurant={restaurant}
-                // Truyền hàm xử lý xóa vào
                 onToggleFavorite={handleRemoveFavorite}
               />
             ))}
@@ -139,7 +142,7 @@ const FavoritesPage = () => {
           <div className="text-center py-12">
             <Heart className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
             <p className="text-muted-foreground text-lg">
-              Bạn chưa có quán yêu thích nào. Hãy tìm kiếm và thêm vào nhé!
+              {t('favorite.empty_list', 'Bạn chưa có quán yêu thích nào. Hãy tìm kiếm và thêm vào nhé!')}
             </p>
           </div>
         )}
