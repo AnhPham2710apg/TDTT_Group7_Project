@@ -66,3 +66,7 @@ htmlcov/
 *.db
 *.sqlite3
 *.sqlite
+
+# reserved Nhan's space for future use
+user_journey.png
+system_architecture.pdf

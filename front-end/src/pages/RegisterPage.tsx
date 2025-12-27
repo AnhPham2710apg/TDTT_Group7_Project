@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,21 @@ const RegisterPage = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+
+  const checkPasswordStrength = (pwd: string) => {
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
+    return passwordRegex.test(pwd);
+  };
+
+  const handleConfirmPasswordFocus = () => {
+    if (!checkPasswordStrength(password)) {
+      toast.error(
+        "Please create a strong password first! (At least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char)"
+      );
+      passwordInputRef.current?.focus();
+    }
+  };
 
   // --- LOGIC CHECK MẬT KHẨU (Từ bản mới, nhưng text dùng t()) ---
   const requirements = [
@@ -55,6 +70,13 @@ const RegisterPage = () => {
     // Check độ mạnh mật khẩu trước khi gửi
     if (strengthScore < 5) {
       toast.error(t('register.password_weak_msg', "Vui lòng đáp ứng đủ các tiêu chí mật khẩu."));
+      return;
+    }
+
+    if (!checkPasswordStrength(password)) {
+      toast.error(
+        "Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, a number, and a special character (!@#$%^&*)."
+      );
       return;
     }
 
@@ -120,6 +142,7 @@ const RegisterPage = () => {
                 {t('register.password_label', 'Mật khẩu')}
               </Label>
               <Input
+                ref={passwordInputRef}
                 id="password"
                 type="password"
                 placeholder={t('register.password_placeholder', 'Tạo mật khẩu')}
@@ -190,6 +213,7 @@ const RegisterPage = () => {
                 placeholder={t('register.confirm_password_placeholder', 'Nhập lại mật khẩu')}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                onFocus={handleConfirmPasswordFocus}
                 required
               />
               {/* UI báo lỗi ngay lập tức nếu không khớp */}
