@@ -58,7 +58,7 @@ const RestaurantDetailPage = () => {
 
   const inCart = restaurant ? isInCart(restaurant.id) : false;
 
-  const getPriceLabel = (level: any) => {
+  const getPriceLabel = (level: string) => {
     const levelNum = parseInt(String(level), 10);
     switch (levelNum) {
         case 1: return "1.000đ – 100.000đ";
@@ -128,10 +128,8 @@ const RestaurantDetailPage = () => {
     if (!restaurant) return;
     if (inCart) {
       removeFromCart(restaurant.id);
-      toast.success(t('restaurant_detail.toast_removed_cart', "Đã xóa khỏi hành trình"));
     } else {
       addToCart(restaurant);
-      toast.success(t('restaurant_detail.toast_added_cart', "Đã thêm vào hành trình"));
     }
   };
 

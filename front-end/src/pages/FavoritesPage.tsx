@@ -21,6 +21,7 @@ const FavoritesPage = () => {
   useEffect(() => {
     fetchFavorites();
     // Thêm i18n.language vào dependency để fetch lại dữ liệu khi đổi ngôn ngữ
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [i18n.language]);
 
   const fetchFavorites = async () => {
