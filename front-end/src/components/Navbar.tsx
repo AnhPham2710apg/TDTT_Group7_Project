@@ -366,7 +366,7 @@ const Navbar = ({ hideAuthButtons = false }: NavbarProps) => {
                                             i18n.language === 'vi' ? "text-primary font-bold bg-primary/5" : "text-gray-600"
                                         )}
                                     >
-                                        <span className="text-lg">🇻🇳</span> Tiếng Việt
+                                        <span className="text-lg"></span> Tiếng Việt
                                         {i18n.language === 'vi' && <div className="w-1.5 h-1.5 rounded-full bg-primary ml-auto" />}
                                     </button>
                                     <button 
@@ -376,7 +376,7 @@ const Navbar = ({ hideAuthButtons = false }: NavbarProps) => {
                                             i18n.language === 'en' ? "text-primary font-bold bg-primary/5" : "text-gray-600"
                                         )}
                                     >
-                                        <span className="text-lg">🇺🇸</span> English
+                                        <span className="text-lg"></span> English
                                         {i18n.language === 'en' && <div className="w-1.5 h-1.5 rounded-full bg-primary ml-auto" />}
                                     </button>
                                 </motion.div>
