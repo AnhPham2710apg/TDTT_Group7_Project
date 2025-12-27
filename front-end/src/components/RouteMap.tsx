@@ -39,8 +39,6 @@ export const RouteMap = ({ polylineOutbound, polylineReturn, points, focusPoint 
       attributionControl: false
     });
 
-    map.addControl(new goongjs.NavigationControl(), 'top-right');
-
     map.on('load', () => {
       setIsMapReady(true);
     });

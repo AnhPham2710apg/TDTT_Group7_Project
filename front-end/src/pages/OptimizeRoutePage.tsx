@@ -1,4 +1,4 @@
-import { useState, useEffect, KeyboardEvent } from "react";
+import { useState, useEffect, KeyboardEvent, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import axios, { AxiosError } from "axios";
 import Navbar from "@/components/Navbar";
@@ -9,52 +9,112 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   MapPin, Loader2, Navigation, ListChecks,
-  GripVertical, ArrowLeft, Save, Info
+  GripVertical, ArrowLeft, Save, Search, X,
+  Info, CarTaxiFront, Car, Bike, LucideIcon
 } from "lucide-react";
 import { toast } from "sonner";
 import RouteMap from "@/components/RouteMap";
 import { useCart } from "@/context/CartContext";
-import { DragDropContext, Droppable, Draggable, DropResult, DragStart } from "@hello-pangea/dnd";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE_URL } from "@/lib/api-config";
-import { Drawer } from "vaul";
 import { createPortal } from "react-dom";
+// 1. Import hook
+import { useTranslation } from 'react-i18next';
 
 // --- INTERFACES ---
-
-interface BackendErrorResponse {
-  message?: string;
-  detail?: string;
-}
-
-interface Waypoint {
-  id: string;
-  address?: string;
-  lat: number;
-  lon: number;
-}
+interface BackendErrorResponse { message?: string; detail?: string; }
+interface Waypoint { id: string; address?: string; lat: number; lon: number; }
 interface StartPointCoords { lat: number; lon: number; }
 interface OptimizeResponse {
-  optimized_order: string[];
-  distance_km: number;
-  duration_min: number;
-  polyline_outbound: string;
-  polyline_return: string;
-  start_point_coords: StartPointCoords;
-  waypoints: Waypoint[];
+  optimized_order: string[]; distance_km: number; duration_min: number;
+  polyline_outbound: string; polyline_return: string;
+  start_point_coords: StartPointCoords; waypoints: Waypoint[];
 }
-interface InitialPlace {
-  id: string; // ID bắt buộc cho Drag Key
-  name: string;
-  address: string;
-  lat?: number;
-  lon?: number;
+interface InitialPlace { id: string; name: string; address: string; lat?: number; lon?: number; }
+
+// NEW TYPE FOR VEHICLE
+type VehicleType = "car" | "bike" | "taxi";
+
+// --- NEW COMPONENT: VEHICLE SELECTOR ---
+interface VehicleSelectorProps {
+    value: VehicleType;
+    onChange: (v: VehicleType) => void;
 }
+
+const VehicleSelector = ({ value, onChange }: VehicleSelectorProps) => {
+    const { t } = useTranslation();
+    const options: { id: VehicleType; label: string; icon: LucideIcon }[] = [
+        { id: "bike", label: t('optimize.vehicle_bike', "Xe máy"), icon: Bike },
+        { id: "car", label: t('optimize.vehicle_car', "Ô tô"), icon: Car },
+        { id: "taxi", label: t('optimize.vehicle_taxi', "Taxi"), icon: CarTaxiFront },
+    ];
+
+    return (
+        <div className="flex p-1 bg-gray-100 rounded-lg w-full">
+            {options.map((opt) => {
+                const isActive = value === opt.id;
+                const Icon = opt.icon;
+                return (
+                    <button
+                        key={opt.id}
+                        onClick={() => onChange(opt.id)}
+                        className={`
+                            flex-1 flex items-center justify-center gap-2 py-1.5 px-2 rounded-md text-sm font-medium transition-all duration-200
+                            ${isActive 
+                                ? "bg-white text-green-700 shadow-sm border border-green-200" 
+                                : "text-gray-500 hover:bg-gray-200/50 hover:text-gray-700"
+                            }
+                        `}
+                    >
+                        <Icon className={`h-4 w-4 ${isActive ? "fill-green-100" : ""}`} />
+                        <span className="hidden sm:inline lg:hidden xl:inline">{opt.label}</span>
+                    </button>
+                );
+            })}
+        </div>
+    );
+};
+
+// --- VEHICLE SELECTOR (MOBILE PILL) ---
+const VehicleSelectorMobile = ({ value, onChange }: VehicleSelectorProps) => {
+    const { t } = useTranslation();
+    const options: { id: VehicleType; label: string; icon: LucideIcon }[] = [
+        { id: "bike", label: t('optimize.vehicle_bike', "Xe máy"), icon: Bike },
+        { id: "car", label: t('optimize.vehicle_car', "Ô tô"), icon: Car },
+        { id: "taxi", label: t('optimize.vehicle_taxi', "Taxi"), icon: CarTaxiFront },
+    ];
+
+    return (
+        <div className="flex justify-center gap-3 py-2">
+            {options.map((opt) => {
+                const isActive = value === opt.id;
+                const Icon = opt.icon;
+                return (
+                    <button
+                        key={opt.id}
+                        onClick={() => onChange(opt.id)}
+                        className={`
+                            flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium shadow-md transition-all duration-200 active:scale-95
+                            ${isActive 
+                                ? "bg-white text-green-600 ring-1 ring-green-100 border border-green-600 " 
+                                : "bg-white text-gray-600 border border-transparent"
+                            }
+                        `}
+                    >
+                        <Icon className={`h-3.5 w-3.5 ${isActive ? "text-green-600 fill-green-50" : "text-gray-500"}`} />
+                        <span>{opt.label}</span>
+                    </button>
+                );
+            })}
+        </div>
+    );
+};
+
 // --- COMPONENT CON: DRAG LIST ---
 interface DragDropListProps {
-  initialPlaces: InitialPlace[];
-  useManualOrder: boolean;
+  initialPlaces: InitialPlace[]; useManualOrder: boolean;
   setUseManualOrder: (val: boolean) => void;
   onDragEnd: (result: DropResult) => void;
   onDragStart: () => void;
@@ -67,132 +127,90 @@ const DragDropList = ({
     onDragEnd,
     onDragStart 
 }: DragDropListProps) => {
+  const { t } = useTranslation();
+
   return (
-    <Card className="p-4 md:p-6 border-dashed border-2 relative mt-2 md:mt-4">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between mb-2">
+    <div className="w-full md:border-2 md:border-dashed md:border-green-600 md:rounded-3xl md:p-5 md:bg-green-50/20">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3 px-1">
           <div className="flex items-center gap-2">
-              <ListChecks className="h-4 w-4 text-muted-foreground" />
-              <h3 className="font-semibold text-sm md:text-lg">Điểm cần đến ({initialPlaces.length})</h3>
+              <ListChecks className="h-4 w-4 text-green-600" />
+              <h3 className="font-semibold text-sm text-gray-700">{t('optimize.stops_list_title', 'Điểm cần đến')} ({initialPlaces.length})</h3>
           </div>
 
-          {/* --- BẮT ĐẦU PHẦN THÊM TOOLTIP --- */}
+          {/* --- TOOLTIP --- */}
           <TooltipProvider>
             <Tooltip delayDuration={300}>
               <TooltipTrigger asChild>
-                {/* Bọc div này để khi rê vào cả chữ và nút đều hiện tooltip */}
-                <div className="flex items-center gap-2 cursor-help select-none hover:bg-gray-100 p-1 rounded-md transition-colors">
-                    <span className={`text-xs font-medium ${useManualOrder ? "text-green-600" : "text-muted-foreground"}`}>
-                        {useManualOrder ? "Thủ công" : "Tự động"}
-                    </span>
-                    <Switch 
-                      checked={useManualOrder}
-                      onCheckedChange={setUseManualOrder}
-                      className="scale-75 data-[state=checked]:bg-green-600"
-                    />
+                <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg cursor-help select-none">
+                   <span className={`text-[10px] font-bold uppercase ${useManualOrder ? "text-green-600" : "text-gray-500"}`}>
+                      {useManualOrder ? t('optimize.mode_manual', "Thủ công") : t('optimize.mode_auto', "Tự động")}
+                   </span>
+                   <Switch checked={useManualOrder} onCheckedChange={setUseManualOrder} className="scale-75 data-[state=checked]:bg-green-600" />
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="left" className="max-w-[250px] bg-slate-900 text-white p-3 border-none shadow-xl">
+              
+              <TooltipContent side="left" className="max-w-[220px] bg-slate-800 text-white border-none shadow-xl p-3">
                 {useManualOrder ? (
                   <div className="space-y-1">
-                    <p className="font-bold text-green-400 flex items-center gap-1">Chế độ Thủ công</p>
-                    <p className="text-xs text-gray-300">
-                      Bạn có toàn quyền <b>kéo thả</b> để sắp xếp thứ tự các điểm đến theo ý thích. Thuật toán tối ưu sẽ bị tắt.
+                    <p className="font-bold text-green-400 text-xs flex items-center gap-1">{t('optimize.tooltip_manual_title', 'Chế độ Thủ công')}</p>
+                    <p className="text-[11px] leading-tight text-gray-300">
+                      {t('optimize.tooltip_manual_desc', 'Bạn tự do kéo thả để sắp xếp thứ tự đi. Hệ thống sẽ giữ nguyên thứ tự này khi tìm đường.')}
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    <p className="font-bold text-blue-400">Chế độ Tự động</p>
-                    <p className="text-xs text-gray-300">
-                      Hệ thống sẽ tự động tính toán và sắp xếp thứ tự đi sao cho <b>tổng quãng đường là ngắn nhất</b>.
+                    <p className="font-bold text-blue-400 text-xs">{t('optimize.tooltip_auto_title', 'Chế độ Tự động')}</p>
+                    <p className="text-[11px] leading-tight text-gray-300">
+                      {t('optimize.tooltip_auto_desc', 'Hệ thống sẽ tự động sắp xếp lại thứ tự các điểm đến sao cho tổng quãng đường đi là ngắn nhất.')}
                     </p>
                   </div>
                 )}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          {/* --- KẾT THÚC PHẦN THÊM TOOLTIP --- */}
-
         </div>
         
-        <DragDropContext 
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-        >
-          {/* ... (Phần DragDropContext giữ nguyên không đổi) ... */}
+        <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
           <Droppable droppableId="places-list">
             {(provided) => (
-              <div 
-                  {...provided.droppableProps} 
-                  ref={provided.innerRef}
-                  className="space-y-2 max-h-[200px] md:max-h-[300px] overflow-y-auto pr-1 overscroll-contain"
-                  style={{ touchAction: "pan-y" }} 
-              >
+              <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-3 pb-2">
                 {initialPlaces.map((place, index) => (
-                  <Draggable 
-                      key={place.id} 
-                      draggableId={place.id} 
-                      index={index}
-                      isDragDisabled={!useManualOrder}
-                  >
+                  <Draggable key={place.id} draggableId={place.id} index={index} isDragDisabled={!useManualOrder}>
                     {(provided, snapshot) => {
-                      const originalStyle = provided.draggableProps.style as React.CSSProperties;
-                      const style: React.CSSProperties = {
+                        const originalStyle = provided.draggableProps.style as React.CSSProperties;
+                        const style: React.CSSProperties = {
                           ...originalStyle,
-                          ...(snapshot.isDragging ? { 
-                              position: "fixed", 
-                              zIndex: 99999,
-                              background: "white",
-                              border: "1px solid #16a34a",
-                              boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)",
-                              opacity: 0.95,
-                              borderRadius: "0.5rem",
-                          } : {
-                              transform: originalStyle.transform,
-                          })
-                      };
+                          ...(snapshot.isDragging ? { position: "fixed", zIndex: 99999, background: "white", border: "1px solid #16a34a", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", opacity: 0.95, borderRadius: "0.5rem" } : { transform: originalStyle.transform })
+                        };
+                        
+                        const content = (
+                          <div ref={provided.innerRef} {...provided.draggableProps} {...(useManualOrder ? provided.dragHandleProps : {})}
+                            style={{ ...style, touchAction: useManualOrder ? 'none' : 'pan-y' }}
+                            className={`
+                                relative flex items-center gap-3 p-4 rounded-2xl border text-sm select-none transition-all
+                                ${snapshot.isDragging ? "shadow-lg" : "bg-white border-gray-100 shadow-sm"}
+                            `}
+                          >
+                            <div className={`
+                                flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold flex-shrink-0 border-2
+                                ${useManualOrder 
+                                    ? 'border-green-500 text-green-600 bg-white' 
+                                    : 'border-green-500 text-green-700 bg-white'
+                                }
+                            `}>
+                                {index + 1}
+                            </div>
 
-                      const cardContent = (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          {...(useManualOrder ? provided.dragHandleProps : {})}
-                          data-vaul-no-drag={useManualOrder}
-                          style={{
-                              ...style,
-                              touchAction: useManualOrder ? 'none' : 'pan-y' 
-                          }}
-                          className={`
-                            relative flex items-center gap-3 p-3 rounded-lg border text-sm select-none
-                            ${snapshot.isDragging ? "" : "bg-white border-gray-100 transition-colors"}
-                            ${useManualOrder ? "cursor-grab active:cursor-grabbing hover:border-green-200" : "opacity-80"}
-                          `}
-                        >
-                          {useManualOrder ? (
-                             <div className="p-2 -ml-2 text-gray-400 flex-shrink-0">
-                                <GripVertical className="h-5 w-5" />
-                             </div>
-                          ) : (
-                            // Thêm icon khóa hoặc dấu chấm để user biết không kéo được khi ở mode Tự động
-                            <div className="w-2 h-2 rounded-full bg-gray-300 ml-1 mr-2" />
-                          )}
-                          
-                          <div className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold border flex-shrink-0 ${useManualOrder ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
-                            {index + 1}
+                            <div className="flex-1 min-w-0 pointer-events-none">
+                              <p className="font-semibold text-gray-800 truncate text-base">{place.name}</p>
+                              <p className="text-gray-500 text-xs truncate mt-0.5">{place.address}</p>
+                            </div>
+                            
+                            {useManualOrder && <GripVertical className="h-5 w-5 text-gray-300" />}
                           </div>
-                          
-                          <div className="flex-1 min-w-0 pointer-events-none">
-                            <p className="font-medium truncate text-gray-900">{place.name}</p>
-                            <p className="text-muted-foreground text-xs truncate">{place.address}</p>
-                          </div>
-                        </div>
-                      );
-
-                      if (snapshot.isDragging) {
-                        return createPortal(cardContent, document.body);
-                      }
-
-                      return cardContent;
+                        );
+                        return snapshot.isDragging ? createPortal(content, document.body) : content;
                     }}
                   </Draggable>
                 ))}
@@ -201,127 +219,271 @@ const DragDropList = ({
             )}
           </Droppable>
         </DragDropContext>
-      </div>
-    </Card>
+    </div>
   );
 };
 
-// 1. Định nghĩa kiểu dữ liệu rõ ràng cho Props
-interface ResultListProps {
-  optimizedRoute: string[]; // Mảng chứa tên các địa điểm
-  handleCardClick: (index: number) => void; // Hàm xử lý click, nhận vào index (number)
-  routeInfo: { 
-    distance: string; 
-    duration: string; 
-  }; // Object chứa thông tin quãng đường/thời gian
+// 2. ResultList
+interface ResultListProps { 
+    optimizedRoute: string[]; 
+    handleCardClick: (index: number) => void; 
+    routeInfo: { distance: string; duration: string; };
+    vehicle?: VehicleType;
 }
 
-// 2. Áp dụng interface vào component thay vì dùng 'any'
-const ResultList = ({ optimizedRoute, handleCardClick, routeInfo }: ResultListProps) => (
-  <div className="space-y-4 mt-4 pb-20 md:pb-0">
-      <Card className="p-4 bg-green-50 dark:bg-green-900/10 border-green-200 shadow-sm">
-          <h3 className="font-semibold text-sm mb-3 text-green-800 flex items-center gap-2">
-          <MapPin className="h-4 w-4" /> Lộ trình gợi ý
-          </h3>
+const ResultList = ({ optimizedRoute, handleCardClick, routeInfo, vehicle = "car" }: ResultListProps) => {
+  const { t } = useTranslation();
+  
+  const vehicleConfig = {
+      car: { label: t('optimize.vehicle_car', "Ô tô"), icon: Car },
+      bike: { label: t('optimize.vehicle_bike', "Xe máy"), icon: Bike },
+      taxi: { label: t('optimize.vehicle_taxi', "Taxi"), icon: CarTaxiFront },
+  };
+
+  const currentVehicle = vehicleConfig[vehicle] || vehicleConfig.car;
+  const VehicleIcon = currentVehicle.icon;
+
+  return (
+      <div className="space-y-3 pb-safe">
           <div className="space-y-2">
-          {optimizedRoute.map((stop, index) => (
-              <div
-              key={index}
-              onClick={() => handleCardClick(index)}
-              className="flex items-start gap-2 p-2 rounded-lg bg-white shadow-sm cursor-pointer active:scale-95 transition-transform border border-transparent hover:border-green-400"
-              >
-              <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs text-white ${index === 0 || index === optimizedRoute.length - 1 ? 'bg-green-700' : 'bg-green-500'}`}>
-                  {index === 0 || index === optimizedRoute.length - 1 ? <Navigation className="h-3 w-3" /> : index}
-              </div>
-              <div className="flex-1">
-                  <p className="text-xs font-medium text-gray-800 line-clamp-2">{stop}</p>
-              </div>
-              </div>
-          ))}
+              {optimizedRoute.map((stop, index) => (
+                  <div key={index} onClick={() => handleCardClick(index)}
+                   className="flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-100 shadow-sm active:scale-[0.98] transition-transform"
+                  >
+                      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-green-600 shadow-sm ${index === 0 || index === optimizedRoute.length - 1 ? 'bg-green-600' : 'bg-white border-2 border-green-500 text-green-700'}`}>
+                         {index === 0 || index === optimizedRoute.length - 1 ? <Navigation className="h-4 w-4 text-white" /> : index}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                         <p className={`text-sm ${index === 0 || index === optimizedRoute.length - 1 ? 'font-bold text-green-800' : 'font-medium text-gray-700'} truncate`}>{stop}</p>
+                      </div>
+                  </div>
+              ))}
           </div>
-      </Card>
-      <Card className="p-4 shadow-sm">
-          <div className="flex justify-between text-sm border-b pb-2 mb-2">
-              <span className="text-muted-foreground">Quãng đường:</span>
-              <span className="font-bold text-green-600">{routeInfo.distance}</span>
+
+          {/* --- HEADER TỔNG QUAN --- */}
+          <div className="pt-2 pb-1">
+              <div className="h-px w-full bg-gray-200" />
+              <h4 className="text-md font-bold text-gray-700 flex items-center gap-2 mt-2">
+                  <Info className="h-5 w-5 text-green-600" />
+                  {t('optimize.summary_title', 'Tổng quan chuyến đi')}
+              </h4>
           </div>
-          <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Thời gian:</span>
-              <span className="font-bold text-green-600">{routeInfo.duration}</span>
+
+          {/* --- GRID THÔNG TIN --- */}
+          <div className="grid grid-cols-3 gap-2 mb-2">
+           
+              <div className="bg-green-50 p-2 rounded-xl border border-green-300 flex flex-col items-center justify-center text-center mb-2">
+                 <span className="text-[10px] text-green-600 uppercase font-bold mb-1">{t('common.distance', 'Quãng đường')}</span>
+                 <span className="text-sm font-bold text-green-700">{routeInfo.distance}</span>
+              </div>
+
+              <div className="bg-green-50 p-2 rounded-xl border border-green-300 flex flex-col items-center justify-center text-center mb-2">
+                 <span className="text-[10px] text-green-600 uppercase font-bold mb-1">{t('common.duration', 'Thời gian')}</span>
+                 <span className="text-sm font-bold text-green-700">{routeInfo.duration}</span>
+              </div>
+
+              <div className="bg-green-50 p-2 rounded-xl border border-green-300 flex flex-col items-center justify-center text-center mb-2">
+                 <span className="text-[10px] text-green-600 uppercase font-bold mb-1">{t('optimize.vehicle_label', 'Phương tiện')}</span>
+                 <div className="flex items-center justify-center gap-1 text-green-700">
+                     <VehicleIcon className="h-4 w-4" />
+                     <span className="text-sm font-bold">{currentVehicle.label}</span>
+                 </div>
+              </div>
+              
           </div>
-      </Card>
-  </div>
-);
+      </div>
+  );
+};
 
 // --- COMPONENT CHÍNH ---
-
 const OptimizeRoutePage = () => {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [startPoint, setStartPoint] = useState("");
-  const [isOptimizing, setIsOptimizing] = useState(false);
-  const [useManualOrder, setUseManualOrder] = useState(false);
-  const [optimizedRoute, setOptimizedRoute] = useState<string[]>([]);
-  const [routeInfo, setRouteInfo] = useState({ distance: "", duration: "" });
-  const [polyOutbound, setPolyOutbound] = useState<string | null>(null);
-  const [polyReturn, setPolyReturn] = useState<string | null>(null);
-  const [mapPoints, setMapPoints] = useState<Waypoint[]>([]);
-  const [initialPlaces, setInitialPlaces] = useState<InitialPlace[]>([]);
-  const [focusPoint, setFocusPoint] = useState<{lat: number, lon: number} | null>(null);
   const { clearCart } = useCart();
   const { username, isLoggedIn } = useAuth();
 
-  // === VAUL DRAWER CONFIG ===
-  const [snap, setSnap] = useState<number | string | null>("190px");
-  
-  // STATE MỚI: Theo dõi trạng thái đang kéo
-  const [isDragging, setIsDragging] = useState(false);
+  // State dữ liệu
+  const [startPoint, setStartPoint] = useState("");
+  const [initialPlaces, setInitialPlaces] = useState<InitialPlace[]>([]);
+  const [optimizedRoute, setOptimizedRoute] = useState<string[]>([]);
+  const [routeInfo, setRouteInfo] = useState({ distance: "", duration: "" });
+  const [mapPoints, setMapPoints] = useState<Waypoint[]>([]);
+  const [polyOutbound, setPolyOutbound] = useState<string | null>(null);
+  const [polyReturn, setPolyReturn] = useState<string | null>(null);
+  const [focusPoint, setFocusPoint] = useState<{lat: number, lon: number} | null>(null);
+  const [rawRouteData, setRawRouteData] = useState<{ distance: number; duration: number; } | null>(null);
 
+  // State điều khiển UI
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [useManualOrder, setUseManualOrder] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  // State để lưu dữ liệu thô từ API optimize (để gửi lại cho API save)
-  const [rawRouteData, setRawRouteData] = useState<{
-    distance: number;
-    duration: number;
-  } | null>(null);
 
-  // --- EFFECT: Parse URL & Tạo ID duy nhất ---
+  // 1. Selection State (Input)
+  const [vehicle, setVehicle] = useState<VehicleType>("car");
+  // 2. Display State (Result)
+  const [calculatedVehicle, setCalculatedVehicle] = useState<VehicleType | null>(null);
+  const [showVehicleSelector, setShowVehicleSelector] = useState(false);
+   
+  // Custom Drawer State
+  const [drawerLevel, setDrawerLevel] = useState<0 | 1 | 2>(1); 
+  const [isDragging, setIsDragging] = useState(false);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const touchStartY = useRef<number>(0);       
+  const drawerStartHeight = useRef<number>(0); 
+
+  const getTargetHeightStyle = (level: 0 | 1 | 2) => {
+      switch(level) {
+          case 0: return "100px"; 
+          case 1: return "50dvh"; 
+          case 2: return "calc(100dvh - 120px)"; 
+          default: return "50dvh";
+      }
+  };
+
   useEffect(() => {
     const separator = "|||";
-    const namesStr = searchParams.get("names") || "";
-    const addressesStr = searchParams.get("addresses") || "";
-    const latsStr = searchParams.get("lats") || "";
-    const lngsStr = searchParams.get("lngs") || "";
+    const names = (searchParams.get("names") || "").split(separator).filter(Boolean);
+    const addresses = (searchParams.get("addresses") || "").split(separator);
+    const lats = (searchParams.get("lats") || "").split(separator);
+    const lngs = (searchParams.get("lngs") || "").split(separator);
     const startParam = searchParams.get("start");
 
     if (startParam) setStartPoint(startParam);
-
-    if (namesStr && addressesStr) {
-      const names = namesStr.split(separator);
-      const addresses = addressesStr.split(separator);
-      const lats = latsStr.split(separator);
-      const lngs = lngsStr.split(separator);
-
-      const places = names.map((name, index) => ({
-        id: `place-${index}-${Date.now()}`, 
-        name: name,
-        address: addresses[index] || "",
-        lat: parseFloat(lats[index] || "0"),
-        lon: parseFloat(lngs[index] || "0")
-      }));
-      setInitialPlaces(places);
+    if (names.length > 0) {
+      setInitialPlaces(names.map((name, i) => ({
+        id: `place-${i}-${Date.now()}`, name, address: addresses[i] || "",
+        lat: parseFloat(lats[i] || "0"), lon: parseFloat(lngs[i] || "0")
+      })));
     }
   }, [searchParams]);
 
-  // --- HANDLERS CHO DRAG ---
-  const handleDragStart = () => {
-      // Khi bắt đầu kéo -> Khóa Drawer lại
-      setIsDragging(true);
+  // TOUCH LOGIC
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!drawerRef.current) return;
+    const currentHeight = drawerRef.current.getBoundingClientRect().height;
+    drawerStartHeight.current = currentHeight;
+    touchStartY.current = e.touches[0].clientY;
+    setIsDragging(true);
   };
 
-  const onDragEnd = (result: DropResult) => {
-    // Khi thả ra -> Mở khóa Drawer
-    setIsDragging(false);
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || !drawerRef.current) return;
+    const currentY = e.touches[0].clientY;
+    const deltaY = touchStartY.current - currentY;
+    let newHeight = drawerStartHeight.current + deltaY;
+    const maxHeight = window.innerHeight - 120; 
+    const minHeight = 100; 
+    if (newHeight > maxHeight) newHeight = maxHeight + (newHeight - maxHeight) * 0.2;
+    if (newHeight < minHeight) newHeight = minHeight - (minHeight - newHeight) * 0.2;
+    drawerRef.current.style.height = `${newHeight}px`;
+  };
 
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    setIsDragging(false); 
+    if (!drawerRef.current) return;
+    const endY = e.changedTouches[0].clientY;
+    const deltaY = touchStartY.current - endY;
+    const threshold = window.innerHeight * 0.10; 
+    let nextLevel = drawerLevel;
+    if (deltaY > threshold) {
+        if (drawerLevel === 0) nextLevel = 1;
+        else if (drawerLevel === 1) nextLevel = 2;
+    } 
+    else if (deltaY < -threshold) {
+        if (drawerLevel === 2) nextLevel = 1;
+        else if (drawerLevel === 1) nextLevel = 0;
+    }
+    setDrawerLevel(nextLevel);
+    drawerRef.current.style.height = ''; 
+  };
+
+  // --- API HANDLERS ---
+  const handleOptimize = async () => {
+    if (!startPoint) { toast.error(t('optimize.error_no_start', "Vui lòng nhập điểm xuất phát")); return; }
+    setIsOptimizing(true);
+    setDrawerLevel(0); 
+    setShowVehicleSelector(false);
+
+    try {
+      if (initialPlaces.length === 0) throw new Error(t('optimize.error_no_places', "Không có địa điểm."));
+      
+      const placesPayload = initialPlaces.map(p => ({ name: p.name, address: p.address, lat: p.lat || 0, lng: p.lon || 0 }));
+      
+      const response = await axios.post<OptimizeResponse>(`${API_BASE_URL}/api/optimize`, {
+        places: placesPayload, 
+        starting_point: startPoint, 
+        use_manual_order: useManualOrder,
+        vehicle: vehicle 
+      });
+      
+      const data = response.data;
+      setOptimizedRoute([
+          `${t('optimize.start_label', 'Xuất phát')}: ${startPoint}`, 
+          ...data.optimized_order.map((n, i) => `${i + 1}. ${n}`), 
+          `${t('optimize.end_label', 'Kết thúc')}: ${startPoint}`
+      ]);
+      setRouteInfo({ 
+          distance: `${data.distance_km.toFixed(1)} km`, 
+          duration: `${Math.round(data.duration_min)} ${t('common.minutes', 'phút')}` 
+      });
+      setRawRouteData({ distance: data.distance_km, duration: data.duration_min });
+      setPolyOutbound(data.polyline_outbound);
+      setPolyReturn(data.polyline_return);
+      setMapPoints([{ id: 'start', address: startPoint, ...data.start_point_coords }, ...data.waypoints]);
+      
+      setCalculatedVehicle(vehicle);
+
+      toast.success(t('optimize.success_optimized', "Đã tối ưu hóa lộ trình!"));
+      clearCart();
+      setDrawerLevel(1); 
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError<BackendErrorResponse>;
+        const message = axiosError.response?.data?.message || axiosError.response?.data?.detail || t('common.error_server_default', "Lỗi xử lý từ máy chủ");
+        toast.error(message);
+      } else if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error(t('common.error_unknown', "Lỗi không xác định xảy ra."));
+      }
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
+  const handleSaveRoute = async () => {
+    if (!isLoggedIn || !username) { 
+        toast.error(t('common.login_required', "Vui lòng đăng nhập để lưu lộ trình"));
+        navigate("/login"); 
+        return; 
+    }
+    if (!rawRouteData) return;
+    setIsSaving(true);
+    try {
+       await axios.post(`${API_BASE_URL}/api/routes`, {
+         username, start_point: startPoint,
+         places: initialPlaces.map(p => ({ name: p.name, address: p.address, lat: p.lat||0, lng: p.lon||0 })),
+         distance: rawRouteData.distance, duration: rawRouteData.duration,
+         polyline_outbound: polyOutbound || "", polyline_return: polyReturn || ""
+       });
+       toast.success(t('optimize.success_saved', "Đã lưu lộ trình vào lịch sử!"));
+    } catch { 
+        toast.error(t('optimize.error_save_failed', "Lỗi khi lưu")); 
+    } 
+    finally { setIsSaving(false); }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !isOptimizing && startPoint) {
+      e.preventDefault(); 
+      (e.target as HTMLInputElement).blur(); 
+      handleOptimize();
+    }
+  };
+
+  // --- DRAG HANDLERS (LIST) ---
+  const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     const items = Array.from(initialPlaces);
     const [reorderedItem] = items.splice(result.source.index, 1);
@@ -329,391 +491,194 @@ const OptimizeRoutePage = () => {
     setInitialPlaces(items);
   };
 
-  // --- OPTIMIZE LOGIC ---
-  // --- OPTIMIZE LOGIC ---
-  const handleOptimize = async () => {
-    if (!startPoint) { toast.error("Vui lòng nhập điểm xuất phát"); return; }
-    setIsOptimizing(true);
-    // Reset states
-    setFocusPoint(null);
-    setOptimizedRoute([]);
-    setRouteInfo({ distance: "", duration: "" });
-    setPolyOutbound(null);
-    setPolyReturn(null);
-    setMapPoints([]);
-    setRawRouteData(null); // Reset raw data
-
-    try {
-      if (initialPlaces.length === 0) {
-        toast.error("Không có địa điểm nào để tối ưu.");
-        setIsOptimizing(false);
-        return;
-      }
-      
-      const placesPayload = initialPlaces.map((place) => ({
-        name: place.name, address: place.address, lat: place.lat || 0, lng: place.lon || 0
-      }));
-
-      const response = await axios.post<OptimizeResponse>(
-        `${API_BASE_URL}/api/optimize`,
-        { places: placesPayload, starting_point: startPoint, use_manual_order: useManualOrder }
-      );
-      
-      const data = response.data;
-      
-      // 1. Cập nhật UI hiển thị
-      const formattedRoute = [
-        `Xuất phát: ${startPoint}`,
-        ...data.optimized_order.map((placeName, index) => `${index + 1}. ${placeName}`),
-        `Kết thúc: ${startPoint}`
-      ];
-      setOptimizedRoute(formattedRoute);
-      
-      // Hiển thị dạng chuỗi đẹp
-      setRouteInfo({
-        distance: `${data.distance_km.toFixed(1)} km`,
-        duration: `${Math.round(data.duration_min)} phút`,
-      });
-
-      // 2. LƯU DỮ LIỆU THÔ (Để dùng cho nút Save) [NEW]
-      setRawRouteData({
-        distance: data.distance_km,
-        duration: data.duration_min
-      });
-
-      setPolyOutbound(data.polyline_outbound);
-      setPolyReturn(data.polyline_return);
-      
-      const start_Point: Waypoint = {
-        id: 'Điểm xuất phát', address: startPoint, ...data.start_point_coords,
-      };
-      setMapPoints([start_Point, ...data.waypoints]);
-      
-      toast.success("Đã tối ưu hóa lộ trình!");
-      setSnap(0.61); 
-
-      // --- XÓA ĐOẠN CODE AUTO-SAVE CŨ Ở ĐÂY ---
-      // (Chúng ta sẽ chuyển nó sang nút bấm riêng)
-      
-      clearCart();
-    } catch (error: unknown) {
-      console.error("Chi tiết lỗi:", error);
-
-      if (axios.isAxiosError(error)) {
-        // TRƯỜNG HỢP 1: Server phản hồi với mã lỗi (4xx, 5xx)
-        if (error.response) {
-          const status = error.response.status;
-          const data = error.response.data as BackendErrorResponse;
-
-          // Ưu tiên lấy message từ backend trả về (thường là data.message hoặc data.detail)
-          const serverMessage = data?.message || data?.detail || "Lỗi xử lý từ máy chủ";
-
-          if (status === 400) {
-            toast.error(`Dữ liệu không hợp lệ: ${serverMessage}`);
-          } else if (status === 404) {
-            toast.error("Không tìm thấy dữ liệu hoặc API endpoint sai.");
-          } else if (status === 500) {
-            toast.error("Máy chủ gặp sự cố nội bộ (500). Vui lòng thử lại sau.");
-          } else {
-            toast.error(`Lỗi (${status}): ${serverMessage}`);
-          }
-        } 
-        // TRƯỜNG HỢP 2: Không nhận được phản hồi (Server down, sai URL, mất mạng)
-        else if (error.request) {
-          toast.error("Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng hoặc liên hệ admin.");
-        } 
-        // TRƯỜNG HỢP 3: Lỗi khi setup request
-        else {
-          toast.error(`Lỗi cấu hình: ${error.message}`);
-        }
-      } else {
-        // Lỗi không phải do Axios (ví dụ lỗi logic code React)
-        toast.error("Đã xảy ra lỗi không xác định.");
-      }
-    } finally {
-      setIsOptimizing(false);
-    }
-  };
-
-  // --- SAVE ROUTE HANDLER [NEW] ---
-  const handleSaveRoute = async () => {
-    if (!isLoggedIn || !username) {
-      toast.error("Vui lòng đăng nhập để lưu lộ trình");
-      navigate("/login");
-      return;
-    }
-
-    if (!rawRouteData) {
-      toast.error("Chưa có dữ liệu lộ trình để lưu");
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      // Chuẩn bị payload đúng format backend yêu cầu
-      const placesPayload = initialPlaces.map((place) => ({
-        name: place.name, 
-        address: place.address, 
-        lat: place.lat || 0, 
-        lng: place.lon || 0
-      }));
-
-      const payload = {
-        username: username,
-        start_point: startPoint,
-        places: placesPayload,
-        distance: rawRouteData.distance,   // Gửi số (float)
-        duration: rawRouteData.duration,   // Gửi số (float)
-        polyline_outbound: polyOutbound || "",
-        polyline_return: polyReturn || ""
-      };
-
-      await axios.post(`${API_BASE_URL}/api/routes`, payload);
-      toast.success("Đã lưu lộ trình vào lịch sử!");
-    } catch (error) {
-      console.error("Save route error:", error);
-      toast.error("Không thể lưu lộ trình. Vui lòng thử lại.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleCardClick = (index: number) => {
-      if (mapPoints.length === 0) return;
-      let targetPoint;
-      if (index === 0 || index === optimizedRoute.length - 1) {
-          targetPoint = mapPoints[0];
-      } else {
-          targetPoint = mapPoints[index];
-      }
-      if (targetPoint) {
-          setFocusPoint({ lat: targetPoint.lat, lon: targetPoint.lon });
-          setSnap("190px"); 
-      }
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !isOptimizing && startPoint) {
-      e.preventDefault();
-      handleOptimize();
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-background flex flex-col md:block overflow-hidden">
-      {/* PC Navbar */}
+    <div className="min-h-[100dvh] w-full bg-white md:bg-gray-50 overflow-hidden relative">
+      
+      {/* ================= PC UI ================= */}
       <div className="hidden md:block">
          <Navbar />
-      </div>
-
-      {/* --- MOBILE LAYOUT --- */}
-      <div className="md:hidden fixed inset-0 w-full h-[100dvh] bg-background">
-         <div className="absolute top-10 left-4 z-20 pointer-events-auto">
-             <Button 
-               variant="outline" 
-               size="icon" 
-               className="h-10 w-10 rounded-full shadow-lg bg-white text-green-600 border border-green-600 hover:bg-green-600 hover:text-white" 
-               onClick={() => navigate(-1)}
-             >
-                 <ArrowLeft className="h-5 w-5" />
-             </Button>
-         </div>
-
-         <div className={`absolute inset-0 z-0 bg-gray-100 transition-opacity duration-300 ${snap === "190px" ? "" : "pointer-events-none"}`}>
-             <RouteMap 
-               polylineOutbound={polyOutbound} 
-               polylineReturn={polyReturn}
-               points={mapPoints} 
-               focusPoint={focusPoint}
-             />
-         </div>
-
-         <Drawer.Root 
-           // [KEY LOGIC] Khi đang Drag (isDragging=true), ép snapPoints chỉ còn 1 giá trị hiện tại.
-           // Điều này khiến Drawer bị "kẹt" lại, không thể trượt đi đâu được.
-           snapPoints={isDragging && snap ? [snap] : ["190px", 0.61, 0.95]} 
-           activeSnapPoint={snap} 
-           setActiveSnapPoint={setSnap}
-           modal={false} 
-           open={true}
-           // [KEY LOGIC] Không cho phép vuốt đóng/mở khi đang drag
-           dismissible={!isDragging} 
-         >
-           <Drawer.Content 
-             className="fixed flex flex-col bg-white border border-gray-200 border-b-none rounded-t-[20px] bottom-0 left-0 right-0 h-full max-h-[96%] mx-[-1px] z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] outline-none"
-             style={{ display: 'flex', flexDirection: 'column' }}
-           >
-             <div className="w-full mx-auto flex flex-col items-center pt-3 pb-2 bg-white rounded-t-[20px] flex-shrink-0 cursor-grab active:cursor-grabbing z-10">
-               <div className="w-12 h-1.5 bg-gray-300 rounded-full mb-2" />
-             </div>
-
-             <div className="px-4 pb-2 pt-2 bg-white border-b border-gray-50 flex-shrink-0">
-                 <div className="relative mb-3">
-                   <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
-                   <Input 
-                     placeholder="Nhập điểm xuất phát..." 
-                     value={startPoint}
-                     onChange={(e) => setStartPoint(e.target.value)}
-                     onKeyDown={handleKeyDown}
-                     spellCheck={false}
-                     onFocus={(e) => {
-                        // Chỉ xử lý nếu đang ở trạng thái thu gọn
-                        if (snap === "190px") {
-                          // Delay 300ms (thời gian chuẩn animation bàn phím iOS)
-                          setTimeout(() => {
-                            setSnap(0.61);
-                            
-                            // (Tuỳ chọn) Đảm bảo input nằm giữa màn hình sau khi drawer mở rộng
-                            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                          }, 300);
-                        }
-                      }}
-                     className="pl-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-green-500 h-10 shadow-sm rounded-lg text-base md:text-sm"
-                   />
-                 </div>
-
-                 <Button 
-                   onClick={handleOptimize}
-                   className="w-full bg-green-600 hover:bg-green-700 text-white font-medium h-10 rounded-lg shadow-sm"
-                   disabled={isOptimizing}
-                 >
-                   {isOptimizing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Navigation className="h-4 w-4 mr-2" />}
-                   {optimizedRoute.length > 0 ? "Tối ưu lại" : "Tìm lộ trình"}
-                 </Button>
-             </div>
-
-             <div className="flex-1 overflow-y-auto px-4 pt-2 pb-safe bg-white overscroll-contain">
-               <div className="pb-20">
-                 {optimizedRoute.length === 0 && initialPlaces.length > 0 && 
-                   <DragDropList 
-                     initialPlaces={initialPlaces} 
-                     useManualOrder={useManualOrder} 
-                     setUseManualOrder={setUseManualOrder} 
-                     onDragEnd={onDragEnd}
-                     onDragStart={handleDragStart} // Truyền handler xuống
-                   />
-                 }
-                 {optimizedRoute.length > 0 && (
-                  <div className="space-y-3"> {/* Bọc trong div để spacing đẹp */}
-                    <ResultList 
-                      optimizedRoute={optimizedRoute} 
-                      handleCardClick={handleCardClick} 
-                      routeInfo={routeInfo} 
-                    />
-                    
-                    {/* NÚT SAVE CHO MOBILE */}
-                    {isLoggedIn && (
-                      <Button 
-                        variant="outline" 
-                        className="w-full border-green-600 text-green-700 hover:bg-green-600"
-                        onClick={handleSaveRoute}
-                        disabled={isSaving}
-                      >
-                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        Lưu lộ trình này
-                      </Button>
-                    )}
-                  </div>
-                )}
-               </div>
-             </div>
-           </Drawer.Content>
-         </Drawer.Root>
-      </div>
-      
-      {/* --- PC LAYOUT --- */}
-      {/* 1. CONTAINER: Đổi h-[calc...] thành min-h-[...] để trang có thể dài ra */}
-      <div className="hidden md:block container mx-auto px-4 py-8 min-h-[calc(100vh-80px)]">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2">Tối ưu hóa Lộ trình</h1>
-          <p className="text-muted-foreground">Tạo lộ trình hiệu quả nhất để ghé thăm tất cả các nhà hàng đã chọn</p>
-        </div>
-
-        {/* 2. GRID: Bỏ h-full, giữ items-stretch (mặc định của grid) */}
-        <div className="grid lg:grid-cols-3 gap-6">
-          
-          {/* --- CỘT TRÁI --- */}
-          {/* 3. Thay đổi class:
-              - Bỏ: h-full, overflow-y-auto, scrollbar-thin... (Để nó tự dài ra theo nội dung)
-              - Thêm: h-fit (để đảm bảo nó ôm nội dung) hoặc để trống (nó sẽ stretch theo grid)
-          */}
-          <div className="lg:col-span-1 space-y-6">
-             <Card className="p-6 shadow-sm">
-               <div className="space-y-4">
-                 <div>
-                   <Label htmlFor="startPointPC">Điểm xuất phát</Label>
-                   <Input
-                     id="startPointPC"
-                     placeholder="VD: Khách sạn hoặc địa chỉ cụ thể"
-                     value={startPoint}
-                     onChange={(e) => setStartPoint(e.target.value)}
-                     onKeyDown={handleKeyDown}
-                     className="mt-2"
-                   />
-                 </div>
-                 <Button
-                   onClick={handleOptimize}
-                   className="w-full bg-green-600 hover:bg-green-700 text-white transition-colors"
-                   disabled={isOptimizing}
-                 >
-                   {isOptimizing ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Navigation className="mr-2 h-5 w-5" />}
-                   Tạo lộ trình tối ưu nhất
-                 </Button>
-               </div>
-             </Card>
-
-             {/* DragDropList tự đẩy chiều cao xuống */}
-             {optimizedRoute.length === 0 && initialPlaces.length > 0 && (
-                <DragDropList 
-                     initialPlaces={initialPlaces} 
-                     useManualOrder={useManualOrder} 
-                     setUseManualOrder={setUseManualOrder} 
-                     onDragEnd={onDragEnd} 
-                     onDragStart={() => {}} 
-                />
-             )}
-
-             {/* ResultList tự đẩy chiều cao xuống */}
-             {optimizedRoute.length > 0 && (
-              <div className="space-y-4"> {/* Bọc div để tạo khoảng cách */}
-                <ResultList 
-                    optimizedRoute={optimizedRoute} 
-                    handleCardClick={handleCardClick} 
-                    routeInfo={routeInfo} 
-                />
-                
-                {/* NÚT SAVE CHO PC */}
-                {isLoggedIn && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full border-green-600 text-green-700 hover:bg-green-600"
-                    onClick={handleSaveRoute}
-                    disabled={isSaving}
-                  >
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Lưu vào lịch sử
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* --- CỘT PHẢI (BẢN ĐỒ) --- */}
-          {/* 4. Thay đổi class:
-              - h-full: Để nó cao bằng cột trái (nhờ Grid layout).
-              - min-h-[500px]: Đặt chiều cao tối thiểu để lỡ cột trái ít nội dung quá thì bản đồ vẫn đẹp.
-          */}
-          <div className="lg:col-span-2 h-[580px] relative rounded-xl overflow-hidden border shadow-lg">
-             <div className="w-full h-full">
-                <RouteMap 
-                    polylineOutbound={polyOutbound} 
-                    polylineReturn={polyReturn} 
-                    points={mapPoints} 
-                    focusPoint={focusPoint} 
-                />
+         <div className="container mx-auto px-4 py-8 min-h-[calc(100vh-80px)]">
+            <div className="mb-6">
+                <h1 className="text-3xl font-bold mb-2">{t('optimize.page_title', 'Tối ưu hóa Lộ trình')}</h1>
+                <p className="text-muted-foreground">{t('optimize.page_subtitle', 'Tạo lộ trình hiệu quả nhất trên màn hình lớn')}</p>
             </div>
+            <div className="grid lg:grid-cols-3 gap-6">
+                 <div className="lg:col-span-1 space-y-6">
+                    <Card className="p-6">
+                        <Label>{t('optimize.start_point_label', 'Điểm xuất phát')}</Label>
+                        <Input value={startPoint} onChange={e => setStartPoint(e.target.value)} className="mt-2 mb-4" placeholder={t('optimize.input_placeholder', 'Nhập địa chỉ...')} onKeyDown={handleKeyDown} />
+                        <div className="mb-4">
+                            <Label className="mb-2 block">{t('optimize.vehicle_label', 'Phương tiện')}</Label>
+                            <VehicleSelector value={vehicle} onChange={setVehicle} />
+                        </div>
+                        <Button onClick={handleOptimize} disabled={isOptimizing} className="w-full bg-green-600 hover:bg-green-700">
+                            {isOptimizing ? t('optimize.btn_optimizing', "Đang xử lý...") : t('optimize.btn_create_optimal', "Tối ưu ngay")}
+                        </Button>
+                    </Card>
+                    {optimizedRoute.length === 0 && <DragDropList initialPlaces={initialPlaces} useManualOrder={useManualOrder} setUseManualOrder={setUseManualOrder} onDragEnd={onDragEnd} onDragStart={() => {}} />}
+                    {optimizedRoute.length > 0 && (
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 pb-2 border-b border-gray-100 animate-slide-up">
+                                <MapPin className="h-5 w-5 text-green-600" />
+                                <h3 className="font-bold text-lg text-green-800">{t('optimize.result_title', 'Lộ trình tối ưu')}</h3>
+                            </div>
+                            <ResultList 
+                                optimizedRoute={optimizedRoute} 
+                                handleCardClick={(i) => setFocusPoint(mapPoints[i] ? {lat: mapPoints[i].lat, lon: mapPoints[i].lon} : null)} 
+                                routeInfo={routeInfo} 
+                                vehicle={calculatedVehicle ?? vehicle} 
+                            />
+                            {isLoggedIn && (
+                                <Button onClick={handleSaveRoute} disabled={isSaving} className="w-full h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white shadow-md text-base font-medium">
+                                    {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />} 
+                                    {t('optimize.btn_save', "Lưu chuyến đi này")}
+                                </Button>
+                            )}
+                        </div>
+                    )}
+                 </div>
+                 <div className="lg:col-span-2 h-[600px] rounded-xl overflow-hidden border shadow-lg">
+                    <RouteMap polylineOutbound={polyOutbound} polylineReturn={polyReturn} points={mapPoints} focusPoint={focusPoint} />
+                 </div>
+            </div>
+         </div>
+      </div>
+
+      {/* ================= MOBILE UI ================= */}
+      <div className="md:hidden w-full h-[100dvh] relative flex flex-col">
+          
+          {/* 1. TOP BAR FLOATING */}
+          <div className="absolute top-0 left-0 right-0 z-[50] px-4 pt-safe pointer-events-none">
+              <div className="mt-4 flex flex-col pointer-events-auto pb-2">
+                   <div className="flex items-center gap-3">
+                        <Button 
+                            variant="secondary" 
+                            size="icon" 
+                            className="h-11 w-11 rounded-full shadow-lg bg-white border border-gray-100 text-gray-700 shrink-0 active:scale-95 transition-transform hover:bg-green-600 hover:text-white" 
+                            onClick={() => navigate(-1)}
+                        >
+                            <ArrowLeft className="h-5 w-5" />
+                        </Button>
+                        
+                        <div className="flex-1 relative shadow-lg rounded-full group">
+                            <Input 
+                                className="h-11 pl-11 pr-9 rounded-full border-none shadow-sm bg-white text-base focus-visible:ring-2 focus-visible:ring-green-500 transition-all" 
+                                placeholder={t('optimize.input_placeholder', 'Điểm xuất phát...')} 
+                                value={startPoint} 
+                                onChange={(e) => setStartPoint(e.target.value)} 
+                                onFocus={() => {
+                                    setDrawerLevel(0);
+                                    setShowVehicleSelector(true);
+                                }} 
+                                onKeyDown={handleKeyDown}
+                            />
+                            <Search className="absolute left-4 top-3 h-5 w-5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                            {startPoint && (
+                                <button 
+                                    className="absolute right-3 top-2.5 p-1 rounded-full hover:bg-gray-100 text-gray-400" 
+                                    onClick={() => setStartPoint("")}
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            )}
+                        </div>
+
+                        <Button 
+                            size="icon" 
+                            className={`h-11 w-11 rounded-full shadow-lg shrink-0 transition-all active:scale-95 ${optimizedRoute.length > 0 ? 'bg-green-600 hover:bg-green-700 border-2 border-white' : 'bg-green-600 hover:bg-green-700 border-2 border-white'}`} 
+                            onClick={handleOptimize} 
+                            disabled={isOptimizing}
+                        >
+                            {isOptimizing ? <Loader2 className="h-5 w-5 text-white animate-spin" /> : <Navigation className="h-5 w-5 text-white" />}
+                        </Button>
+                   </div>
+
+                   {/* PILL VEHICLE SELECTOR (FLOATING) */}
+                   <div 
+                       className={`
+                           overflow-hidden transition-all duration-300 ease-in-out
+                           ${showVehicleSelector ? 'max-h-[60px] opacity-100 mt-1' : 'max-h-0 opacity-0 mt-0'}
+                       `}
+                   >
+                       <VehicleSelectorMobile value={vehicle} onChange={setVehicle} />
+                   </div>
+              </div>
           </div>
-        </div>
+
+          {/* 2. MAP BACKGROUND */}
+          <div className="absolute inset-0 z-0">
+             <RouteMap 
+                 polylineOutbound={polyOutbound} 
+                 polylineReturn={polyReturn}
+                 points={mapPoints} 
+                 focusPoint={focusPoint}
+             />
+          </div>
+
+          {/* 3. CUSTOM DRAWER */}
+          <div 
+            className={`absolute inset-0 bg-black/30 z-[30] transition-opacity duration-300 ${drawerLevel === 2 ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
+            onClick={() => setDrawerLevel(1)} 
+          />
+
+          <div 
+              ref={drawerRef}
+              className={`
+                absolute bottom-0 left-0 right-0 bg-white rounded-t-[24px] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] z-[40] flex flex-col 
+                will-change-height
+                ${isDragging ? '' : 'transition-all duration-300 cubic-bezier(0.25, 1, 0.5, 1)'}
+              `}
+              style={{ 
+                  height: isDragging ? `${drawerStartHeight.current}px` : getTargetHeightStyle(drawerLevel),
+                  touchAction: 'none'
+              }}
+          >
+              {/* Handle Bar */}
+              <div 
+                  className="w-full flex flex-col items-center justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing flex-shrink-0 touch-none"
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                  onClick={(e) => { if (!isDragging) setDrawerLevel(prev => prev === 0 ? 1 : prev === 1 ? 2 : 1) }}
+              >
+                  <div className="w-12 h-1.5 bg-gray-300 rounded-full mb-1" />
+              </div>
+
+              {/* Drawer Content */}
+              <div className="flex-1 overflow-y-auto px-4 pb-safe pt-1 overscroll-contain no-scrollbar select-none">
+                  {optimizedRoute.length === 0 && (
+                      <div className="animate-slide-up">
+                          <DragDropList initialPlaces={initialPlaces} useManualOrder={useManualOrder} setUseManualOrder={setUseManualOrder} onDragEnd={onDragEnd} onDragStart={() => {}} />
+                          {initialPlaces.length > 0 && (
+                            <div className="flex items-start gap-2 mt-4 p-3 bg-green-50 text-green-700 rounded-xl text-xs">
+                                <Info className="h-4 w-4 shrink-0 mt-0.5" />
+                                <p>{t('optimize.mobile_instruction', 'Nhập điểm xuất phát ở thanh trên cùng, sau đó nhấn nút mũi tên xanh để bắt đầu tìm đường.')}</p>
+                            </div>
+                          )}
+                      </div>
+                  )}
+                  {optimizedRoute.length > 0 && (
+                      <div className="animate-slide-up space-y-4">
+                          <div className="flex items-center justify-between top-0 bg-white z-10 py-2 border-b border-gray-50">
+                              <h3 className="font-bold text-lg text-green-800 flex items-center gap-2"><MapPin className="h-5 w-5" /> {t('optimize.result_title', 'Lộ trình tối ưu')}</h3>
+                          </div>
+                          <ResultList optimizedRoute={optimizedRoute} routeInfo={routeInfo} vehicle={calculatedVehicle ?? vehicle} handleCardClick={(i) => {
+                              const p = mapPoints[i] || mapPoints[0];
+                              if (p) setFocusPoint({lat: p.lat, lon: p.lon});
+                              setDrawerLevel(0); 
+                             }} 
+                          />
+                          {isLoggedIn && (
+                              <Button onClick={handleSaveRoute} disabled={isSaving} className="w-full h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white shadow-md text-base font-medium">
+                                  {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />} 
+                                  {t('optimize.btn_save', "Lưu chuyến đi này")}
+                              </Button>
+                          )}
+                          <div className="h-6" />
+                      </div>
+                  )}
+              </div>
+          </div>
       </div>
     </div>
   );

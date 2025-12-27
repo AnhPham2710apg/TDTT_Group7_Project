@@ -133,3 +133,58 @@ All colors MUST be HSL.
   .delay-200 { animation-delay: 200ms; }
   .delay-300 { animation-delay: 300ms; }
 }
+
+@layer base {
+  :root {
+    /* ... (Giữ nguyên colors) ... */
+    --background: 140 20% 98%;
+    --foreground: 140 14% 15%;
+    /* ... Copy lại toàn bộ biến màu cũ ... */
+    --primary: 142 76% 36%;
+    --ring: 142 76% 36%;
+    --radius: 0.75rem;
+  }
+  /* ... (Giữ nguyên .dark) ... */
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* Quan trọng: Ngăn chặn hành vi kéo/refresh trang trên mobile để trải nghiệm giống App Native */
+    overscroll-behavior-y: none; 
+  }
+}
+
+/* Ẩn Logo Goong/Mapbox */
+.mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib {
+    display: none !important;
+}
+
+@layer utilities {
+  /* Ẩn scrollbar nhưng vẫn cho phép cuộn */
+  .no-scrollbar::-webkit-scrollbar {
+      display: none;
+  }
+  .no-scrollbar {
+      -ms-overflow-style: none;  /* IE and Edge */
+      scrollbar-width: none;  /* Firefox */
+  }
+
+  /* Transition mượt cho chiều cao drawer */
+  .transition-height {
+      transition-property: height, transform;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      transition-duration: 300ms;
+  }
+  
+  /* Safe area cho iPhone đời mới (tai thỏ) */
+  .pb-safe {
+      padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+      padding-top: env(safe-area-inset-top);
+  }
+}

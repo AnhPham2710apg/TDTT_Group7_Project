@@ -1,14 +1,27 @@
 // src/components/Navbar.tsx
 import { useState } from "react";
-import { ShoppingCart, UtensilsCrossed, Heart, MapPin, LogOut, User, Info, Menu, X, ChevronRight } from "lucide-react";
+import { 
+  ShoppingCart, UtensilsCrossed, Heart, MapPin, 
+  LogOut, User, Info, Menu, X, ChevronRight, Globe 
+} from "lucide-react"; // Đã thêm Globe
 import { useCart } from "@/context/CartContext";
 import { Link, useNavigate, useLocation } from "react-router-dom"; 
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback } from "./ui/avatar";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { 
+  Popover, PopoverContent, PopoverTrigger 
+} from "./ui/popover";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu"; // Đảm bảo import đủ DropdownMenu
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, Variants } from "framer-motion";
+// 1. IMPORT HOOK
+import { useTranslation } from "react-i18next";
 
 interface NavbarProps {
   hideAuthButtons?: boolean;
@@ -57,6 +70,9 @@ const NavItem = ({ to, icon: Icon, label, onClick, className }: NavItemProps) =>
 };
 
 const Navbar = ({ hideAuthButtons = false }: NavbarProps) => {
+  // 2. KHỞI TẠO HOOK
+  const { t, i18n } = useTranslation();
+  
   const navigate = useNavigate();
   const location = useLocation(); 
   const { isLoggedIn, username, logout } = useAuth();
@@ -64,6 +80,18 @@ const Navbar = ({ hideAuthButtons = false }: NavbarProps) => {
   
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const isCartActive = location.pathname === "/cart";
+
+  // 3. HÀM ĐỔI NGÔN NGỮ
+  const changeLanguage = (lng: string) => {
+    i18n.changeLanguage(lng);
+    localStorage.setItem("i18nextLng", lng);
+  };
+
+  const handleLogout = () => {
+    logout();
+    setIsMobileMenuOpen(false); // Đóng menu mobile nếu đang mở
+    navigate("/login");
+  };
 
   const menuVariants: Variants = { 
     closed: { opacity: 0, height: 0, transition: { duration: 0.3, ease: "easeInOut" } },
@@ -120,19 +148,46 @@ const Navbar = ({ hideAuthButtons = false }: NavbarProps) => {
                 "text-lg md:text-xl font-bold bg-hero-gradient bg-clip-text text-transparent whitespace-nowrap",
                 !isLoggedIn ? "hidden sm:block" : "hidden min-[350px]:block"
             )}>
-              Food Tour Assistant
+              {t('common.app_name', 'Food Tour Assistant')}
             </span>
           </Link>
 
           {/* --- 3. RIGHT ACTIONS (PC Menu + Cart + User + Auth Buttons) --- */}
           <div className="flex items-center gap-2 ml-auto"> 
+            
+            {/* --- 4. LANGUAGE SWITCHER (DESKTOP ONLY) --- */}
+            {/* Ẩn trên mobile vì sẽ đưa vào menu drawer */}
+            <div className="hidden md:block">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary">
+                            <Globe className="h-5 w-5" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-[150px]">
+                        <DropdownMenuItem 
+                            onClick={() => changeLanguage('vi')} 
+                            className={`cursor-pointer ${i18n.language === 'vi' ? 'bg-primary/10 font-bold text-primary' : ''}`}
+                        >
+                            🇻🇳 Tiếng Việt
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                            onClick={() => changeLanguage('en')} 
+                            className={`cursor-pointer ${i18n.language === 'en' ? 'bg-primary/10 font-bold text-primary' : ''}`}
+                        >
+                            🇺🇸 English
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+
             {isLoggedIn ? (
               <>
                 {/* ... Phần code khi ĐÃ ĐĂNG NHẬP giữ nguyên ... */}
                 <div className="hidden md:flex items-center gap-2 mr-2">
-                  <NavItem to="/search" icon={MapPin} label="Tìm kiếm" />
-                  <NavItem to="/favorites" icon={Heart} label="Yêu thích" />
-                  <NavItem to="/about" icon={Info} label="Giới thiệu" />
+                  <NavItem to="/search" icon={MapPin} label={t('common.search', "Tìm kiếm")} />
+                  <NavItem to="/favorites" icon={Heart} label={t('profile.tab_favorites', "Yêu thích")} />
+                  <NavItem to="/about" icon={Info} label={t('restaurant_detail.tab_about', "Giới thiệu")} />
                 </div>
 
                 <Button
@@ -168,13 +223,13 @@ const Navbar = ({ hideAuthButtons = false }: NavbarProps) => {
                     <PopoverContent className="w-56 p-2" align="end">
                         <div className="flex flex-col gap-1">
                         <div className="px-3 py-2 text-sm font-semibold text-muted-foreground border-b mb-1">
-                            Xin chào, {username}
+                           {t('common.hello', "Xin chào")}, {username}
                         </div>
                         <Button variant="ghost" className="w-full justify-start gap-2" onClick={() => navigate("/profile")}>
-                            <User className="h-4 w-4" /> Hồ sơ cá nhân
+                            <User className="h-4 w-4" /> {t('common.profile', "Hồ sơ cá nhân")}
                         </Button>
-                        <Button variant="ghost" className="w-full justify-start gap-2 text-red-500" onClick={logout}>
-                            <LogOut className="h-4 w-4" /> Đăng xuất
+                        <Button variant="ghost" className="w-full justify-start gap-2 text-red-500" onClick={handleLogout}>
+                            <LogOut className="h-4 w-4" /> {t('common.logout', "Đăng xuất")}
                         </Button>
                         </div>
                     </PopoverContent>
@@ -190,7 +245,7 @@ const Navbar = ({ hideAuthButtons = false }: NavbarProps) => {
                     onClick={() => navigate("/login")}
                     className="px-2 md:px-4 text-sm font-medium"
                   >
-                    Login
+                    {t('common.login', "Login")}
                   </Button>
                   
                   {/* FIX: Nút Sign Up nhỏ hơn trên mobile */}
@@ -198,7 +253,7 @@ const Navbar = ({ hideAuthButtons = false }: NavbarProps) => {
                     onClick={() => navigate("/register")} 
                     className="bg-hero-gradient hover:opacity-90 h-9 px-3 md:h-10 md:px-4 text-xs md:text-sm"
                   >
-                    Sign Up
+                    {t('register.submit', "Sign Up")}
                   </Button>
                 </div>
               )
@@ -225,40 +280,64 @@ const Navbar = ({ hideAuthButtons = false }: NavbarProps) => {
                             </AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col">
-                            <span className="text-sm font-bold text-foreground">Xin chào, {username}</span>
-                            <span className="text-xs text-muted-foreground">Thành viên thân thiết</span>
+                            <span className="text-sm font-bold text-foreground">{t('common.hello', "Xin chào")}, {username}</span>
+                            <span className="text-xs text-muted-foreground">{t('common.member', "Thành viên thân thiết")}</span>
                         </div>
                     </motion.div>
 
+                    {/* --- LANGUAGE SWITCHER MOBILE --- */}
+                    <motion.div variants={itemVariants} className="flex items-center justify-between px-4 py-2 mb-2 bg-white rounded-xl border border-gray-100">
+                        <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                            <Globe className="h-4 w-4" />
+                            {t('common.language', "Ngôn ngữ")}
+                        </div>
+                        <div className="flex gap-2">
+                            <Button 
+                                size="sm" 
+                                variant={i18n.language === 'vi' ? 'default' : 'outline'} 
+                                className={cn("h-7 text-xs", i18n.language === 'vi' ? "bg-primary text-white" : "")}
+                                onClick={() => changeLanguage('vi')}
+                            >
+                                VN
+                            </Button>
+                            <Button 
+                                size="sm" 
+                                variant={i18n.language === 'en' ? 'default' : 'outline'} 
+                                className={cn("h-7 text-xs", i18n.language === 'en' ? "bg-primary text-white" : "")}
+                                onClick={() => changeLanguage('en')}
+                            >
+                                EN
+                            </Button>
+                        </div>
+                    </motion.div>
+                    {/* -------------------------------- */}
+
                     <motion.div variants={itemVariants}>
-                        <NavItem to="/search" icon={MapPin} label="Tìm kiếm" onClick={() => setIsMobileMenuOpen(false)} />
+                        <NavItem to="/search" icon={MapPin} label={t('common.search', "Tìm kiếm")} onClick={() => setIsMobileMenuOpen(false)} />
                     </motion.div>
                     
                     <motion.div variants={itemVariants}>
-                        <NavItem to="/favorites" icon={Heart} label="Yêu thích" onClick={() => setIsMobileMenuOpen(false)} />
+                        <NavItem to="/favorites" icon={Heart} label={t('profile.tab_favorites', "Yêu thích")} onClick={() => setIsMobileMenuOpen(false)} />
                     </motion.div>
                     
                     <motion.div variants={itemVariants}>
-                        <NavItem to="/about" icon={Info} label="Giới thiệu" onClick={() => setIsMobileMenuOpen(false)} />
+                        <NavItem to="/about" icon={Info} label={t('restaurant_detail.tab_about', "Giới thiệu")} onClick={() => setIsMobileMenuOpen(false)} />
                     </motion.div>
 
                     <div className="border-t my-1 border-border/50" />
 
                     <motion.div variants={itemVariants}>
-                        <NavItem to="/profile" icon={User} label="Hồ sơ cá nhân" onClick={() => setIsMobileMenuOpen(false)} />
+                        <NavItem to="/profile" icon={User} label={t('common.profile', "Hồ sơ cá nhân")} onClick={() => setIsMobileMenuOpen(false)} />
                     </motion.div>
 
                     <motion.div variants={itemVariants}>
                         <Button 
                             variant="ghost" 
                             className="w-full justify-start gap-3 px-4 py-3 h-auto text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl group"
-                            onClick={() => {
-                                logout();
-                                setIsMobileMenuOpen(false);
-                            }}
+                            onClick={handleLogout}
                         >
                             <LogOut className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                            <span className="text-base font-medium">Đăng xuất</span>
+                            <span className="text-base font-medium">{t('common.logout', "Đăng xuất")}</span>
                         </Button>
                     </motion.div>
                 </div>

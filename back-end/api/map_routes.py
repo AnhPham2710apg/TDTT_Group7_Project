@@ -187,6 +187,11 @@ def are_places_equal(places_A, places_B):
     names_A = set(p['name'] for p in places_A)
     names_B = set(p['name'] for p in places_B)
     return names_A == names_B
+  
+# Hàm hỗ trợ lấy danh sách tên chuẩn hóa để so sánh
+def get_normalized_names(places_list):
+    """Trả về list các tên địa điểm đã lower và strip để so sánh"""
+    return [p.get('name', '').strip().lower() for p in places_list]
 
 @map_bp.route("/api/optimize", methods=["POST"])
 def optimize():
@@ -229,49 +234,78 @@ def optimize():
     start_query = data.get("starting_point")
     places_data = data.get("places", [])
     use_manual_order = data.get("use_manual_order", False)
+    # NEW: Get vehicle type, default to car
+    vehicle = data.get("vehicle", "car") 
     api_key = current_app.config.get('GOONG_API_KEY')
 
-    if not use_manual_order:
-      # Check cache
-      potential_routes = RouteHistory.query.filter(
-          RouteHistory.start_point.ilike(start_query)
-      ).all()
+    # ---------------------------------------------------------
+    # STEP 1: CHECK CACHE (Conditional on Vehicle)
+    # ---------------------------------------------------------
+    # CRITICAL LOGIC: 
+    # If vehicle is NOT 'car', we skip cache because our DB RouteHistory 
+    # might not distinguish between Car/Bike routes yet.
+    # We prioritize Accuracy over Performance for non-standard vehicles.
+    
+    if vehicle == "car":
+        print(f">>> CHECKING CACHE (Mode: {'MANUAL' if use_manual_order else 'AUTO'})...")
+        
+        potential_routes = RouteHistory.query.filter(
+            RouteHistory.start_point.ilike(start_query)
+        ).all()
 
-      for r in potential_routes:
-          try:
-              stored_places = json.loads(r.places_json)
-              if are_places_equal(places_data, stored_places):
-                  print(f">>> CACHE HIT! Route ID: {r.id}")
-                  real_start_coords = None
-                  if r.polyline_outbound:
-                      try:
-                          decoded = polyline.decode(r.polyline_outbound)
-                          if decoded: real_start_coords = {"lat": decoded[0][0], "lon": decoded[0][1]}
-                      except: pass
-                  
-                  if not real_start_coords:
-                      real_start_coords = goong_geocode_helper(start_query) or {"lat": 0, "lon": 0}
+        input_names = get_normalized_names(places_data)
 
-                  return jsonify({
-                      "optimized_order": [p["name"] for p in stored_places],
-                      "distance_km": r.total_distance,
-                      "duration_min": r.total_duration,
-                      "polyline_outbound": r.polyline_outbound,
-                      "polyline_return": r.polyline_return,
-                      "start_point_coords": real_start_coords,
-                      "waypoints": [{"id": p["name"], "address": p["address"], "lat": p.get("lat"), "lon": p.get("lng")} for p in stored_places],
-                      "from_cache": True
-                  })
-          except Exception as e:
-              print(f"Cache check error: {e}")
-              continue
+        for r in potential_routes:
+            try:
+                stored_places = json.loads(r.places_json)
+                stored_names = get_normalized_names(stored_places)
+                is_match = False
+
+                if use_manual_order:
+                    if input_names == stored_names:
+                        is_match = True
+                        print(f">>> CACHE HIT (Manual): Route ID {r.id}")
+                else:
+                    if set(input_names) == set(stored_names) and len(input_names) == len(stored_names):
+                        is_match = True
+                        print(f">>> CACHE HIT (Auto): Route ID {r.id}")
+
+                if is_match:
+                    real_start_coords = None
+                    if r.polyline_outbound:
+                        try:
+                            decoded = polyline.decode(r.polyline_outbound)
+                            if decoded: 
+                                real_start_coords = {"lat": decoded[0][0], "lon": decoded[0][1]}
+                        except: pass
+                    
+                    if not real_start_coords:
+                        real_start_coords = goong_geocode_helper(start_query) or {"lat": 0, "lon": 0}
+
+                    return jsonify({
+                        "optimized_order": [p["name"] for p in stored_places],
+                        "distance_km": r.total_distance,
+                        "duration_min": r.total_duration,
+                        "polyline_outbound": r.polyline_outbound,
+                        "polyline_return": r.polyline_return,
+                        "start_point_coords": real_start_coords,
+                        "waypoints": [{"id": p["name"], "address": p["address"], "lat": p.get("lat"), "lon": p.get("lng")} for p in stored_places],
+                        "from_cache": True,
+                        "vehicle": "car" # Return metadata
+                    })
+            except Exception as e:
+                print(f"Cache error: {e}")
+                continue
     else:
-      print(">>> MANUAL MODE: Skipping Cache check")
+        print(f">>> VEHICLE IS '{vehicle}'. SKIPPING CACHE TO ENSURE ACCURACY.")
 
-    # Cache miss -> Calculate
-    print(">>> CACHE MISS. Calling Goong...")
+    # ---------------------------------------------------------
+    # STEP 2: CALCULATE FRESH ROUTE (Goong API)
+    # ---------------------------------------------------------
+    print(">>> CALLING GOONG API...")
+    
     start_coords = goong_geocode_helper(start_query)
-    if not start_coords: return jsonify({"error": "Không tìm thấy điểm bắt đầu"}), 400
+    if not start_coords: return jsonify({"error": "Start point not found"}), 400
     
     start_tuple = (start_coords["lat"], start_coords["lon"])
     points_to_visit = []
@@ -287,12 +321,14 @@ def optimize():
         if p_lat:
             points_to_visit.append({
                 "id": place.get("name", "Unknown"),
+                "name": place.get("name", "Unknown"),
                 "address": place.get("address", ""),
                 "lat": p_lat, "lon": p_lon
             })
 
-    if not points_to_visit: return jsonify({"error": "Không có điểm đến hợp lệ"}), 400
+    if not points_to_visit: return jsonify({"error": "No valid destinations"}), 400
 
+    # Sorting Logic
     visited_ordered = []
     if use_manual_order:
         visited_ordered = points_to_visit
@@ -305,7 +341,7 @@ def optimize():
             current_pos = (nearest["lat"], nearest["lon"])
             remaining.remove(nearest)
 
-    # Calculate routes
+    # Route Calculation Loop
     route_sequence = [start_tuple] + [(p['lat'], p['lon']) for p in visited_ordered] + [start_tuple]
     
     outbound_coords = []
@@ -317,7 +353,15 @@ def optimize():
     for i in range(len(route_sequence) - 1):
         origin = route_sequence[i]
         destination = route_sequence[i+1]
-        params = {"origin": f"{origin[0]},{origin[1]}", "destination": f"{destination[0]},{destination[1]}", "vehicle": "car", "api_key": api_key}
+        
+        # NEW: Pass the vehicle parameter to Goong
+        params = {
+            "origin": f"{origin[0]},{origin[1]}", 
+            "destination": f"{destination[0]},{destination[1]}", 
+            "vehicle": vehicle,  # <--- DYNAMIC VEHICLE
+            "api_key": api_key
+        }
+        
         try:
             r = requests.get("https://rsapi.goong.io/Direction", params=params, timeout=10)
             r_data = r.json()
@@ -326,9 +370,14 @@ def optimize():
                 total_distance += leg["legs"][0]["distance"]["value"]
                 total_duration += leg["legs"][0]["duration"]["value"]
                 pts = polyline.decode(leg["overview_polyline"]["points"])
-                if i == last_stop_index: return_coords.extend(pts)
-                else: outbound_coords.extend(pts)
-        except: pass
+                
+                if i == last_stop_index: 
+                    return_coords.extend(pts)
+                else: 
+                    outbound_coords.extend(pts)
+        except Exception as e:
+            print(f"Goong API Error: {e}")
+            pass
 
     return jsonify({
         "optimized_order": [p["id"] for p in visited_ordered],
@@ -337,7 +386,8 @@ def optimize():
         "polyline_outbound": polyline.encode(outbound_coords),
         "polyline_return": polyline.encode(return_coords),
         "start_point_coords": start_coords,
-        "waypoints": visited_ordered
+        "waypoints": visited_ordered,
+        "vehicle": vehicle
     })
 
 @map_bp.route("/api/routes", methods=["POST"])

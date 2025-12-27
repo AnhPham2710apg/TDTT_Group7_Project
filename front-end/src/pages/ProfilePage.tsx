@@ -1,3 +1,5 @@
+// src/pages/ProfilePage.tsx
+
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -33,6 +35,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { API_BASE_URL } from "@/lib/api-config";
+// 1. Import hook
+import { useTranslation } from 'react-i18next';
 
 // --- HELPERS ---
 const getOptimizedImageUrl = (url: string) => {
@@ -44,7 +48,7 @@ const getOptimizedImageUrl = (url: string) => {
   return url;
 };
 
-// --- SUB-COMPONENT: REVIEW IMAGE (Tự quản lý state loading) ---
+// --- SUB-COMPONENT: REVIEW IMAGE ---
 const ReviewImage = ({ src, alt, className }: { src?: string, alt?: string, className?: string }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -98,6 +102,8 @@ interface UserReviewItem {
 }
 
 const ProfilePage = () => {
+  // 2. Khởi tạo hook (Lấy thêm i18n để format ngày tháng)
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { isLoggedIn, username: authUsername, updateUsername, isLoading: authLoading } = useAuth();
   
@@ -134,10 +140,17 @@ const ProfilePage = () => {
         const currentUsername = authUsername || localStorage.getItem("username");
         if (!currentUsername) return;
 
+        // Lấy ngôn ngữ hiện tại
+        const currentLang = i18n.language; 
+
         // 1. Fetch Favorites
         const favRes = await axios.get(`${API_BASE_URL}/api/favorite/${currentUsername}`);
         const favIds: string[] = favRes.data.favorites || [];
-        const favPromises = favIds.map(id => axios.get(`${API_BASE_URL}/api/restaurant/${id}`).catch(() => null));
+        
+        // --- SỬA: Thêm ?lang=${currentLang} ---
+        const favPromises = favIds.map(id => 
+            axios.get(`${API_BASE_URL}/api/restaurant/${id}?lang=${currentLang}`).catch(() => null)
+        );
         const favResults = await Promise.all(favPromises);
         setFavorites(favResults.filter(r => r?.data).map(r => ({...r?.data, is_favorite: true})));
 
@@ -151,14 +164,15 @@ const ProfilePage = () => {
 
         const reviewPromises = reviewsData.map(async (review) => {
             try {
-                const restRes = await axios.get(`${API_BASE_URL}/api/restaurant/${review.place_id}`);
+                // --- SỬA: Thêm ?lang=${currentLang} ---
+                const restRes = await axios.get(`${API_BASE_URL}/api/restaurant/${review.place_id}?lang=${currentLang}`);
                 return { 
                     ...review, 
                     restaurantName: restRes.data.name,
                     restaurantAddress: restRes.data.address
                 };
             } catch (e) {
-                return { ...review, restaurantName: "Nhà hàng không tồn tại" };
+                return { ...review, restaurantName: t('profile.error_restaurant_not_found', "Nhà hàng không tồn tại") };
             }
         });
         
@@ -170,24 +184,25 @@ const ProfilePage = () => {
     } finally {
         setIsLoadingData(false);
     }
-  }, [authUsername]);
+  // --- QUAN TRỌNG: Thêm i18n.language vào dependency để hàm chạy lại khi đổi ngữ ---
+  }, [authUsername, t, i18n.language]);
 
   useEffect(() => {
     if (authLoading) return;
     if (!isLoggedIn) { 
-      toast.error("Bạn cần đăng nhập để xem trang này");
+      toast.error(t('common.login_required', "Bạn cần đăng nhập để xem trang này"));
       navigate("/login");
       return;
     }
     setUsername(authUsername || "User");
     setEmail(authUsername ? `${authUsername}@example.com` : "user@example.com");
-    setBio("Yêu thích khám phá ẩm thực Việt Nam");
+    setBio(t('profile.default_bio', "Yêu thích khám phá ẩm thực Việt Nam"));
     fetchProfileData(); 
-  }, [isLoggedIn, authUsername, authLoading, navigate, fetchProfileData]);
+  }, [isLoggedIn, authUsername, authLoading, navigate, fetchProfileData, t]);
 
   const handleSave = () => {
     updateUsername(username); 
-    toast.success("Đã cập nhật hồ sơ");
+    toast.success(t('profile.update_success', "Đã cập nhật hồ sơ"));
     setIsEditing(false);
   };
 
@@ -200,9 +215,9 @@ const ProfilePage = () => {
         await axios.delete(`${API_BASE_URL}/api/favorite`, {
             data: { username: currentUsername, place_id: restaurant.place_id }
         });
-        toast.success("Đã xóa khỏi yêu thích");
+        toast.success(t('favorite.removed_success', { name: restaurant.name, defaultValue: "Đã xóa khỏi yêu thích" }));
     } catch (error) {
-        toast.error("Lỗi khi xóa");
+        toast.error(t('common.error', "Lỗi khi xóa"));
         setFavorites(oldFavs);
     }
   };
@@ -234,15 +249,15 @@ const ProfilePage = () => {
       if (deleteType === "route") {
           await axios.delete(`${API_BASE_URL}/api/routes/${deleteId}`);
           setRoutes((prev) => prev.filter((r) => r.id !== deleteId));
-          toast.success("Đã xóa lộ trình!");
+          toast.success(t('profile.delete_route_success', "Đã xóa lộ trình!"));
       } else {
           await axios.delete(`${API_BASE_URL}/api/reviews/${deleteId}`);
           setMyReviews((prev) => prev.filter((r) => r.id !== deleteId));
-          toast.success("Đã xóa bài đánh giá!");
+          toast.success(t('profile.delete_review_success', "Đã xóa bài đánh giá!"));
       }
     } catch (error) {
       console.error("Lỗi xóa:", error);
-      toast.error("Có lỗi xảy ra khi xóa.");
+      toast.error(t('common.error', "Có lỗi xảy ra khi xóa."));
     } finally {
       setDeleteId(null);
       setDeleteType(null);
@@ -260,10 +275,10 @@ const ProfilePage = () => {
     try {
         await axios.put(`${API_BASE_URL}/api/routes/${editingRoute.id}`, { name: newName });
         setRoutes(prev => prev.map(r => r.id === editingRoute.id ? { ...r, name: newName } : r));
-        toast.success("Đổi tên thành công!");
+        toast.success(t('profile.rename_success', "Đổi tên thành công!"));
         setEditingRoute(null);
     } catch (error) {
-        toast.error("Lỗi khi đổi tên");
+        toast.error(t('common.error', "Lỗi khi đổi tên"));
     }
   };
 
@@ -280,7 +295,7 @@ const ProfilePage = () => {
       <Navbar />
       
       {/* ================================================
-        1. PC LAYOUT (GIỮ NGUYÊN)
+        1. PC LAYOUT
         ================================================
       */}
       <div className="hidden md:block container mx-auto px-4 py-8">
@@ -294,10 +309,20 @@ const ProfilePage = () => {
                     <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username" />
                     <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
                     <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Bio" />
-                    <div className="flex gap-2"><Button onClick={handleSave}>Lưu</Button><Button variant="outline" onClick={() => setIsEditing(false)}>Hủy</Button></div>
+                    <div className="flex gap-2">
+                        <Button onClick={handleSave}>{t('common.save', 'Lưu')}</Button>
+                        <Button variant="outline" onClick={() => setIsEditing(false)}>{t('common.cancel', 'Hủy')}</Button>
+                    </div>
                   </div>
                 ) : (
-                  <><h1 className="text-3xl font-bold mb-2">{username}</h1><p className="text-muted-foreground mb-2">{email}</p><p className="text-foreground mb-4">{bio}</p><Button onClick={() => setIsEditing(true)} className="gap-2"><Edit className="h-4 w-4" /> Chỉnh sửa</Button></>
+                  <>
+                    <h1 className="text-3xl font-bold mb-2">{username}</h1>
+                    <p className="text-muted-foreground mb-2">{email}</p>
+                    <p className="text-foreground mb-4">{bio}</p>
+                    <Button onClick={() => setIsEditing(true)} className="gap-2">
+                        <Edit className="h-4 w-4" /> {t('profile.edit_profile', 'Chỉnh sửa')}
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
@@ -305,9 +330,9 @@ const ProfilePage = () => {
         </Card>
 
         <div className="grid grid-cols-3 gap-6 mb-8">
-           <Card><CardContent className="pt-6"><div className="flex items-center gap-4"><div className="p-3 rounded-full bg-primary/10"><Heart className="h-6 w-6 text-primary" /></div><div><p className="text-3xl font-bold">{stats.favorites}</p><p className="text-muted-foreground">Yêu thích</p></div></div></CardContent></Card>
-           <Card><CardContent className="pt-6"><div className="flex items-center gap-4"><div className="p-3 rounded-full bg-primary/10"><MapPin className="h-6 w-6 text-primary" /></div><div><p className="text-3xl font-bold">{stats.routes}</p><p className="text-muted-foreground">Lộ trình</p></div></div></CardContent></Card>
-           <Card><CardContent className="pt-6"><div className="flex items-center gap-4"><div className="p-3 rounded-full bg-primary/10"><Star className="h-6 w-6 text-primary" /></div><div><p className="text-3xl font-bold">{stats.reviews}</p><p className="text-muted-foreground">Đánh giá</p></div></div></CardContent></Card>
+           <Card><CardContent className="pt-6"><div className="flex items-center gap-4"><div className="p-3 rounded-full bg-primary/10"><Heart className="h-6 w-6 text-primary" /></div><div><p className="text-3xl font-bold">{stats.favorites}</p><p className="text-muted-foreground">{t('profile.stats_favorites', 'Yêu thích')}</p></div></div></CardContent></Card>
+           <Card><CardContent className="pt-6"><div className="flex items-center gap-4"><div className="p-3 rounded-full bg-primary/10"><MapPin className="h-6 w-6 text-primary" /></div><div><p className="text-3xl font-bold">{stats.routes}</p><p className="text-muted-foreground">{t('profile.stats_routes', 'Lộ trình')}</p></div></div></CardContent></Card>
+           <Card><CardContent className="pt-6"><div className="flex items-center gap-4"><div className="p-3 rounded-full bg-primary/10"><Star className="h-6 w-6 text-primary" /></div><div><p className="text-3xl font-bold">{stats.reviews}</p><p className="text-muted-foreground">{t('profile.stats_reviews', 'Đánh giá')}</p></div></div></CardContent></Card>
         </div>
       </div>
 
@@ -328,8 +353,8 @@ const ProfilePage = () => {
                         <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username" className="text-center" />
                         <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="text-center" />
                         <div className="flex gap-2">
-                            <Button onClick={handleSave} className="flex-1 bg-primary text-white rounded-full">Lưu</Button>
-                            <Button variant="outline" onClick={() => setIsEditing(false)} className="flex-1 rounded-full">Hủy</Button>
+                            <Button onClick={handleSave} className="flex-1 bg-primary text-white rounded-full">{t('common.save', 'Lưu')}</Button>
+                            <Button variant="outline" onClick={() => setIsEditing(false)} className="flex-1 rounded-full">{t('common.cancel', 'Hủy')}</Button>
                         </div>
                     </div>
                 ) : (
@@ -341,7 +366,7 @@ const ProfilePage = () => {
                             onClick={() => setIsEditing(true)} 
                             className="w-full rounded-full bg-gray-900 text-white hover:bg-gray-800 h-10 shadow-md"
                         >
-                            <Settings className="w-4 h-4 mr-2" /> Chỉnh sửa hồ sơ
+                            <Settings className="w-4 h-4 mr-2" /> {t('profile.edit_profile', 'Chỉnh sửa hồ sơ')}
                         </Button>
                     </>
                 )}
@@ -351,17 +376,17 @@ const ProfilePage = () => {
                 <div className="bg-red-50 p-3 rounded-2xl flex flex-col items-center justify-center border border-red-100">
                     <Heart className="h-5 w-5 text-red-500 mb-1" />
                     <span className="font-bold text-lg text-gray-800">{stats.favorites}</span>
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Yêu thích</span>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">{t('profile.stats_favorites', 'Yêu thích')}</span>
                 </div>
                 <div className="bg-blue-50 p-3 rounded-2xl flex flex-col items-center justify-center border border-blue-100">
                     <MapPin className="h-5 w-5 text-blue-500 mb-1" />
                     <span className="font-bold text-lg text-gray-800">{stats.routes}</span>
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Lộ trình</span>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">{t('profile.stats_routes', 'Lộ trình')}</span>
                 </div>
                 <div className="bg-yellow-50 p-3 rounded-2xl flex flex-col items-center justify-center border border-yellow-100">
                     <Star className="h-5 w-5 text-yellow-500 mb-1" />
                     <span className="font-bold text-lg text-gray-800">{stats.reviews}</span>
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Đánh giá</span>
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">{t('profile.stats_reviews', 'Đánh giá')}</span>
                 </div>
             </div>
         </div>
@@ -376,9 +401,15 @@ const ProfilePage = () => {
           
           <div className="sticky top-14 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-2 -mx-4 px-4 md:static md:bg-transparent md:p-0 md:mx-0">
               <TabsList className="w-full justify-start md:rounded-3xl h-12 p-1 bg-muted/50 overflow-x-auto flex-nowrap no-scrollbar">
-                <TabsTrigger value="favorites" className="rounded-full text-sm px-6 flex-shrink-0 data-[state=active]:bg-white data-[state=active]:shadow-sm">Quán yêu thích</TabsTrigger>
-                <TabsTrigger value="routes" className="rounded-full text-sm px-6 flex-shrink-0 data-[state=active]:bg-white data-[state=active]:shadow-sm">Lộ trình đã lưu</TabsTrigger>
-                <TabsTrigger value="reviews" className="rounded-full text-sm px-6 flex-shrink-0 data-[state=active]:bg-white data-[state=active]:shadow-sm">Đánh giá của tôi</TabsTrigger>
+                <TabsTrigger value="favorites" className="rounded-full text-sm px-6 flex-shrink-0 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                    {t('profile.tab_favorites', 'Quán yêu thích')}
+                </TabsTrigger>
+                <TabsTrigger value="routes" className="rounded-full text-sm px-6 flex-shrink-0 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                    {t('profile.tab_routes', 'Lộ trình đã lưu')}
+                </TabsTrigger>
+                <TabsTrigger value="reviews" className="rounded-full text-sm px-6 flex-shrink-0 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                    {t('profile.tab_reviews', 'Đánh giá của tôi')}
+                </TabsTrigger>
               </TabsList>
           </div>
 
@@ -387,7 +418,7 @@ const ProfilePage = () => {
             {favorites.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-muted-foreground bg-gray-50 rounded-xl border border-dashed">
                     <Heart className="h-10 w-10 mb-2 opacity-20" />
-                    <p>Chưa có quán yêu thích</p>
+                    <p>{t('profile.empty_favorites', 'Chưa có quán yêu thích')}</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -405,7 +436,7 @@ const ProfilePage = () => {
             {routes.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground bg-gray-50 rounded-xl border border-dashed">
                     <MapPin className="h-12 w-12 mb-3 opacity-20" />
-                    <p>Bạn chưa lưu lộ trình nào</p>
+                    <p>{t('profile.empty_routes', 'Bạn chưa lưu lộ trình nào')}</p>
                 </div>
             ) : (
                 <>
@@ -421,7 +452,10 @@ const ProfilePage = () => {
                                   </div>
                                   <div>
                                       <h4 className="font-bold text-gray-800 line-clamp-1">{route.name}</h4>
-                                      <p className="text-xs text-gray-500">{new Date(route.created_at).toLocaleDateString("vi-VN")}</p>
+                                      <p className="text-xs text-gray-500">
+                                          {/* Dùng i18n.language để format ngày tháng tự động */}
+                                          {new Date(route.created_at).toLocaleDateString(i18n.language)}
+                                      </p>
                                   </div>
                               </div>
                               <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 text-gray-400" onClick={(e) => openRenameDialog(route, e)}>
@@ -438,17 +472,17 @@ const ProfilePage = () => {
                               <div className="pl-[3px] border-l border-dashed border-gray-300 ml-[3px] h-3"></div>
                               <p className="text-gray-600 flex items-center gap-2">
                                   <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                                  {route.places.length} điểm dừng
+                                  {route.places.length} {t('profile.route_stops', 'điểm dừng')}
                               </p>
                           </div>
 
                           {/* Footer Mobile */}
                           <div className="flex gap-2 mt-1">
                               <Button onClick={() => handleViewRoute(route)} className="flex-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 h-9 rounded-lg shadow-sm text-xs font-medium">
-                                  Xem lại
+                                  {t('profile.btn_view', 'Xem lại')}
                               </Button>
                               <Button onClick={(e) => confirmDelete(route.id, "route", e)} className="flex-1 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 h-9 rounded-lg shadow-sm text-xs font-medium">
-                                  Xóa
+                                  {t('profile.btn_delete', 'Xóa')}
                               </Button>
                           </div>
                       </div>
@@ -469,7 +503,7 @@ const ProfilePage = () => {
                                   <CardTitle className="text-sm font-bold truncate" title={route.name}>{route.name}</CardTitle>
                                   <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                                     <Calendar className="h-3 w-3" />
-                                    {new Date(route.created_at).toLocaleDateString("vi-VN")}
+                                    {new Date(route.created_at).toLocaleDateString(i18n.language)}
                                   </p>
                                 </div>
                             </div>
@@ -489,19 +523,19 @@ const ProfilePage = () => {
                         <CardContent className="p-4 pt-0">
                           <div className="bg-muted/30 p-2.5 rounded-md text-xs space-y-1.5 border mb-3">
                              <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">Xuất phát</span>
+                                <span className="text-muted-foreground">{t('profile.route_start', 'Xuất phát')}</span>
                                 <span className="font-medium truncate max-w-[120px]" title={route.start_point}>{route.start_point}</span>
                              </div>
                              <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">Điểm dừng</span>
+                                <span className="text-muted-foreground">{t('profile.route_stops_label', 'Điểm dừng')}</span>
                                 <span className="font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded-full text-[10px]">
-                                  {route.places.length} địa điểm
+                                  {route.places.length} {t('profile.route_places_unit', 'địa điểm')}
                                 </span>
                              </div>
                           </div>
                           
                           <Button onClick={() => handleViewRoute(route)} className="w-full h-8 text-xs bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-primary hover:border-primary/30">
-                             Xem chi tiết
+                              {t('profile.btn_view_details', 'Xem chi tiết')}
                           </Button>
                         </CardContent>
                       </Card>
@@ -516,7 +550,7 @@ const ProfilePage = () => {
             {myReviews.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground bg-gray-50 rounded-xl border border-dashed">
                     <MessageSquare className="h-12 w-12 mb-3 opacity-20" />
-                    <p>Bạn chưa viết đánh giá nào</p>
+                    <p>{t('profile.empty_reviews', 'Bạn chưa viết đánh giá nào')}</p>
                 </div>
             ) : (
                 <>
@@ -528,7 +562,6 @@ const ProfilePage = () => {
                             <div className="flex justify-between items-start mb-3">
                                 <div className="flex gap-3">
                                     <div className="h-12 w-12 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
-                                        {/* SỬ DỤNG REVIEW IMAGE COMPONENT */}
                                         <ReviewImage 
                                             src={review.images && review.images.length > 0 ? review.images[0] : ""} 
                                             alt="thumb" 
@@ -537,12 +570,12 @@ const ProfilePage = () => {
                                     </div>
                                     <div>
                                         <h4 className="font-bold text-sm text-gray-800 line-clamp-1" onClick={() => navigate(`/restaurant/${review.place_id}`)}>
-                                            {review.restaurantName || "Đang tải..."}
+                                            {review.restaurantName || t('common.loading', "Đang tải...")}
                                         </h4>
                                         <div className="flex items-center gap-1 mt-1">
                                             <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                                             <span className="text-xs font-bold text-gray-700">{review.rating}.0</span>
-                                            <span className="text-[10px] text-gray-400">• {new Date(review.created_at).toLocaleDateString("vi-VN")}</span>
+                                            <span className="text-[10px] text-gray-400">• {new Date(review.created_at).toLocaleDateString(i18n.language)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -557,22 +590,21 @@ const ProfilePage = () => {
                     ))}
                 </div>
 
-                {/* --- GIAO DIỆN PC MỚI (Card ngang, Ảnh lớn full chiều cao) --- */}
+                {/* --- GIAO DIỆN PC MỚI --- */}
                 <div className="hidden md:grid md:grid-cols-2 gap-4">
                     {myReviews.map((review) => (
                         <Card key={review.id} className="group overflow-hidden flex flex-row h-44 hover:shadow-md transition-all border-muted/60">
                             
-                            {/* 1. KHUNG ẢNH BÊN TRÁI (Lớn & Full Height) */}
+                            {/* 1. KHUNG ẢNH BÊN TRÁI */}
                             <div className="w-48 h-full shrink-0 relative bg-muted/20 cursor-pointer" onClick={() => navigate(`/restaurant/${review.place_id}`)}>
                                 
-                                {/* SỬ DỤNG REVIEW IMAGE COMPONENT - Tự động quản lý loading, error, resize */}
                                 <ReviewImage 
                                     src={review.images && review.images.length > 0 ? review.images[0] : ""}
                                     alt="review-thumb"
                                     className="w-full h-full group-hover:scale-105 transition-transform duration-700" 
                                 />
 
-                                {/* Rating Badge đè lên ảnh */}
+                                {/* Rating Badge */}
                                 <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-md shadow-sm flex items-center gap-1 text-xs font-bold text-gray-800 z-20">
                                      <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                                      {review.rating}.0
@@ -588,7 +620,7 @@ const ProfilePage = () => {
                                             onClick={() => navigate(`/restaurant/${review.place_id}`)}
                                             title={review.restaurantName}
                                         >
-                                            {review.restaurantName || "Đang tải tên quán..."}
+                                            {review.restaurantName || t('profile.loading_name', "Đang tải tên quán...")}
                                         </h4>
                                         
                                         <Button 
@@ -604,7 +636,7 @@ const ProfilePage = () => {
 
                                     <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
                                         <Calendar className="h-3 w-3" />
-                                        <span>{new Date(review.created_at).toLocaleDateString("vi-VN")}</span>
+                                        <span>{new Date(review.created_at).toLocaleDateString(i18n.language)}</span>
                                         {review.restaurantAddress && (
                                             <>
                                                 <span>•</span>
@@ -627,7 +659,7 @@ const ProfilePage = () => {
                                         className="h-auto p-0 text-xs text-primary hover:no-underline flex items-center gap-1"
                                         onClick={() => navigate(`/restaurant/${review.place_id}`)}
                                     >
-                                        Xem chi tiết <MessageSquare className="h-3 w-3" />
+                                        {t('profile.btn_view_details', 'Xem chi tiết')} <MessageSquare className="h-3 w-3" />
                                     </Button>
                                 </div>
                             </div>
@@ -640,30 +672,36 @@ const ProfilePage = () => {
         </Tabs>
       </div>
 
-      {/* Dialogs giữ nguyên */}
+      {/* Dialogs */}
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
-            <AlertDialogDescription>Dữ liệu này sẽ bị xóa vĩnh viễn.</AlertDialogDescription>
+            <AlertDialogTitle>{t('profile.dialog_delete_title', 'Xác nhận xóa')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('profile.dialog_delete_desc', 'Dữ liệu này sẽ bị xóa vĩnh viễn.')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-full">Hủy</AlertDialogCancel>
-            <AlertDialogAction onClick={executeDelete} className="bg-red-600 rounded-full">Xóa</AlertDialogAction>
+            <AlertDialogCancel className="rounded-full">{t('common.cancel', 'Hủy')}</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDelete} className="bg-red-600 rounded-full">{t('profile.btn_delete', 'Xóa')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       <Dialog open={!!editingRoute} onOpenChange={(open) => !open && setEditingRoute(null)}>
         <DialogContent className="sm:max-w-[425px] rounded-2xl">
-          <DialogHeader><DialogTitle>Đổi tên lộ trình</DialogTitle><DialogDescription>Đặt tên mới cho chuyến đi.</DialogDescription></DialogHeader>
+          <DialogHeader>
+              <DialogTitle>{t('profile.dialog_rename_title', 'Đổi tên lộ trình')}</DialogTitle>
+              <DialogDescription>{t('profile.dialog_rename_desc', 'Đặt tên mới cho chuyến đi.')}</DialogDescription>
+          </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">Tên mới</Label>
+              <Label htmlFor="name" className="text-right">{t('profile.dialog_rename_label', 'Tên mới')}</Label>
               <Input id="name" value={newName} onChange={(e) => setNewName(e.target.value)} className="col-span-3" autoFocus />
             </div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setEditingRoute(null)}>Hủy</Button><Button onClick={handleRenameSubmit}>Lưu</Button></DialogFooter>
+          <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingRoute(null)}>{t('common.cancel', 'Hủy')}</Button>
+              <Button onClick={handleRenameSubmit}>{t('common.save', 'Lưu')}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
