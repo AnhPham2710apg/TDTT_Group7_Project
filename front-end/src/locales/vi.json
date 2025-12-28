@@ -317,6 +317,7 @@
     "label_radius": "Bán kính",
     "label_style": "Phong cách của bạn",
     "label_type": "Loại hình",
+    "label_vibe": "Không gian",
     "option_all": "Tất cả",
     "ph_cuisine": "Chọn nền ẩm thực",
     "ph_district": "VD: Quận 1...",
@@ -328,6 +329,14 @@
     "user_foodie_desc": "Ưu tiên chất lượng & trải nghiệm",
     "user_foodie_label": "Sành ăn",
     "user_saver_desc": "Ưu tiên giá rẻ & khuyến mãi",
-    "user_saver_label": "Tiết kiệm"
+    "user_saver_label": "Tiết kiệm",
+    "vibe_cozy": "Ấm cúng",
+    "vibe_luxury": "Sang trọng",
+    "vibe_relax": "Thư giãn",
+    "vibe_romantic": "Lãng mạn",
+    "vibe_street": "Vỉa hè",
+    "vibe_traditional": "Truyền thống",
+    "vibe_vibrant": "Nhộn nhịp",
+    "vibe_view": "Cảnh đẹp"
   }
 }

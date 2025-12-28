@@ -317,6 +317,7 @@
     "label_radius": "Radius",
     "label_style": "Your Style",
     "label_type": "Type",
+    "label_vibe": "Vibe",
     "option_all": "All",
     "ph_cuisine": "Select cuisine",
     "ph_district": "Ex: District 1...",
@@ -328,6 +329,14 @@
     "user_foodie_desc": "Priority on quality & experience",
     "user_foodie_label": "Foodie",
     "user_saver_desc": "Priority on low price & deals",
-    "user_saver_label": "Saver"
+    "user_saver_label": "Saver",
+    "vibe_cozy": "Cozy",
+    "vibe_luxury": "Luxury",
+    "vibe_relax": "Relax",
+    "vibe_romantic": "Romantic",
+    "vibe_street": "Street",
+    "vibe_traditional": "Traditional",
+    "vibe_vibrant": "Vibrant",
+    "vibe_view": "View"
   }
 }

@@ -61,7 +61,8 @@ class RecommendationService:
 
     def _get_extended_tag_score(self, restaurant, user_prefs):
         raw_score = 0.0
-        max_possible_score = 16.0 
+        # Bien tinh tong diem toi da dua tren lua chon cua user
+        current_max_score = 0.0
         
         u_cuisines = [self._normalize_text(c) for c in user_prefs.get('cuisines', [])]
         u_flavors = user_prefs.get('flavors', [])
@@ -72,52 +73,67 @@ class RecommendationService:
         u_courseType = user_prefs.get('courseType', 'both')     
         keyword = self._normalize_text(user_prefs.get('keyword', ''))
 
-        r_cuisine = self._normalize_text(restaurant.cuisine)
-        r_flavor_raw = restaurant.flavor
-        r_foodType = self._normalize_text(restaurant.foodType)
-        r_bevFood = self._normalize_text(restaurant.bevFood)
-        r_courseType = self._normalize_text(restaurant.courseType)
+        # --- 1. CUISINE (Trong so: 4.0) ---
+        if u_cuisines:
+            current_max_score += 4.0
+            r_cuisine = self._normalize_text(restaurant.cuisine)
+            # Logic cu cua ban
+            matched_cuisine = False
+            for req_c in u_cuisines:
+                if req_c in r_cuisine:
+                    matched_cuisine = True
+                    break
+            if matched_cuisine: raw_score += 4.0
+
+        # --- 2. FLAVOR (Trong so: ~3.0) ---
+        if u_flavors:
+            current_max_score += 3.0
+            r_flavor_raw = restaurant.flavor
+            if r_flavor_raw:
+                matches = 0
+                req_flavors = [self._normalize_text(f) for f in u_flavors]
+                clean_db_flavor = str(r_flavor_raw).replace('[','').replace(']','').replace('"','').replace("'",'')
+                db_flavors_list = [self._normalize_text(f) for f in clean_db_flavor.split(',')]
+                for f_db in db_flavors_list:
+                    if f_db in req_flavors:
+                        matches += 1
+                if matches > 0:
+                    raw_score += 2.0 + (min(matches, 2) * 0.5)
+
+        # --- 3. FOOD TYPE (Trong so: 2.0) ---
+        if u_foodType != 'both':
+            current_max_score += 2.0
+            map_food = {'vegetarian': 'chay', 'non-vegetarian': 'man'}
+            target_food = map_food.get(u_foodType)
+            r_foodType = self._normalize_text(restaurant.foodType)
+            if target_food and target_food in r_foodType:
+                 raw_score += 2.0
         
-        r_subtypes = self._normalize_text(restaurant.subtypes)
-        r_desc = self._normalize_text(restaurant.description)
-        r_name = self._normalize_text(restaurant.name)
+        # --- 4. BEV/FOOD (Trong so: 2.0) ---
+        if u_bevFood != 'both':
+            current_max_score += 2.0
+            map_bev = {'beverage': 'nuoc', 'food': 'kho'} 
+            target_bev = map_bev.get(u_bevFood)
+            r_bevFood = self._normalize_text(restaurant.bevFood)
+            if target_bev:
+                if target_bev in r_bevFood or 'ca 2' in r_bevFood:
+                    raw_score += 2.0
 
-        matched_cuisine = False
-        for req_c in u_cuisines:
-            if req_c in r_cuisine:
-                matched_cuisine = True
-                break
-        if matched_cuisine: raw_score += 4.0
-
-        if u_flavors and r_flavor_raw:
-            matches = 0
-            req_flavors = [self._normalize_text(f) for f in u_flavors]
-            clean_db_flavor = str(r_flavor_raw).replace('[','').replace(']','').replace('"','').replace("'",'')
-            db_flavors_list = [self._normalize_text(f) for f in clean_db_flavor.split(',')]
-            for f_db in db_flavors_list:
-                if f_db in req_flavors:
-                    matches += 1
-            if matches > 0:
-                raw_score += 2.0 + (min(matches, 2) * 0.5)
-
-        map_food = {'vegetarian': 'chay', 'non-vegetarian': 'man'}
-        target_food = map_food.get(u_foodType)
-        if u_foodType != 'both' and target_food and target_food in r_foodType:
-             raw_score += 2.0
-        
-        map_bev = {'beverage': 'nuoc', 'food': 'kho'} 
-        target_bev = map_bev.get(u_bevFood)
-        if u_bevFood != 'both' and target_bev:
-            if target_bev in r_bevFood or 'ca 2' in r_bevFood:
+        # --- 5. COURSE TYPE (Trong so: 2.0) ---
+        if u_courseType != 'both':
+            current_max_score += 2.0
+            map_course = {'main': 'mon chinh', 'dessert': 'trang mieng'}
+            target_course = map_course.get(u_courseType)
+            r_courseType = self._normalize_text(restaurant.courseType)
+            if target_course and target_course in r_courseType:
                 raw_score += 2.0
 
-        map_course = {'main': 'mon chinh', 'dessert': 'trang mieng'}
-        target_course = map_course.get(u_courseType)
-        if u_courseType != 'both' and target_course and target_course in r_courseType:
-            raw_score += 2.0
-
+        # --- 6. VIBE (Trong so: 3.0) ---
         if u_vibes:
+            current_max_score += 3.0
             vibe_match_count = 0
+            r_subtypes = self._normalize_text(restaurant.subtypes)
+            r_desc = self._normalize_text(restaurant.description)
             for u_vibe_id in u_vibes:
                 keywords = self.VIBE_MAPPING.get(u_vibe_id, [u_vibe_id])
                 if self._check_synonym_match(r_subtypes, keywords):
@@ -127,7 +143,15 @@ class RecommendationService:
             if vibe_match_count > 0:
                 raw_score += min(3.0, vibe_match_count)
 
+        # --- 7. KEYWORD (Trong so: 2.0) ---
         if keyword:
+            current_max_score += 2.0
+            r_name = self._normalize_text(restaurant.name)
+            # Load lai thong tin neu chua co
+            if 'r_subtypes' not in locals(): r_subtypes = self._normalize_text(restaurant.subtypes)
+            if 'r_cuisine' not in locals(): r_cuisine = self._normalize_text(restaurant.cuisine)
+            if 'r_desc' not in locals(): r_desc = self._normalize_text(restaurant.description)
+
             if keyword in r_name: 
                 raw_score += 2.0
             elif keyword in r_subtypes or keyword in r_cuisine:
@@ -135,7 +159,17 @@ class RecommendationService:
             elif keyword in r_desc:
                 raw_score += 1.0
 
-        return min(raw_score, max_possible_score) / max_possible_score
+        # --- TINH TOAN FINAL ---
+        # Neu user khong nhap gi ca -> Tra ve diem trung binh
+        if current_max_score == 0: return 0.5 
+
+        final_ratio = raw_score / current_max_score
+        
+        # BONUS: Tang 10% diem so nhu yeu cau
+        final_ratio = final_ratio * 1.1
+        
+        # Gioi han khong qua 100%
+        return min(final_ratio, 1.0)
 
     # [MỚI] Hàm tính điểm khoảng cách
     def _get_distance_score(self, current_dist, max_radius):

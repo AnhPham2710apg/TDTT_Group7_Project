@@ -68,16 +68,16 @@ const SearchPage = () => {
     },
   ];
 
-  // [NEW] Options cho Vibe / Không gian
+  // Options cho Vibe / Không gian
   const VIBE_OPTIONS = [
-    { id: "chill", label: "Chill / Thư giãn", icon: Coffee },
-    { id: "vibrant", label: "Sôi động / Nhộn nhịp", icon: Music },
-    { id: "romantic", label: "Lãng mạn / Hẹn hò", icon: Heart },
-    { id: "cozy", label: "Ấm cúng / Gia đình", icon: Users },
-    { id: "luxury", label: "Sang trọng / Tinh tế", icon: Sparkles },
-    { id: "street", label: "Vỉa hè / Bình dân", icon: Coffee },
-    { id: "view", label: "View đẹp / Sống ảo", icon: Camera },
-    { id: "traditional", label: "Truyền thống / Cổ điển", icon: Sparkles },
+    { id: "chill", label: t('search.vibe_relax', "Thư giãn"), icon: Coffee },
+    { id: "vibrant", label: t('search.vibe_vibrant', "Nhộn nhịp"), icon: Music },
+    { id: "romantic", label: t('search.vibe_romantic', "Lãng mạn"), icon: Heart },
+    { id: "cozy", label: t('search.vibe_cozy', "Ấm cúng"), icon: Users },
+    { id: "luxury", label: t('search.vibe_luxury', "Sang trọng"), icon: Sparkles },
+    { id: "street", label: t('search.vibe_street', "Vỉa hè"), icon: Coffee },
+    { id: "view", label: t('search.vibe_view', "Cảnh đẹp"), icon: Camera },
+    { id: "traditional", label: t('search.vibe_traditional', "Truyền thống"), icon: Sparkles },
   ];
 
   const CUISINE_OPTIONS = [
@@ -93,20 +93,36 @@ const SearchPage = () => {
     { value: "Khác", label: t('search.cuisine_other', "Khác") }
   ];
 
-  // --- STATE ---
-  const [keyword, setKeyword] = useState("");
-  const [userType, setUserType] = useState("balanced");
-  const [foodType, setFoodType] = useState("both");
-  const [beverageOrFood, setBeverageOrFood] = useState("both");
-  const [cuisine, setCuisine] = useState<string[]>([]); 
-  const [flavors, setFlavors] = useState<string[]>([]);
-  const [vibes, setVibes] = useState<string[]>([]); // [NEW] State cho vibes
-  const [courseType, setCourseType] = useState("both");
-  const [minPrice, setMinPrice] = useState(""); 
-  const [maxPrice, setMaxPrice] = useState("");
-  const [radius, setRadius] = useState([5]);
-  const [district, setDistrict] = useState<string[]>([]); 
-  const [ratingMin, setRatingMin] = useState(0);
+  // --- [NEW] HELPER FUNCTION LOAD STATE FROM SESSION ---
+  function loadState<T>(key: string, defaultVal: T): T {
+    try {
+        const saved = sessionStorage.getItem("search_prefs");
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            // Ép kiểu kết quả về T nếu tìm thấy key
+            return parsed[key] !== undefined ? (parsed[key] as T) : defaultVal;
+        }
+    } catch (e) { return defaultVal; }
+    return defaultVal;
+  }
+
+  // --- STATE (INITIALIZED WITH CACHE) ---
+  const [keyword, setKeyword] = useState(() => loadState('keyword', ""));
+  const [userType, setUserType] = useState(() => loadState('userType', "balanced"));
+  const [foodType, setFoodType] = useState(() => loadState('foodType', "both"));
+  const [beverageOrFood, setBeverageOrFood] = useState(() => loadState('beverageOrFood', "both"));
+  
+  const [cuisine, setCuisine] = useState<string[]>(() => loadState('cuisine', [])); 
+  const [flavors, setFlavors] = useState<string[]>(() => loadState('flavors', []));
+  const [vibes, setVibes] = useState<string[]>(() => loadState('vibes', [])); 
+  const [courseType, setCourseType] = useState(() => loadState('courseType', "both"));
+  
+  const [minPrice, setMinPrice] = useState(() => loadState('minPrice', "")); 
+  const [maxPrice, setMaxPrice] = useState(() => loadState('maxPrice', ""));
+  
+  const [radius, setRadius] = useState(() => loadState('radius', [5]));
+  const [district, setDistrict] = useState<string[]>(() => loadState('district', [])); 
+  const [ratingMin, setRatingMin] = useState(() => loadState('ratingMin', 0));
 
   const [isLoading, setIsLoading] = useState(false);
   const [scrollY, setScrollY] = useState(0);
@@ -144,7 +160,6 @@ const SearchPage = () => {
     );
   };
 
-  // [NEW] Logic toggle Vibe
   const handleVibeToggle = (vibeId: string) => {
     setVibes(prev =>
         prev.includes(vibeId)
@@ -155,6 +170,15 @@ const SearchPage = () => {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // --- [NEW] CACHE STATE TO SESSION STORAGE ---
+    const currentPrefs = {
+        keyword, userType, foodType, beverageOrFood,
+        cuisine, flavors, vibes, courseType,
+        minPrice, maxPrice, radius, district, ratingMin
+    };
+    sessionStorage.setItem("search_prefs", JSON.stringify(currentPrefs));
+
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
@@ -168,7 +192,7 @@ const SearchPage = () => {
 
       cuisine.forEach(c => params.append("cuisine", c));
       district.forEach(d => params.append("district", d));
-      vibes.forEach(v => params.append("vibe", v)); // [NEW] Append vibe params
+      vibes.forEach(v => params.append("vibe", v)); 
       
       if (flavors.length > 0) {
           const mappedFlavors = flavors.map(f => MAPPINGS.flavors[f as keyof typeof MAPPINGS.flavors]);
@@ -390,31 +414,20 @@ const SearchPage = () => {
                     </div>
                 </div>
 
-                {/* [MERGED] 5. KHÔNG GIAN (VIBE) */}
+                {/* 5. KHÔNG GIAN (VIBE) */}
                 <div className="space-y-3">
-                    <Label className="text-base font-bold">{t('search.label_vibe', 'Không gian & Vibe')}</Label>
-                    <div className="flex flex-wrap gap-2">
-                        {VIBE_OPTIONS.map((vibe) => {
-                            const Icon = vibe.icon;
-                            const isSelected = vibes.includes(vibe.id);
-                            return (
-                                <button
-                                    key={vibe.id}
-                                    type="button"
-                                    onClick={() => handleVibeToggle(vibe.id)}
-                                    className={`
-                                        flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all
-                                        ${isSelected
-                                            ? "bg-primary text-primary-foreground border-primary shadow-md transform scale-105" // Đã đổi sang biến 'primary'
-                                            : "bg-white text-gray-600 border-gray-200 hover:border-primary/50 hover:bg-primary/5"
-                                        }
-                                    `}
-                                >
-                                    <Icon className="w-4 h-4" />
-                                    {vibe.label}
-                                </button>
-                            );
-                        })}
+                    <Label className="text-base font-bold">{t('search.label_vibe', 'Không gian')}</Label>
+                    {/* UI Grid giống Flavor */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {VIBE_OPTIONS.map(opt => 
+                            renderGridCard(
+                                opt.id, 
+                                opt.label, 
+                                vibes.includes(opt.id), 
+                                () => handleVibeToggle(opt.id), 
+                                true 
+                            )
+                        )}
                     </div>
                 </div>
 

@@ -67,7 +67,29 @@ EXPANDED_SEARCH_MAP = {
     "vegetarian": ["chay"],
     "vegan": ["chay"],
     "snack": ["ăn vặt", "bánh tráng"],
-    "beer": ["bia", "quán nhậu"]
+    "beer": ["bia", "quán nhậu"],
+
+    # --- NHÓM KEM (Thêm mới) ---
+    "ice cream": ["kem", "gelato", "kem bơ", "kem ý", "kem xôi"],
+    "gelato": ["kem", "gelato"],
+    "sorbet": ["kem", "kem trái cây"],
+    "sundae": ["kem ly", "kem"],
+
+    # --- NHÓM CHÈ (Thêm mới) ---
+    "sweet soup": ["chè", "sâm bổ lượng", "tàu hũ", "khúc bạch"],
+    "pudding": ["bánh flan", "pudding", "tàu hũ"], 
+    # (Lưu ý: từ "dessert" cũ của bạn đã có "chè", nhưng user hay search cụ thể hơn)
+
+    # --- NHÓM GỎI & CUỐN (Cập nhật) ---
+    "salad": ["gỏi", "nộm", "salad", "rau trộn"], # Gỏi gà, gỏi ngó sen...
+    "fresh roll": ["gỏi cuốn", "bì cuốn", "cuốn"], # Gỏi cuốn sống
+    "summer roll": ["gỏi cuốn", "bì cuốn"],        # Tên tiếng Anh khác của gỏi cuốn
+    "papaya salad": ["gỏi đu đủ", "gỏi khô bò"],   # Món phổ biến
+    "mango salad": ["gỏi xoài"],
+
+    # --- NHÓM SINH TỐ / HEALTHY (Bổ sung thêm nếu cần) ---
+    "smoothie": ["sinh tố", "đá xay"],
+    "yogurt": ["sữa chua", "yaourt"],
 }
 
 def generate_search_terms(keyword):
@@ -129,7 +151,7 @@ def ensure_unaccent_extension():
         db.session.rollback()
         print(f"Warning: Could not enable unaccent extension. {e}")
 
-@restaurant_bp.route("/api/search", methods=["GET"])
+@restaurant_bp.route("/api/search", methods=["GET"])    
 def search_restaurants():
     try:
         # Kiểm tra xem đang chạy SQLite (Test) hay Postgres (Real)
