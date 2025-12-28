@@ -9,17 +9,16 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import Navbar from "@/components/Navbar";
-import { Search, Check, Wallet, Scale, Sparkles } from "lucide-react"; 
+// Thêm các icon cho phần Vibe
+import { Search, Check, Wallet, Scale, Sparkles, Coffee, Music, Heart, Users, Camera } from "lucide-react"; 
 import { toast } from "sonner";
-// 1. Import hook
 import { useTranslation } from 'react-i18next';
 
 const SearchPage = () => {
-  // 2. Khởi tạo hook
   const { t } = useTranslation();
   const navigate = useNavigate();
   
-  // --- OPTIONS (Đưa vào trong component để dùng t()) ---
+  // --- OPTIONS ---
   const FOOD_TYPE_OPTIONS = [
     { id: "vegetarian", label: t('search.diet_veg', "Chay") },
     { id: "non-vegetarian", label: t('search.diet_non_veg', "Mặn") },
@@ -48,7 +47,6 @@ const SearchPage = () => {
     { id: "light", label: t('search.flavor_light', "Thanh") },
   ];
 
-  // Cấu hình User Type
   const USER_TYPE_OPTIONS = [
     { 
       id: "saver", 
@@ -70,8 +68,18 @@ const SearchPage = () => {
     },
   ];
 
-  // QUAN TRỌNG: Tách value (gửi backend) và label (hiển thị)
-  // Backend cần chuỗi chính xác (ví dụ "Việt Nam") để tìm trong DB
+  // [NEW] Options cho Vibe / Không gian
+  const VIBE_OPTIONS = [
+    { id: "chill", label: "Chill / Thư giãn", icon: Coffee },
+    { id: "vibrant", label: "Sôi động / Nhộn nhịp", icon: Music },
+    { id: "romantic", label: "Lãng mạn / Hẹn hò", icon: Heart },
+    { id: "cozy", label: "Ấm cúng / Gia đình", icon: Users },
+    { id: "luxury", label: "Sang trọng / Tinh tế", icon: Sparkles },
+    { id: "street", label: "Vỉa hè / Bình dân", icon: Coffee },
+    { id: "view", label: "View đẹp / Sống ảo", icon: Camera },
+    { id: "traditional", label: "Truyền thống / Cổ điển", icon: Sparkles },
+  ];
+
   const CUISINE_OPTIONS = [
     { value: "Việt Nam", label: t('search.cuisine_vn', "Việt Nam") },
     { value: "Hàn Quốc", label: t('search.cuisine_kr', "Hàn Quốc") },
@@ -92,9 +100,10 @@ const SearchPage = () => {
   const [beverageOrFood, setBeverageOrFood] = useState("both");
   const [cuisine, setCuisine] = useState<string[]>([]); 
   const [flavors, setFlavors] = useState<string[]>([]);
+  const [vibes, setVibes] = useState<string[]>([]); // [NEW] State cho vibes
   const [courseType, setCourseType] = useState("both");
-  const [minPrice, setMinPrice] = useState(0);
-  const [maxPrice, setMaxPrice] = useState(2000000);
+  const [minPrice, setMinPrice] = useState(""); 
+  const [maxPrice, setMaxPrice] = useState("");
   const [radius, setRadius] = useState([5]);
   const [district, setDistrict] = useState<string[]>([]); 
   const [ratingMin, setRatingMin] = useState(0);
@@ -114,7 +123,6 @@ const SearchPage = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // --- MAPPING LOGIC (Giữ nguyên vì đây là logic mapping sang giá trị backend) ---
   const MAPPINGS = {
     foodType: { vegetarian: "chay", "non-vegetarian": "mặn", both: "both" },
     beverageOrFood: { beverage: "nước", food: "khô", both: "both" },
@@ -136,6 +144,15 @@ const SearchPage = () => {
     );
   };
 
+  // [NEW] Logic toggle Vibe
+  const handleVibeToggle = (vibeId: string) => {
+    setVibes(prev =>
+        prev.includes(vibeId)
+            ? prev.filter(v => v !== vibeId)
+            : [...prev, vibeId]
+    );
+  };
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -151,16 +168,20 @@ const SearchPage = () => {
 
       cuisine.forEach(c => params.append("cuisine", c));
       district.forEach(d => params.append("district", d));
+      vibes.forEach(v => params.append("vibe", v)); // [NEW] Append vibe params
       
       if (flavors.length > 0) {
           const mappedFlavors = flavors.map(f => MAPPINGS.flavors[f as keyof typeof MAPPINGS.flavors]);
           params.append("flavors", mappedFlavors.join(','));
       }
 
-      if (minPrice > 0) params.append("minPrice", minPrice.toString());
-      if (maxPrice < 10000000) params.append("maxPrice", maxPrice.toString());
+      const minP = minPrice ? parseInt(minPrice) : 0;
+      const maxP = maxPrice ? parseInt(maxPrice) : 0;
+
+      if (minP > 0) params.append("minPrice", minP.toString());
+      if (maxP > 0) params.append("maxPrice", maxP.toString());
+
       params.append("radius", radius[0].toString());
-      if (ratingMin > 0) params.append("ratingMin", ratingMin.toString());
 
       navigate(`/results?${params.toString()}`);
     } catch (error) {
@@ -188,6 +209,16 @@ const SearchPage = () => {
       {label}
     </div>
   );
+
+  const handlePriceChange = (val: string, setter: (v: string) => void) => {
+      if (val === "") {
+          setter("");
+          return;
+      }
+      if (/^\d+$/.test(val)) {
+          setter(val);
+      }
+  };
 
   const renderGridCard = (id: string, label: string, isSelected: boolean, onClick: () => void, hasCheckmark: boolean = true) => (
     <div
@@ -271,7 +302,7 @@ const SearchPage = () => {
                     </div>
                 </div>
 
-                {/* --- MỚI: SECTION PHONG CÁCH NGƯỜI DÙNG (USER TYPE) --- */}
+                {/* --- SECTION PHONG CÁCH NGƯỜI DÙNG (USER TYPE) --- */}
                 <div className="space-y-3">
                    <Label className="text-base font-bold">{t('search.label_style', 'Phong cách của bạn')}</Label>
                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -359,20 +390,49 @@ const SearchPage = () => {
                     </div>
                 </div>
 
-                {/* 5. PRICE & BUDGET */}
+                {/* [MERGED] 5. KHÔNG GIAN (VIBE) */}
+                <div className="space-y-3">
+                    <Label className="text-base font-bold">{t('search.label_vibe', 'Không gian & Vibe')}</Label>
+                    <div className="flex flex-wrap gap-2">
+                        {VIBE_OPTIONS.map((vibe) => {
+                            const Icon = vibe.icon;
+                            const isSelected = vibes.includes(vibe.id);
+                            return (
+                                <button
+                                    key={vibe.id}
+                                    type="button"
+                                    onClick={() => handleVibeToggle(vibe.id)}
+                                    className={`
+                                        flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all
+                                        ${isSelected
+                                            ? "bg-primary text-primary-foreground border-primary shadow-md transform scale-105" // Đã đổi sang biến 'primary'
+                                            : "bg-white text-gray-600 border-gray-200 hover:border-primary/50 hover:bg-primary/5"
+                                        }
+                                    `}
+                                >
+                                    <Icon className="w-4 h-4" />
+                                    {vibe.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* 6. PRICE & BUDGET */}
                 <div className="space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
                     <Label className="text-base font-bold">{t('search.label_budget', 'Ngân sách (VNĐ)')}</Label>
                     <div className="grid grid-cols-2 gap-6 pt-2">
                     <div>
                         <Label htmlFor="minPrice" className="text-xs text-muted-foreground mb-2 block uppercase font-bold tracking-wider">{t('search.label_min', 'Tối thiểu')}</Label>
                         <div className="relative">
-                        <Input
-                            id="minPrice"
-                            type="number"
-                            value={minPrice}
-                            onChange={(e) => setMinPrice(Number(e.target.value))}
-                            className="pl-8 h-11 font-medium"
-                            step={10000}
+                        <Input 
+                            id="minPrice" 
+                            type="text" 
+                            inputMode="numeric"
+                            value={minPrice} 
+                            onChange={(e) => handlePriceChange(e.target.value, setMinPrice)} 
+                            placeholder="0" 
+                            className="pl-8 h-11 font-medium" 
                         />
                         <span className="absolute left-3 top-3 text-muted-foreground text-sm font-semibold">₫</span>
                         </div>
@@ -381,12 +441,13 @@ const SearchPage = () => {
                         <Label htmlFor="maxPrice" className="text-xs text-muted-foreground mb-2 block uppercase font-bold tracking-wider">{t('search.label_max', 'Tối đa')}</Label>
                         <div className="relative">
                         <Input
-                            id="maxPrice"
-                            type="number"
-                            value={maxPrice}
-                            onChange={(e) => setMaxPrice(Number(e.target.value))}
-                            className="pl-8 h-11 font-medium"
-                            step={10000}
+                            id="maxPrice" 
+                            type="text"
+                            inputMode="numeric"
+                            value={maxPrice} 
+                            onChange={(e) => handlePriceChange(e.target.value, setMaxPrice)} 
+                            placeholder="2000000" 
+                            className="pl-8 h-11 font-medium" 
                         />
                         <span className="absolute left-3 top-3 text-muted-foreground text-sm font-semibold">₫</span>
                         </div>
@@ -394,7 +455,7 @@ const SearchPage = () => {
                     </div>
                 </div>
 
-                {/* 6. RADIUS & DISTRICT */}
+                {/* 7. RADIUS & DISTRICT */}
                 <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                         <div className="flex justify-between items-center">

@@ -84,10 +84,12 @@ const ResultsPage = () => {
       let valA = 0;
       let valB = 0;
 
-      if (sortBy === "price") {
-        valA = a.price_level || 0;
-        valB = b.price_level || 0;
-      } else {
+     if (sortBy === "price") {
+        // --- SỬA LỖI Ở ĐÂY: Ép kiểu Number() ---
+        // Nếu là string "1", "2" -> thành số 1, 2. Nếu null/undefined -> thành 0
+        valA = Number(a.price_level) || 0;
+        valB = Number(b.price_level) || 0;
+      } else if (sortBy === "rating") {
         valA = a.rating || 0;
         valB = b.rating || 0;
       }

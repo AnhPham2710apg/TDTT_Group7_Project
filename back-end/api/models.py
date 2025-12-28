@@ -27,8 +27,6 @@ class User(db.Model):
 # 2. RESTAURANT MODEL (CORE DATA)
 # ----------------------------------------------------
 class Restaurant(db.Model):
-    # Liên kết với database riêng (nếu dùng Bind) hoặc DB chính
-    # Lưu ý: Nếu bạn dùng chung 1 DB trên Render thì bind_key này vẫn trỏ về DB chính
     __bind_key__ = "restaurants_db"
     __tablename__ = "restaurants"
 
@@ -46,15 +44,15 @@ class Restaurant(db.Model):
     site = db.Column(db.String)
     category = db.Column(db.String)
     review_tags = db.Column(db.String)
-    subtypes = db.Column(db.String)
     
-    # --- CỘT MÔ TẢ ĐA NGÔN NGỮ ---
-    description = db.Column(db.String)      # Tiếng Việt (Mặc định)
-    description_en = db.Column(db.String)   # Tiếng Anh (Mới thêm)
+    # --- CÁC CỘT PHÂN LOẠI & MÔ TẢ ---
+    subtypes = db.Column(db.String)
+    description = db.Column(db.String)      
+    description_en = db.Column(db.String)   
     
     range = db.Column(db.String)  
 
-    # --- MAP TÊN CỘT CHÍNH XÁC (Lower Case cho Postgres) ---
+    # --- MAP TÊN CỘT CHÍNH XÁC VỚI DATABASE MỚI ---
     foodType = db.Column("foodtype", db.String)      
     bevFood = db.Column("bevfood", db.String)        
     cuisine = db.Column(db.String)
@@ -64,16 +62,10 @@ class Restaurant(db.Model):
     minPrice = db.Column("minprice", db.Integer)     
     maxPrice = db.Column("maxprice", db.Integer)     
 
-    def to_dict(self, lang='vi'):
-        """
-        Chuyển đổi object thành dict chuẩn cho Frontend.
-        lang: 'vi' hoặc 'en' để chọn ngôn ngữ hiển thị.
-        """
+    # Đã xóa cột ai_vibe và cuisine_origin để tránh conflict
 
-        # --- LOGIC CHỌN NGÔN NGỮ ---
-        # Mặc định lấy tiếng Việt
+    def to_dict(self, lang='vi'):
         final_description = self.description
-        # Nếu yêu cầu tiếng Anh VÀ có dữ liệu tiếng Anh thì lấy
         if lang == 'en' and self.description_en:
             final_description = self.description_en
 
@@ -87,18 +79,21 @@ class Restaurant(db.Model):
             "rating": self.rating or 0.0,
             "price_level": self.range,
             "photo_url": self.photo_url or "",
-            
-            # TRẢ VỀ FIELD ĐÃ ĐƯỢC DỊCH
             "description": final_description or "",
-            
             "phone_number": self.phone or "",
             "website": self.site or "",
             "working_hour": self.working_hour or "",
+            
+            # Các trường phân loại quan trọng cho Backend & Frontend
             "cuisine": self.cuisine or "",
             "food_type": self.foodType or "",
+            "bev_food": self.bevFood or "",        # Mới: Đồ uống/Đồ ăn
+            "course_type": self.courseType or "",  # Mới: Loại món (chính/tráng miệng)
+            "flavor": self.flavor or "",           # Mới: Hương vị
             "district": self.district or "",
             "min_price": self.minPrice or 0,
-            "max_price": self.maxPrice or 0
+            "max_price": self.maxPrice or 0,
+            "subtypes": self.subtypes or "",
         }
 
 # ----------------------------------------------------
@@ -107,7 +102,7 @@ class Restaurant(db.Model):
 class Favorite(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    place_id = db.Column(db.String(255), nullable=False) # Lưu place_id chuỗi
+    place_id = db.Column(db.String(255), nullable=False)
 
     __table_args__ = (
         db.UniqueConstraint("user_id", "place_id", name="_user_place_uc"),
