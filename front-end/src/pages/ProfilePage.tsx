@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Heart, MapPin, Star, User, Edit, Loader2, Trash2, Calendar, Pencil, MessageSquare, Settings, Image as ImageIcon } from "lucide-react";
+import { Heart, MapPin, Star, User, Edit, Loader2, Trash2, Calendar, Pencil, MessageSquare, Settings, Image as ImageIcon, ExternalLink, Mail } from "lucide-react";
 import RestaurantCard from "@/components/RestaurantCard";
 import { Restaurant } from "@/types";
 import { toast } from "sonner";
@@ -344,6 +344,22 @@ const ProfilePage = () => {
     return username ? username.charAt(0).toUpperCase() : <User className="h-12 w-12" />;
   };
 
+  // [NEW] Helper to get mail provider link
+  const getMailProvider = (email: string) => {
+    if (!email) return null;
+    const lowerEmail = email.toLowerCase();
+    if (lowerEmail.includes("@gmail.com")) {
+      return { name: "Google Mail", url: "https://mail.google.com", color: "text-red-600 hover:bg-red-50" };
+    } else if (lowerEmail.includes("@outlook.com") || lowerEmail.includes("@hotmail.com")) {
+      return { name: "Outlook", url: "https://outlook.live.com/mail/", color: "text-blue-600 hover:bg-blue-50" };
+    } else if (lowerEmail.includes("@yahoo.com")) {
+      return { name: "Yahoo Mail", url: "https://mail.yahoo.com", color: "text-purple-600 hover:bg-purple-50" };
+    }
+    return null; // Fallback or generic
+  };
+
+  const mailProvider = getMailProvider(email);
+
   if (authLoading || isLoadingData) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
   }
@@ -382,7 +398,22 @@ const ProfilePage = () => {
                 ) : (
                   <>
                     <h1 className="text-3xl font-bold mb-2">{username}</h1>
-                    <p className="text-muted-foreground mb-2">{email}</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <p className="text-muted-foreground">{email}</p>
+                      {mailProvider && (
+                        <a
+                          href={mailProvider.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full border border-border/50 transition-colors ${mailProvider.color}`}
+                          title={`Open ${mailProvider.name}`}
+                        >
+                          <Mail className="h-3 w-3" />
+                          <span className="font-medium hidden sm:inline">{t('profile.open_mail', `Mở ${mailProvider.name}`)}</span>
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                    </div>
                     <p className="text-foreground mb-4">{bio}</p>
                     <Button onClick={() => setIsEditing(true)} className="gap-2">
                       <Edit className="h-4 w-4" /> {t('profile.edit_profile', 'Chỉnh sửa')}
@@ -432,7 +463,20 @@ const ProfilePage = () => {
             ) : (
               <>
                 <h1 className="text-2xl font-bold text-gray-900">{username}</h1>
-                <p className="text-sm text-gray-500 mb-1">{email}</p>
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <p className="text-sm text-gray-500">{email}</p>
+                  {mailProvider && (
+                    <a
+                      href={mailProvider.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`flex items-center justify-center p-1 rounded-full transition-colors ${mailProvider.color}`}
+                      title={`Open ${mailProvider.name}`}
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
                 <p className="text-sm text-center text-gray-600 mb-4 px-4 line-clamp-2">{bio}</p>
                 <Button
                   onClick={() => setIsEditing(true)}
