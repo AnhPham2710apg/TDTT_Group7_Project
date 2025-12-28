@@ -5,10 +5,12 @@ import { createContext, useContext } from 'react';
 export interface AuthContextType {
   isLoggedIn: boolean;
   username: string | null;
+  avatarUrl: string | null; // [NEW]
   isLoading: boolean;
   login: (username: string) => void;
   logout: () => void;
   updateUsername: (newUsername: string) => void;
+  updateAvatar: (newAvatarUrl: string) => void; // [NEW]
 }
 
 // 2. Tạo Context
