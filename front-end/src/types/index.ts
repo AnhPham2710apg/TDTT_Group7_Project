@@ -7,7 +7,7 @@ export interface Restaurant {
   name: string;
   address: string;
   rating?: number;
-  price_level?: number; // Sẽ được map từ minPrice/maxPrice ở backend
+  price_level?: string; // Sẽ được map từ minPrice/maxPrice ở backend
   photo_url?: string;
   lat: number;
   lng: number;

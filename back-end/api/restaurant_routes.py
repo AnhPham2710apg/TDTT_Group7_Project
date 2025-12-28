@@ -59,6 +59,8 @@ def get_coords_from_goong(address_query):
 def search_restaurants():
     try:
         # --- 1. NHẬN THAM SỐ TỪ REQUEST ---
+        current_lang = request.args.get("lang", "vi") # <--- Lấy ngôn ngữ
+
         keyword = request.args.get("keyword", "").strip()
         
         user_type = request.args.get('userType', 'balanced')
@@ -131,7 +133,9 @@ def search_restaurants():
             score = rec_service.calculate_final_score(r, user_type, user_prefs)
             
             if score > 0:
-                r_dict = r.to_dict()
+                # --- TRUYỀN NGÔN NGỮ VÀO to_dict ---
+                r_dict = r.to_dict(lang=current_lang) 
+                
                 r_dict['match_score'] = score
                 scored_results.append(r_dict)
 
@@ -150,6 +154,9 @@ def search_restaurants():
 @restaurant_bp.route("/api/restaurant/<param>", methods=["GET"])
 def get_restaurant_detail(param):
     try:
+        # --- LẤY NGÔN NGỮ ---
+        current_lang = request.args.get("lang", "vi")
+
         restaurant = None
         if param.isdigit():
             restaurant = Restaurant.query.get(int(param))
@@ -158,7 +165,10 @@ def get_restaurant_detail(param):
 
         if not restaurant:
             return jsonify({"error": "Không tìm thấy nhà hàng"}), 404
-        return jsonify(restaurant.to_dict())
+            
+        # --- TRUYỀN NGÔN NGỮ VÀO to_dict ---
+        return jsonify(restaurant.to_dict(lang=current_lang))
+        
     except Exception as e:
         print(f"Detail Error: {e}")
         return jsonify({"error": str(e)}), 500

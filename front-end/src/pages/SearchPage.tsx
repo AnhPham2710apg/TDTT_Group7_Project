@@ -1,3 +1,5 @@
+// src/pages/SearchPage.tsx
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,73 +9,85 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import Navbar from "@/components/Navbar";
-// Thêm icons mới: Wallet (Tiết kiệm), Scale (Cân bằng), Sparkles (Sành ăn/Foodie)
 import { Search, Check, Wallet, Scale, Sparkles } from "lucide-react"; 
 import { toast } from "sonner";
-
-// --- OPTIONS ---
-// ... (Các option cũ giữ nguyên) ...
-
-const FOOD_TYPE_OPTIONS = [
-  { id: "vegetarian", label: "Chay" },
-  { id: "non-vegetarian", label: "Mặn" },
-  { id: "both", label: "Tất cả" },
-];
-const BEV_FOOD_OPTIONS = [
-  { id: "beverage", label: "Đồ uống" },
-  { id: "food", label: "Đồ ăn" },
-  { id: "both", label: "Tất cả" },
-];
-const COURSE_TYPE_OPTIONS = [
-  { id: "main", label: "Món chính" },
-  { id: "dessert", label: "Tráng miệng" },
-  { id: "both", label: "Tất cả" },
-];
-const FLAVOR_OPTIONS = [
-  { id: "sweet", label: "Ngọt" },
-  { id: "salty", label: "Mặn" },
-  { id: "spicy", label: "Cay" },
-  { id: "sour", label: "Chua" },
-  { id: "bitter", label: "Đắng" },
-  { id: "fatty", label: "Béo" },
-  { id: "light", label: "Thanh" },
-];
-const CUISINE_OPTIONS = [
-  "Việt Nam", "Hàn Quốc", "Nhật Bản", "Thái Lan", "Trung Quốc", 
-  "Ý", "Pháp", "Âu/Mỹ", "Ấn Độ", "Khác"
-];
-
-// --- MỚI: Cấu hình User Type ---
-const USER_TYPE_OPTIONS = [
-  { 
-    id: "saver", 
-    label: "Tiết kiệm", 
-    desc: "Ưu tiên giá rẻ & khuyến mãi",
-    icon: Wallet 
-  },
-  { 
-    id: "balanced", 
-    label: "Cân bằng", 
-    desc: "Hài hòa giữa giá & vị ngon",
-    icon: Scale 
-  },
-  { 
-    id: "foodie", 
-    label: "Sành ăn", 
-    desc: "Ưu tiên chất lượng & trải nghiệm",
-    icon: Sparkles 
-  },
-];
+// 1. Import hook
+import { useTranslation } from 'react-i18next';
 
 const SearchPage = () => {
+  // 2. Khởi tạo hook
+  const { t } = useTranslation();
   const navigate = useNavigate();
   
+  // --- OPTIONS (Đưa vào trong component để dùng t()) ---
+  const FOOD_TYPE_OPTIONS = [
+    { id: "vegetarian", label: t('search.diet_veg', "Chay") },
+    { id: "non-vegetarian", label: t('search.diet_non_veg', "Mặn") },
+    { id: "both", label: t('search.option_all', "Tất cả") },
+  ];
+  
+  const BEV_FOOD_OPTIONS = [
+    { id: "beverage", label: t('search.type_beverage', "Đồ uống") },
+    { id: "food", label: t('search.type_food', "Đồ ăn") },
+    { id: "both", label: t('search.option_all', "Tất cả") },
+  ];
+  
+  const COURSE_TYPE_OPTIONS = [
+    { id: "main", label: t('search.course_main', "Món chính") },
+    { id: "dessert", label: t('search.course_dessert', "Tráng miệng") },
+    { id: "both", label: t('search.option_all', "Tất cả") },
+  ];
+  
+  const FLAVOR_OPTIONS = [
+    { id: "sweet", label: t('search.flavor_sweet', "Ngọt") },
+    { id: "salty", label: t('search.flavor_salty', "Mặn") },
+    { id: "spicy", label: t('search.flavor_spicy', "Cay") },
+    { id: "sour", label: t('search.flavor_sour', "Chua") },
+    { id: "bitter", label: t('search.flavor_bitter', "Đắng") },
+    { id: "fatty", label: t('search.flavor_fatty', "Béo") },
+    { id: "light", label: t('search.flavor_light', "Thanh") },
+  ];
+
+  // Cấu hình User Type
+  const USER_TYPE_OPTIONS = [
+    { 
+      id: "saver", 
+      label: t('search.user_saver_label', "Tiết kiệm"), 
+      desc: t('search.user_saver_desc', "Ưu tiên giá rẻ & khuyến mãi"),
+      icon: Wallet 
+    },
+    { 
+      id: "balanced", 
+      label: t('search.user_balanced_label', "Cân bằng"), 
+      desc: t('search.user_balanced_desc', "Hài hòa giữa giá & vị ngon"),
+      icon: Scale 
+    },
+    { 
+      id: "foodie", 
+      label: t('search.user_foodie_label', "Sành ăn"), 
+      desc: t('search.user_foodie_desc', "Ưu tiên chất lượng & trải nghiệm"),
+      icon: Sparkles 
+    },
+  ];
+
+  // QUAN TRỌNG: Tách value (gửi backend) và label (hiển thị)
+  // Backend cần chuỗi chính xác (ví dụ "Việt Nam") để tìm trong DB
+  const CUISINE_OPTIONS = [
+    { value: "Việt Nam", label: t('search.cuisine_vn', "Việt Nam") },
+    { value: "Hàn Quốc", label: t('search.cuisine_kr', "Hàn Quốc") },
+    { value: "Nhật Bản", label: t('search.cuisine_jp', "Nhật Bản") },
+    { value: "Thái Lan", label: t('search.cuisine_th', "Thái Lan") },
+    { value: "Trung Quốc", label: t('search.cuisine_cn', "Trung Quốc") },
+    { value: "Ý", label: t('search.cuisine_it', "Ý") },
+    { value: "Pháp", label: t('search.cuisine_fr', "Pháp") },
+    { value: "Âu/Mỹ", label: t('search.cuisine_eu_us', "Âu/Mỹ") },
+    { value: "Ấn Độ", label: t('search.cuisine_in', "Ấn Độ") },
+    { value: "Khác", label: t('search.cuisine_other', "Khác") }
+  ];
+
   // --- STATE ---
   const [keyword, setKeyword] = useState("");
-  
-  // MỚI: State cho User Type
   const [userType, setUserType] = useState("balanced");
-
   const [foodType, setFoodType] = useState("both");
   const [beverageOrFood, setBeverageOrFood] = useState("both");
   const [cuisine, setCuisine] = useState<string[]>([]); 
@@ -86,8 +100,6 @@ const SearchPage = () => {
   const [ratingMin, setRatingMin] = useState(0);
 
   const [isLoading, setIsLoading] = useState(false);
-
-  // --- PARALLAX STATE ---
   const [scrollY, setScrollY] = useState(0);
 
   // --- AUTO SCROLL & PARALLAX LISTENER ---
@@ -102,7 +114,7 @@ const SearchPage = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // --- MAPPING LOGIC ---
+  // --- MAPPING LOGIC (Giữ nguyên vì đây là logic mapping sang giá trị backend) ---
   const MAPPINGS = {
     foodType: { vegetarian: "chay", "non-vegetarian": "mặn", both: "both" },
     beverageOrFood: { beverage: "nước", food: "khô", both: "both" },
@@ -130,7 +142,6 @@ const SearchPage = () => {
     try {
       const params = new URLSearchParams();
       
-      // MỚI: Truyền userType lên URL
       params.append("userType", userType);
 
       if (keyword) params.append("keyword", keyword);
@@ -153,7 +164,7 @@ const SearchPage = () => {
 
       navigate(`/results?${params.toString()}`);
     } catch (error) {
-      toast.error("Lỗi xử lý tìm kiếm.");
+      toast.error(t('common.error', "Lỗi xử lý tìm kiếm."));
     } finally {
       setIsLoading(false);
     }
@@ -224,13 +235,13 @@ const SearchPage = () => {
           >
             <div className="animate-slide-down opacity-0" style={{ animationDelay: '0ms', animationFillMode: 'forwards' }}>
                 <h1 className="text-4xl font-bold mb-3 tracking-tight">
-                Tìm Kiếm Quán Ăn
+                {t('search.hero_title_1', 'Tìm Kiếm Quán Ăn')}
                 <span className="block bg-hero-gradient bg-clip-text text-transparent mt-1">
-                    Hoàn Hảo Cho Bạn
+                  {t('search.hero_title_2', 'Hoàn Hảo Cho Bạn')}
                 </span>
                 </h1>
                 <p className="text-muted-foreground text-lg">
-                Cho chúng tôi biết sở thích của bạn để tìm ra lựa chọn phù hợp nhất
+                  {t('search.hero_desc', 'Cho chúng tôi biết sở thích của bạn để tìm ra lựa chọn phù hợp nhất')}
                 </p>
             </div>
           </div>
@@ -247,12 +258,12 @@ const SearchPage = () => {
                 
                 {/* 1. KEYWORD */}
                 <div className="space-y-3">
-                    <Label htmlFor="keyword" className="text-base font-bold">Từ khóa</Label>
+                    <Label htmlFor="keyword" className="text-base font-bold">{t('search.label_keyword', 'Từ khóa')}</Label>
                     <div className="relative group">
                     <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     <Input 
                         id="keyword" 
-                        placeholder="Tên quán, món ăn (VD: Phở Bò)..." 
+                        placeholder={t('search.ph_keyword', 'Tên quán, món ăn (VD: Phở Bò)...')} 
                         value={keyword}
                         onChange={(e) => setKeyword(e.target.value)}
                         className="h-12 pl-10 text-base rounded-xl border-muted focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
@@ -262,7 +273,7 @@ const SearchPage = () => {
 
                 {/* --- MỚI: SECTION PHONG CÁCH NGƯỜI DÙNG (USER TYPE) --- */}
                 <div className="space-y-3">
-                   <Label className="text-base font-bold">Phong cách của bạn</Label>
+                   <Label className="text-base font-bold">{t('search.label_style', 'Phong cách của bạn')}</Label>
                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                      {USER_TYPE_OPTIONS.map((opt) => {
                        const Icon = opt.icon;
@@ -301,14 +312,16 @@ const SearchPage = () => {
 
                 {/* 2. CUISINE */}
                 <div className="space-y-3">
-                    <Label className="text-base font-bold">Ẩm thực</Label>
+                    <Label className="text-base font-bold">{t('search.label_cuisine', 'Ẩm thực')}</Label>
                     <Select onValueChange={handleCuisineChange}>
                     <SelectTrigger className="h-12 text-base rounded-xl border-muted focus:ring-2 focus:ring-primary/20">
-                        <SelectValue placeholder="Chọn nền ẩm thực" />
+                        <SelectValue placeholder={t('search.ph_cuisine', 'Chọn nền ẩm thực')} />
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
                         {CUISINE_OPTIONS.map(c => (
-                            <SelectItem key={c} value={c} className="cursor-pointer focus:bg-primary/5 focus:text-primary font-medium py-2.5">{c}</SelectItem>
+                            <SelectItem key={c.value} value={c.value} className="cursor-pointer focus:bg-primary/5 focus:text-primary font-medium py-2.5">
+                                {c.label}
+                            </SelectItem>
                         ))}
                     </SelectContent>
                     </Select>
@@ -317,21 +330,21 @@ const SearchPage = () => {
                 {/* 3. HARD FILTERS (Loại, Món, Phân loại) */}
                 <div className="space-y-6">
                     <div className="space-y-3">
-                        <Label className="text-base font-bold">Chế độ ăn</Label>
+                        <Label className="text-base font-bold">{t('search.label_diet', 'Chế độ ăn')}</Label>
                         <div className="flex flex-wrap gap-3"> 
                         {FOOD_TYPE_OPTIONS.map(opt => renderCompactCard(opt.id, opt.label, foodType === opt.id, () => setFoodType(opt.id)))}
                         </div>
                     </div>
 
                     <div className="space-y-3">
-                        <Label className="text-base font-bold">Loại hình</Label>
+                        <Label className="text-base font-bold">{t('search.label_type', 'Loại hình')}</Label>
                         <div className="flex flex-wrap gap-3">
                         {BEV_FOOD_OPTIONS.map(opt => renderCompactCard(opt.id, opt.label, beverageOrFood === opt.id, () => setBeverageOrFood(opt.id)))}
                         </div>
                     </div>
 
                     <div className="space-y-3">
-                        <Label className="text-base font-bold">Phân loại món</Label>
+                        <Label className="text-base font-bold">{t('search.label_course', 'Phân loại món')}</Label>
                         <div className="flex flex-wrap gap-3">
                         {COURSE_TYPE_OPTIONS.map(opt => renderCompactCard(opt.id, opt.label, courseType === opt.id, () => setCourseType(opt.id)))}
                         </div>
@@ -340,7 +353,7 @@ const SearchPage = () => {
 
                 {/* 4. FLAVORS */}
                 <div className="space-y-3">
-                    <Label className="text-base font-bold">Bạn đang thèm vị gì?</Label>
+                    <Label className="text-base font-bold">{t('search.label_flavor', 'Bạn đang thèm vị gì?')}</Label>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                     {FLAVOR_OPTIONS.map(opt => renderGridCard(opt.id, opt.label, flavors.includes(opt.id), () => handleFlavorToggle(opt.id), true))}
                     </div>
@@ -348,10 +361,10 @@ const SearchPage = () => {
 
                 {/* 5. PRICE & BUDGET */}
                 <div className="space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
-                    <Label className="text-base font-bold">Ngân sách (VNĐ)</Label>
+                    <Label className="text-base font-bold">{t('search.label_budget', 'Ngân sách (VNĐ)')}</Label>
                     <div className="grid grid-cols-2 gap-6 pt-2">
                     <div>
-                        <Label htmlFor="minPrice" className="text-xs text-muted-foreground mb-2 block uppercase font-bold tracking-wider">Tối thiểu</Label>
+                        <Label htmlFor="minPrice" className="text-xs text-muted-foreground mb-2 block uppercase font-bold tracking-wider">{t('search.label_min', 'Tối thiểu')}</Label>
                         <div className="relative">
                         <Input
                             id="minPrice"
@@ -365,7 +378,7 @@ const SearchPage = () => {
                         </div>
                     </div>
                     <div>
-                        <Label htmlFor="maxPrice" className="text-xs text-muted-foreground mb-2 block uppercase font-bold tracking-wider">Tối đa</Label>
+                        <Label htmlFor="maxPrice" className="text-xs text-muted-foreground mb-2 block uppercase font-bold tracking-wider">{t('search.label_max', 'Tối đa')}</Label>
                         <div className="relative">
                         <Input
                             id="maxPrice"
@@ -385,7 +398,7 @@ const SearchPage = () => {
                 <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                         <div className="flex justify-between items-center">
-                        <Label className="text-base font-semibold">Bán kính</Label>
+                        <Label className="text-base font-semibold">{t('search.label_radius', 'Bán kính')}</Label>
                         <span className="text-sm font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">{radius[0]} km</span>
                         </div>
                         <Slider
@@ -397,10 +410,10 @@ const SearchPage = () => {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="district" className="text-base font-bold">Khu vực</Label>
+                        <Label htmlFor="district" className="text-base font-bold">{t('search.label_district', 'Khu vực')}</Label>
                         <Input
                         id="district"
-                        placeholder="VD: Quận 1..."
+                        placeholder={t('search.ph_district', 'VD: Quận 1...')}
                         value={district}
                         onChange={(e) => handleDistrictChange(e.target.value)}
                         className="h-11 rounded-xl"
@@ -414,10 +427,10 @@ const SearchPage = () => {
                     disabled={isLoading}
                 >
                     {isLoading ? (
-                    <span className="flex items-center gap-2">Đang xử lý...</span>
+                    <span className="flex items-center gap-2">{t('common.processing', 'Đang xử lý...')}</span>
                     ) : (
                     <>
-                        <Search className="mr-2 h-5 w-5" /> Tìm Kiếm Ngay
+                        <Search className="mr-2 h-5 w-5" /> {t('search.btn_submit', 'Tìm Kiếm Ngay')}
                     </>
                     )}
                 </Button>

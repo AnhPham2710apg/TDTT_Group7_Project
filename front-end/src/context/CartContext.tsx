@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Restaurant } from "@/types";
 import { toast } from "sonner";
+import { useTranslation } from 'react-i18next';
 
 interface CartContextType {
   cartItems: Restaurant[];
@@ -14,38 +15,54 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
-  const [cartItems, setCartItems] = useState<Restaurant[]>([]);
+  const { t } = useTranslation();
 
-  // 1. Load từ LocalStorage khi khởi động
-  useEffect(() => {
-    const savedCart = localStorage.getItem("restaurantCart");
-    if (savedCart) {
-      try {
-        setCartItems(JSON.parse(savedCart));
-      } catch (e) {
-        console.error("Lỗi parse cart", e);
-      }
+  // 1. LAZY INITIALIZATION (QUAN TRỌNG): 
+  // Đọc dữ liệu ngay khi khởi tạo state để tránh bị ghi đè thành mảng rỗng khi reload trang
+  const [cartItems, setCartItems] = useState<Restaurant[]>(() => {
+    try {
+      const savedCart = localStorage.getItem("restaurantCart");
+      return savedCart ? JSON.parse(savedCart) : [];
+    } catch (e) {
+      console.error("Lỗi parse cart", e);
+      return [];
     }
-  }, []);
+  });
 
-  // 2. Lưu vào LocalStorage mỗi khi cart thay đổi
+  // 2. Tự động LƯU vào LocalStorage mỗi khi cart thay đổi
   useEffect(() => {
     localStorage.setItem("restaurantCart", JSON.stringify(cartItems));
   }, [cartItems]);
 
+  // 3. TÍNH NĂNG ĐỒNG BỘ ĐA TAB (Bạn muốn giữ lại cái này)
+  // Lắng nghe sự kiện 'storage' để cập nhật khi tab khác thay đổi dữ liệu
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "restaurantCart" && e.newValue) {
+        try {
+          setCartItems(JSON.parse(e.newValue));
+        } catch (err) {
+          console.error("Sync error", err);
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
   const addToCart = (item: Restaurant) => {
-    // Kiểm tra trùng lặp
     if (cartItems.some((i) => i.id === item.id)) {
-      toast.warning("Quán này đã có trong danh sách!");
+      toast.warning(t('cart.toast_duplicate', "Quán này đã có trong danh sách!"));
       return;
     }
     setCartItems((prev) => [...prev, item]);
-    toast.success(`Đã thêm "${item.name}" vào danh sách`);
+    toast.success(t('cart.toast_added', { name: item.name, defaultValue: `Đã thêm "${item.name}" vào danh sách` }));
   };
 
   const removeFromCart = (id: number | string) => {
     setCartItems((prev) => prev.filter((item) => item.id !== id));
-    toast.info("Đã xóa khỏi danh sách");
+    toast.info(t('cart.toast_removed', "Đã xóa khỏi danh sách"));
   };
 
   const clearCart = () => {
