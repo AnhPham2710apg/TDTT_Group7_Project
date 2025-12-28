@@ -485,31 +485,64 @@ const ProfilePage = () => {
       */}
       <div className="md:hidden">
         <div className="bg-white border-b pb-6 pt-2 px-4 rounded-b-[2rem] shadow-sm mb-4">
-          <div className="relative mb-4">
-            {/* 1. Ảnh Avatar: Click để xem to */}
-            <Avatar 
-              className="h-28 w-28 border-4 border-white shadow-xl cursor-zoom-in"
-              onClick={() => setShowImagePreview(true)}
-            >
-              <AvatarImage src={getOptimizedImageUrl(avatarUrl)} className="object-cover" />
-              <AvatarFallback className="text-3xl bg-primary/10 text-primary">{getAvatarFallback()}</AvatarFallback>
-            </Avatar>
-
-            {/* 2. Nút Edit (Camera): Chỉ hiện khi isEditing = true */}
-            {isEditing && (
-              <label 
-                htmlFor="avatar-upload-mobile" 
-                className="absolute bottom-0 right-0 p-2 bg-gray-900 text-white rounded-full shadow-lg border-2 border-white cursor-pointer active:scale-95 transition-transform z-10"
+          <div className="flex flex-col items-center">
+            
+            {/* [UPDATED MOBILE AVATAR] */}
+            <div className="relative mb-4">
+              {/* Avatar: Click để xem to */}
+              <Avatar 
+                className="h-28 w-28 border-4 border-white shadow-xl cursor-zoom-in"
+                onClick={() => setShowImagePreview(true)}
               >
-                <Camera className="w-5 h-5" />
-                <Input 
-                  id="avatar-upload-mobile" 
-                  type="file" 
-                  accept="image/*" 
-                  className="hidden" 
-                  onChange={handleFileChange} 
-                />
-              </label>
+                <AvatarImage src={getOptimizedImageUrl(avatarUrl)} className="object-cover" />
+                <AvatarFallback className="text-3xl bg-primary/10 text-primary">{getAvatarFallback()}</AvatarFallback>
+              </Avatar>
+
+              {/* Nút Edit (Camera): Chỉ hiện khi isEditing = true */}
+              {/* Đã chỉnh vị trí: bottom-0 right-0 -> Sát góc phải dưới */}
+              {isEditing && (
+                <label 
+                  htmlFor="avatar-upload-mobile" 
+                  className="absolute bottom-0 right-0 p-2 bg-gray-900 text-white rounded-full shadow-lg border-2 border-white cursor-pointer active:scale-95 transition-transform z-10 flex items-center justify-center"
+                >
+                  <Camera className="w-4 h-4" />
+                  <Input 
+                    id="avatar-upload-mobile" 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={handleFileChange} 
+                  />
+                </label>
+              )}
+            </div>
+
+            {isEditing ? (
+              <div className="w-full space-y-3 animate-in fade-in zoom-in duration-300">
+                <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username" className="" />
+                <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="" />
+                <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Bio" className="min-h-[80px]" />
+                
+                <div className="flex gap-2 pt-2">
+                  <Button onClick={handleSave} className="flex-1 bg-primary text-white rounded-full">{t('common.save', 'Lưu')}</Button>
+                  <Button variant="outline" onClick={() => setIsEditing(false)} className="flex-1 rounded-full">{t('common.cancel', 'Hủy')}</Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <h1 className="text-2xl font-bold text-gray-900">{username}</h1>
+                <p className="text-sm text-gray-500 mb-1">{email}</p>
+                <p className="text-sm text-center text-gray-600 mb-4 px-4 line-clamp-2">{bio}</p>
+                
+                {/* [ADDED BACK] Nút Edit Profile cho Mobile */}
+                <Button 
+                  onClick={() => setIsEditing(true)} 
+                  variant="outline"
+                  className="rounded-full px-6 border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  <Settings className="w-4 h-4 mr-2" /> {t('profile.edit_profile', 'Chỉnh sửa hồ sơ')}
+                </Button>
+              </>
             )}
           </div>
 
