@@ -175,6 +175,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
           <h3 className="font-bold text-sm md:text-lg text-gray-900 leading-tight pr-6 md:pr-0 line-clamp-1 md:line-clamp-1" title={restaurant.name}>
               {restaurant.name}
           </h3>
+          
 
           {/* Địa chỉ */}
           <div className="flex items-center gap-1 text-xs md:text-sm text-gray-500">
@@ -230,7 +231,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
             variant={inCart ? "destructive" : "secondary"} 
             size="sm"
             className={`h-7 w-7 px-0 md:h-9 md:w-auto md:px-3 flex-shrink-0 shadow-sm transition-all
-              ${inCart ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-gray-100 text-gray-700 hover:bg-green-300"}`}
+              ${inCart ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-green-500 text-white hover:bg-green-600"}`}
             onClick={handleCartAction}
           >
             {inCart ? <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" /> : <Plus className="h-3.5 w-3.5 md:h-4 md:w-4" />}
@@ -243,7 +244,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
             onClick={handleViewDetails}
           >
             <Eye className="mr-1.5 h-3 w-3 md:h-3.5 md:w-3.5" />
-             {t('card.detail', 'Chi tiết')}
+             {t('card.detail', 'Xem chi tiết')}
           </Button>
         </div>
       </div>  
