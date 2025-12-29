@@ -30,7 +30,9 @@
     "version": "Phiên bản 1.0.0"
   },
   "card": {
-    "detail": "Xem chi tiết"
+    "detail": "Xem chi tiết",
+    "status_open": "Mở cửa", 
+    "status_closed": "Đóng cửa"
   },
   "cart": {
     "clear_all": "Xóa hết",
@@ -369,4 +371,5 @@
       "rain_4": "Mưa rơi, cafe ngắm cảnh cực chill."
     }
   }
+
 }

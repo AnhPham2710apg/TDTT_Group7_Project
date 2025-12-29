@@ -30,7 +30,9 @@
     "version": "Version 1.0.0"
   },
   "card": {
-    "detail": "View detail"
+    "detail": "View detail",
+    "status_open": "Open",
+    "status_closed": "Closed"
   },
   "cart": {
     "clear_all": "Clear all",

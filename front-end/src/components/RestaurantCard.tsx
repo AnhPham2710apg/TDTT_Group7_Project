@@ -239,7 +239,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
                                 : "bg-gray-100 text-gray-500 border-gray-200"}
                         `}>
                             <div className={`w-1.5 h-1.5 rounded-full ${isOpen ? "bg-emerald-500 animate-pulse" : "bg-gray-400"}`} />
-                            {isOpen ? "Mở cửa" : "Đóng cửa"}
+                            {isOpen ? t('card.status_open', 'Mở cửa') : t('card.status_closed', 'Đóng cửa')}
                         </div>
                     </div>
                 </div>
