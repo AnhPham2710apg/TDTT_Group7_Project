@@ -33,7 +33,7 @@ if db_check:
 else:
     print(f">>> ❌ CẢNH BÁO: Không tìm thấy file .env tại {dotenv_path}")
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flasgger import Swagger
 from models import db, bcrypt, Restaurant
@@ -50,6 +50,9 @@ app = Flask(__name__, static_folder='../static')
 app.config['SWAGGER'] = {'title': 'Food Tour API', 'uiversion': 3}
 swagger = Swagger(app)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret')
+
+# --- [BỔ SUNG 1] FIX LỖI FONT TIẾNG VIỆT ---
+app.config['JSON_AS_ASCII'] = False
 
 # DATABASE
 db_url = os.environ.get('DATABASE_URL') or os.environ.get('DATABASE_URL_LOCAL')
@@ -86,6 +89,22 @@ app.register_blueprint(auth_bp)        # Login, Register
 app.register_blueprint(restaurant_bp)  # Search, Detail
 app.register_blueprint(review_bp)      # Reviews, Favorites
 app.register_blueprint(map_bp)         # Geocode, Route, Optimize
+
+# --- [BỔ SUNG 2] API THỜI TIẾT RIÊNG CHO TRANG HOME ---
+# --- [CẬP NHẬT] API THỜI TIẾT ĐỘNG ---
+from weather_service import get_weather_by_city 
+@app.route("/api/weather/current", methods=["GET"])
+def get_current_weather_api():
+    try:
+        # Lấy tham số city từ URL (VD: ?city=Hanoi), mặc định là Ho Chi Minh City
+        city_param = request.args.get('city', 'Ho Chi Minh City')
+        
+        # Gọi hàm lấy thời tiết
+        data = get_weather_by_city(city_param)
+        
+        return jsonify(data if data else {})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/")
 def hello(): return "Backend is Running Perfectly!"

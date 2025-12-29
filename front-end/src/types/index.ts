@@ -7,7 +7,7 @@ export interface Restaurant {
     name: string;
     address: string;
     rating?: number;
-    price_level?: string; // Map từ cột range trong DB
+    price_level?: string;
     photo_url?: string;
     lat: number;
     lng: number;
@@ -17,18 +17,19 @@ export interface Restaurant {
     website?: string;
     working_hour?: string;
 
-    subtypes?: string;       // Ví dụ: "Quán nhậu, Rooftop"
+    // --- [FIX] Thêm trường này để hết lỗi trong RestaurantCard ---
+    is_open?: boolean;   // API có thể trả về true/false hoặc không trả về (undefined)
+
+    subtypes?: string;
 
     // --- CÁC TRƯỜNG ĐỒNG BỘ VỚI MODELS.PY MỚI ---
-    cuisine?: string;        // Ví dụ: "Món Việt"
-    food_type?: string;      // Ví dụ: "mặn" (map từ foodType)
-    bev_food?: string;       // Mới: "nước", "khô" (map từ bevFood)
-    course_type?: string;    // Mới: "món chính" (map từ courseType)
-    flavor?: string;         // Mới: "chua, cay" (map từ flavor)
-    min_price?: number;      // Mới: Giá thấp nhất
-    max_price?: number;      // Mới: Giá cao nhất
-
-    // Đã xóa ai_vibe để tránh lỗi
+    cuisine?: string;
+    food_type?: string;
+    bev_food?: string;
+    course_type?: string;
+    flavor?: string;
+    min_price?: number;
+    max_price?: number;
 }
 
 export interface SearchFilters {
