@@ -132,8 +132,15 @@ const Navbar = ({ hideAuthButtons = false }: NavbarProps) => {
   };
 
   const handleLogout = () => {
+    // 1. Clear search history cache
+    sessionStorage.removeItem("search_prefs"); 
+    sessionStorage.clear(); // Clear all session data to be safe
+
+    // 2. Perform logout logic
     logout();
     setIsMobileMenuOpen(false); 
+    
+    // 3. Redirect
     navigate("/login");
   };
 
