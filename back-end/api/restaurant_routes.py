@@ -17,109 +17,140 @@ CANDIDATE_POOL_SIZE = 500
 # ==============================================================================
 # TỪ ĐIỂN ÁNH XẠ MỞ RỘNG (SMART MAPPING)
 # ==============================================================================
-EXPANDED_SEARCH_MAP = {
-    # --- NHÓM MÓN SỢI ---
-    "noodle": ["bún", "mì", "phở", "hủ tiếu", "bánh canh", "miến", "nui", "cao lầu", "mì quảng"],
-    "noodles": ["bún", "mì", "phở", "hủ tiếu", "bánh canh", "miến", "nui"], # Thêm số nhiều
-    "beef noodle": ["bún bò", "phở bò", "hủ tiếu bò", "mì bò", "bánh canh bò"],
-    "chicken noodle": ["bún gà", "phở gà", "miến gà", "hủ tiếu gà"],
-    "fish noodle": ["bún cá", "bánh canh cá", "bún chả cá"],
-    "crab noodle": ["bún riêu", "bánh canh cua", "bún mắm"],
-    "pork noodle": ["hủ tiếu nam vang", "bún mọc", "bún thịt nướng"],
+# ... (Giữ nguyên các import ở trên) ...
 
-    # --- NHÓM CƠM ---
-    "rice": ["cơm", "cháo", "xôi", "cơm tấm", "cơm niêu", "cơm chiên"],
+# ==============================================================================
+# 1. DATA: TỪ ĐIỂN CHUẨN HÓA (CHỈ DÙNG DANH TỪ SỐ ÍT - SINGULAR)
+# ==============================================================================
+EXPANDED_SEARCH_MAP = {
+    # --- NOODLE & SOUPS ---
+    "noodle": ["bún", "mì", "phở", "hủ tiếu", "bánh canh", "miến", "nui", "cao lầu", "mì quảng", "ramen", "udon"],
+    "soup": ["canh", "súp", "cháo", "phở", "bún", "lẩu"],
+    "beef noodle": ["bún bò", "phở bò", "hủ tiếu bò", "bánh canh bò"],
+    "chicken noodle": ["bún gà", "phở gà", "miến gà"],
+    "crab noodle": ["bún riêu", "bánh canh cua"],
+    "fish noodle": ["bún cá", "bánh canh cá"],
+
+    # --- RICE & GRAINS ---
+    "rice": ["cơm", "cháo", "xôi", "cơm tấm", "cơm niêu", "cơm chiên", "cơm gà"],
     "broken rice": ["cơm tấm"],
-    "chicken rice": ["cơm gà"],
+    "sticky rice": ["xôi", "bánh chưng"],
     "fried rice": ["cơm chiên", "cơm rang"],
-    "sticky rice": ["xôi"],
-    
-    # --- NHÓM BÁNH ---
+
+    # --- BREAD & PASTRY (Xử lý Sandwich, Sandwiches) ---
     "bread": ["bánh mì"],
-    "sandwich": ["bánh mì"],
+    "sandwich": ["bánh mì", "bánh kẹp"],
+    "burger": ["bánh mì kẹp thịt", "hamburgers"],
     "pancake": ["bánh xèo", "bánh khọt"],
-    "roll": ["gỏi cuốn", "chả giò", "bánh cuốn", "nem nướng"],
-    "spring roll": ["gỏi cuốn", "chả giò", "nem rán"],
-    "dumpling": ["sủi cảo", "há cảo", "bánh bao"],
-    
-    # --- NHÓM LẨU & NƯỚNG ---
-    "hotpot": ["lẩu"],
-    "steamboat": ["lẩu"],
-    "bbq": ["nướng", "quay", "lò đất"],
-    "grill": ["nướng"],
-    
-    # --- NHÓM PROTEIN ---
-    "beef": ["bò", "bê"],
-    "chicken": ["gà"],
+    "pizza": ["pizza", "bánh pizza"],
+
+    # --- ROLLS & DUMPLINGS (Xử lý Fry/Fries) ---
+    "roll": ["gỏi cuốn", "chả giò", "bánh cuốn", "nem nướng", "bì cuốn"],
+    "fry": ["khoai tây chiên", "đồ chiên"], # French fries -> Fry
+    "dumpling": ["sủi cảo", "há cảo", "bánh bao", "dimsum"],
+
+    # --- MEAT & SEAFOOD ---
+    "beef": ["bò", "bê", "bít tết"],
+    "chicken": ["gà", "cánh gà"],
     "pork": ["heo", "lợn", "sườn", "xá xíu"],
-    "duck": ["vịt"],
+    "seafood": ["hải sản", "ốc", "tôm", "cua", "ghẹ", "mực", "hàu"],
     "fish": ["cá"],
-    "seafood": ["hải sản", "ốc", "tôm", "cua", "ghẹ", "mực"],
-    "snail": ["ốc"],
-    
-    # --- NHÓM ĐỒ UỐNG & TRÁNG MIỆNG ---
+
+    # --- DRINKS & DESSERT ---
     "coffee": ["cà phê", "cafe", "bạc xỉu"],
     "tea": ["trà"],
     "milk tea": ["trà sữa"],
-    "juice": ["nước ép", "sinh tố"],
-    "dessert": ["tráng miệng", "chè", "kem", "tàu hũ"],
-    "sweet": ["chè", "kem", "bánh"],
-    
-    # --- KHÁC ---
-    "vegetarian": ["chay"],
-    "vegan": ["chay"],
-    "snack": ["ăn vặt", "bánh tráng"],
+    "smoothie": ["sinh tố"],
+    "juice": ["nước ép"],
     "beer": ["bia", "quán nhậu"],
-
-    # --- NHÓM KEM (Thêm mới) ---
-    "ice cream": ["kem", "gelato", "kem bơ", "kem ý", "kem xôi"],
-    "gelato": ["kem", "gelato"],
-    "sorbet": ["kem", "kem trái cây"],
-    "sundae": ["kem ly", "kem"],
-
-    # --- NHÓM CHÈ (Thêm mới) ---
-    "sweet soup": ["chè", "sâm bổ lượng", "tàu hũ", "khúc bạch"],
-    "pudding": ["bánh flan", "pudding", "tàu hũ"], 
-    # (Lưu ý: từ "dessert" cũ của bạn đã có "chè", nhưng user hay search cụ thể hơn)
-
-    # --- NHÓM GỎI & CUỐN (Cập nhật) ---
-    "salad": ["gỏi", "nộm", "salad", "rau trộn"], # Gỏi gà, gỏi ngó sen...
-    "fresh roll": ["gỏi cuốn", "bì cuốn", "cuốn"], # Gỏi cuốn sống
-    "summer roll": ["gỏi cuốn", "bì cuốn"],        # Tên tiếng Anh khác của gỏi cuốn
-    "papaya salad": ["gỏi đu đủ", "gỏi khô bò"],   # Món phổ biến
-    "mango salad": ["gỏi xoài"],
-
-    # --- NHÓM SINH TỐ / HEALTHY (Bổ sung thêm nếu cần) ---
-    "smoothie": ["sinh tố", "đá xay"],
-    "yogurt": ["sữa chua", "yaourt"],
+    "dessert": ["tráng miệng", "chè", "kem", "bánh flan", "sữa chua"],
+    "ice cream": ["kem", "gelato"],
+    
+    # --- OTHERS ---
+    "vegetarian": ["chay"],
+    "snack": ["ăn vặt", "bánh tráng"],
+    "hotpot": ["lẩu"],
+    "bbq": ["nướng", "lò đất"],
+    "lunch": ["cơm trưa"],
+    "dinner": ["ăn tối"]
 }
 
+# ==============================================================================
+# 2. HELPER: XỬ LÝ NGỮ PHÁP TIẾNG ANH (Robust Singularization)
+# ==============================================================================
+def singularize_english_word(word):
+    """
+    Chuyển danh từ số nhiều tiếng Anh về số ít dựa trên quy tắc ngữ pháp.
+    Input: "sandwiches", "fries", "noodles" -> Output: "sandwich", "fry", "noodle"
+    """
+    word = word.lower().strip()
+    
+    # Case 0: Từ quá ngắn hoặc rỗng, không xử lý
+    if len(word) < 3:
+        return word
+
+    # Case 1: Kết thúc bằng 'ies' (VD: fries -> fry, cherries -> cherry)
+    # Quy tắc: Đổi 'ies' thành 'y'
+    if word.endswith('ies'):
+        return word[:-3] + 'y'
+
+    # Case 2: Kết thúc bằng 'es'
+    if word.endswith('es'):
+        # 2a. Các từ kết thúc bằng s, x, z, ch, sh + es (VD: sandwiches, boxes, dishes)
+        # Kiểm tra ký tự đứng trước 'es'
+        if word.endswith(('ses', 'xes', 'zes', 'ches', 'shes')):
+            return word[:-2] # Bỏ 'es'
+        
+        # 2b. Các từ kết thúc bằng o + es (VD: potatoes -> potato, tomatoes -> tomato)
+        if word.endswith('oes'):
+            return word[:-2] # Bỏ 'es'
+
+        # Mặc định còn lại: cứ bỏ 's' (VD: miles -> mile, dù miles ko phải es nhưng logic chung)
+        # Nhưng an toàn nhất cho nhóm 'es' là cứ bỏ 's' nếu không khớp 2a, 2b (VD: cakes -> cake)
+
+    # Case 3: Kết thúc bằng 's' (nhưng không phải 'ss' như 'glass', 'bass')
+    if word.endswith('s') and not word.endswith('ss'):
+        return word[:-1]
+
+    return word
+
+# ==============================================================================
+# 3. MAIN LOGIC: TÌM KIẾM THÔNG MINH
+# ==============================================================================
 def generate_search_terms(keyword):
     """
-    Tự động phát hiện và mở rộng từ khóa tiếng Anh sang tiếng Việt.
-    Không cần check lang='en' để đảm bảo hệ thống chạy tốt kể cả khi FE quên gửi param lang.
+    Tự động map từ khóa, hỗ trợ xử lý ngữ pháp tiếng Anh.
     """
     if not keyword: return []
     
-    # Luôn giữ lại keyword gốc
-    terms = [keyword]
-    kw_lower = keyword.lower().strip()
+    # Dùng Set để tự động loại bỏ trùng lặp
+    terms = {keyword} 
+    
+    # 1. Chuẩn hóa về số ít (Singularize)
+    # VD: "Sandwiches" -> "sandwich"
+    # VD: "Fries" -> "fry"
+    # VD: "Noodles" -> "noodle"
+    clean_key = singularize_english_word(keyword)
 
-    # 1. Check khớp chính xác (Ưu tiên cao)
-    if kw_lower in EXPANDED_SEARCH_MAP:
-        terms.extend(EXPANDED_SEARCH_MAP[kw_lower])
-        
-    # 2. Check khớp từng phần (Partial Match)
-    # Ví dụ: User nhập "spicy noodles" (có s) -> "noodle" nằm trong đó -> mở rộng ra bún/phở
+    # 2. Tra cứu trực tiếp (Exact Match với từ đã chuẩn hóa)
+    if clean_key in EXPANDED_SEARCH_MAP:
+        terms.update(EXPANDED_SEARCH_MAP[clean_key])
+    
+    # 3. Fallback: Tra cứu từng phần (Partial Match)
+    # Chỉ chạy khi không tìm thấy match chính xác
     else:
         for key, values in EXPANDED_SEARCH_MAP.items():
-            # Chỉ map nếu từ khóa trong từ điển (vd: "noodle") xuất hiện trong search của user ("noodles")
-            # Và độ dài từ khóa > 2 để tránh map sai các từ quá ngắn
-            if key in kw_lower and len(key) > 2: 
-                    terms.extend(values)
-    
-    # Loại bỏ trùng lặp
-    return list(set(terms))
+            # Logic: Nếu từ điển là "noodle" và user nhập "spicy noodles"
+            # -> clean_key của user vẫn chứa "noodle" (do logic tách từ phức tạp hơn, 
+            # nhưng ở đây ta check simple containment)
+            
+            # Kiểm tra 2 chiều an toàn:
+            # - Key nằm trong từ khóa user (VD: user="beef noodle soup" -> key="beef noodle")
+            # - Từ khóa user (đã chuẩn hóa) nằm trong key (ít gặp nhưng đề phòng)
+            if (key in clean_key or clean_key in key) and len(key) > 2:
+                terms.update(values)
+
+    return list(terms)
 
 def haversine_distance(lat1, lon1, lat2, lon2):
     try:
@@ -293,11 +324,8 @@ def search_restaurants():
         if raw_keyword:
             # Đảm bảo bạn có hàm generate_search_terms import từ utils hoặc định nghĩa trong file
             # Nếu chưa có thì dùng list đơn giản: search_terms = [raw_keyword]
-            try:
-                from utils import generate_search_terms
-                search_terms = generate_search_terms(raw_keyword)
-            except ImportError:
-                search_terms = [raw_keyword]
+            # --- Smart Search (Unaccent logic) ---
+            search_terms = generate_search_terms(raw_keyword)
 
             conditions = []
             for term in search_terms:
