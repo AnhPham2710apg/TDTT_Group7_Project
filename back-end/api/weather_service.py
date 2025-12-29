@@ -1,14 +1,22 @@
+# api/weather_service.py
+from flask import Blueprint, request, jsonify, current_app
 import requests
 
-# API Key
-API_KEY = "3db98fa6f7a6c85063c028c06845b65e" 
+# Tạo Blueprint
+weather_bp = Blueprint('weather_bp', __name__)
 
-# --- PHẦN 1: ĐỊNH NGHĨA HÀM ---
-def get_weather_by_city(city_name):
-    url = f"http://api.openweathermap.org/data/2.5/weather?q={city_name}&appid={API_KEY}&units=metric&lang=vi"
+def get_weather_helper(city_name):
+    """Hàm hỗ trợ gọi API OpenWeather"""
+    api_key = current_app.config.get('OPEN_WEATHER_API_KEY')
+    
+    if not api_key:
+        print("❌ LỖI: Chưa cấu hình OPEN_WEATHER_API_KEY")
+        return None
+
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={city_name}&appid={api_key}&units=metric&lang=vi"
     
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=5)
         if response.status_code == 200:
             data = response.json()
             return {
@@ -18,25 +26,51 @@ def get_weather_by_city(city_name):
                 "humidity": data["main"]["humidity"]
             }
         else:
-            print(f"Lỗi từ API: {response.status_code}")
+            print(f"Weather API Error: {response.status_code} - {response.text}")
             return None
     except Exception as e:
-        print(f"Lỗi kết nối: {e}")
+        print(f"Weather Connection Error: {e}")
         return None
 
-# --- PHẦN 2: CHẠY THỬ (TEST) ---
-if __name__ == "__main__":
-    print(">>> Đang kiểm tra thời tiết...")
+@weather_bp.route("/api/weather/current", methods=["GET"])
+def get_current_weather():
+    """
+    Lấy thông tin thời tiết hiện tại theo tên thành phố
+    ---
+    tags:
+      - Weather
+    parameters:
+      - name: city
+        in: query
+        type: string
+        default: Ho Chi Minh City
+        description: Tên thành phố (không dấu hoặc tiếng Anh)
+    responses:
+      200:
+        description: Trả về thông tin nhiệt độ, mô tả, độ ẩm
+        schema:
+          type: object
+          properties:
+            city:
+              type: string
+            temp:
+              type: number
+            desc:
+              type: string
+            humidity:
+              type: number
+      404:
+        description: Không tìm thấy dữ liệu hoặc thành phố
+      500:
+        description: Lỗi server
+    """
+    # Lấy tham số city từ URL (VD: ?city=Hanoi), mặc định là Ho Chi Minh City
+    city_param = request.args.get('city', 'Ho Chi Minh City')
     
-    # Ở đây gọi hàm 'get_weather_by_city' thì ở trên phải định nghĩa y hệt vậy
-    ket_qua = get_weather_by_city("Hanoi")
-    
-    if ket_qua:
-        print("-" * 30)
-        print(f"Thành phố: {ket_qua['city']}")
-        print(f"Nhiệt độ:  {ket_qua['temp']}°C")
-        print(f"Mô tả:     {ket_qua['desc']}")
-        print(f"Độ ẩm:     {ket_qua['humidity']}%")
-        print("-" * 30)
-    else:
-        print("Không lấy được dữ liệu.")
+    try:
+        data = get_weather_helper(city_param)
+        if data:
+            return jsonify(data)
+        return jsonify({"error": "Không thể lấy dữ liệu thời tiết"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

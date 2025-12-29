@@ -19,7 +19,8 @@ import {
   Utensils,
   Globe,
   Phone,
-  Copy // Đảm bảo đã import Copy
+  Copy, // Đảm bảo đã import Copy
+  Clock
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,7 @@ import ReviewSection from "@/components/ReviewSection";
 import { API_BASE_URL } from "@/lib/api-config";
 import { useTranslation } from 'react-i18next';
 
-const DEFAULT_FOOD_IMAGE = "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1000&auto=format&fit=crop";
+const DEFAULT_FOOD_IMAGE = "";
 
 const getOptimizedImageUrl = (url: string) => {
   if (!url) return "";
@@ -58,6 +59,8 @@ const RestaurantDetailPage = () => {
 
   const inCart = restaurant ? isInCart(restaurant.id) : false;
 
+  const isOpen = restaurant ? (restaurant.is_open !== false) : true;
+
   const getPriceLabel = (level: string) => {
     const levelNum = parseInt(String(level), 10);
     switch (levelNum) {
@@ -77,21 +80,30 @@ const RestaurantDetailPage = () => {
   };
 
   useEffect(() => {
+    // [QUAN TRỌNG] Reset state ảnh mỗi khi ID thay đổi để tránh hiển thị ảnh cũ hoặc trạng thái lỗi cũ
+    setDisplayImageSrc(""); 
+    setHasError(false);
+    setImageLoaded(false);
+    setRestaurant(null); // Clear data cũ để hiện loading
+
     const fetchData = async () => {
-      if (!restaurant) setIsLoading(true);
+      setIsLoading(true); // Bắt đầu loading
       try {
         if (!id) return;
         const currentLang = i18n.language; 
         const resRestaurant = await axios.get(`${API_BASE_URL}/api/restaurant/${id}?lang=${currentLang}`);
         setRestaurant(resRestaurant.data);
 
-        if (!displayImageSrc) {
-            const originalUrl = resRestaurant.data.photo_url;
-            if (originalUrl) {
-                setDisplayImageSrc(getOptimizedImageUrl(originalUrl));
-            } else {
-                setDisplayImageSrc(DEFAULT_FOOD_IMAGE);
-            }
+        // Thiết lập ảnh ban đầu: Luôn ưu tiên ảnh tối ưu hóa trước
+        // Thiết lập ảnh ban đầu
+        const originalUrl = resRestaurant.data.photo_url;
+        
+        if (originalUrl) {
+            // Có link ảnh -> Thử load ảnh tối ưu trước
+            setDisplayImageSrc(getOptimizedImageUrl(originalUrl));
+        } else {
+            // Không có link ảnh nào -> Báo lỗi ngay để hiện Skeleton luôn
+            setHasError(true); 
         }
 
         const username = localStorage.getItem("username");
@@ -113,16 +125,28 @@ const RestaurantDetailPage = () => {
       }
     };
     fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, t, i18n.language]); 
+  }, [id, t, i18n.language]);
 
+  // --- LOGIC XỬ LÝ LỖI ẢNH THÔNG MINH (RETRY MECHANISM) ---
   const handleImageError = () => {
-    if (displayImageSrc !== DEFAULT_FOOD_IMAGE) {
-        setDisplayImageSrc(DEFAULT_FOOD_IMAGE);
-        setImageLoaded(false); 
-    } else {
-        setHasError(true);
+    // Lấy URL gốc và URL tối ưu
+    const originalUrl = restaurant?.photo_url || "";
+    const optimizedUrl = getOptimizedImageUrl(originalUrl);
+
+    // TRƯỜNG HỢP 1: Đang load ảnh tối ưu mà bị lỗi -> Thử sang ảnh gốc
+    // (Chỉ chạy khi có ảnh gốc và src hiện tại đang là ảnh tối ưu)
+    if (displayImageSrc === optimizedUrl && originalUrl && originalUrl !== optimizedUrl) {
+        console.log("Ảnh tối ưu lỗi, thử tải ảnh gốc...");
+        setDisplayImageSrc(originalUrl);
+        setImageLoaded(false); // Reset để kích hoạt lại hiệu ứng fade-in nếu cần
+        return;
     }
+
+    // TRƯỜNG HỢP 2: Ảnh gốc cũng lỗi (hoặc không có ảnh gốc) -> Dừng lại
+    // Set hasError = true để UI hiển thị Skeleton vĩnh viễn (theo logic render ở dưới)
+    console.log("Ảnh gốc lỗi, hiển thị Skeleton.");
+    setHasError(true);
+    setImageLoaded(false); 
   };
 
   const handleCartAction = () => {
@@ -263,9 +287,19 @@ const RestaurantDetailPage = () => {
                          {getPriceLabel(restaurant.price_level)}
                      </div>
                  )}
-                 <div className="flex items-center text-green-600 font-medium bg-green-50 px-3 py-1.5 rounded-full">
-                     <Check className="h-3.5 w-3.5 mr-1" /> {t('restaurant_detail.open_now', 'Đang mở cửa')}
-                 </div>
+                 {/* [MỚI] TRẠNG THÁI ĐÓNG/MỞ MOBILE */}
+                  <div className={`flex items-center font-medium px-3 py-1.5 rounded-full transition-colors
+                      ${isOpen 
+                          ? "bg-green-50 text-green-700 border border-green-100" 
+                          : "bg-gray-100 text-gray-500 border border-gray-200"
+                      }
+                  `}>
+                      {isOpen ? (
+                          <><Check className="h-3.5 w-3.5 mr-1" /> {t('restaurant_detail.open_now', 'Đang mở cửa')}</>
+                      ) : (
+                          <><Clock className="h-3.5 w-3.5 mr-1" /> {t('restaurant_detail.closed', 'Đóng cửa')}</>
+                      )}
+                  </div>
              </div>
 
              <Tabs defaultValue="about" className="w-full">
@@ -352,15 +386,43 @@ const RestaurantDetailPage = () => {
 
          {/* FLOATING ACTION BAR */}
          <div className="fixed bottom-0 left-0 w-full bg-white border-t p-3 px-4 pb-6 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-30 flex items-center gap-3">
-             {inCart ? (
-                 <Button variant="outline" className="flex-1 h-12 text-red-600 border-red-200 bg-red-50 hover:bg-red-100 rounded-xl font-bold" onClick={handleCartAction}>
-                     <Trash2 className="mr-2 h-5 w-5" /> {t('restaurant_detail.remove_from_cart', 'Xóa khỏi hành trình')}
-                 </Button>
-             ) : (
-                 <Button className="flex-1 h-12 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg shadow-green-200" onClick={handleCartAction}>
-                     <ShoppingCart className="mr-2 h-5 w-5" /> {t('restaurant_detail.add_to_cart', 'Thêm vào hành trình')}
-                 </Button>
-             )}
+
+          <div className="fixed bottom-0 left-0 w-full bg-white border-t p-3 px-4 pb-6 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-30 flex items-center gap-3">
+                {inCart ? (
+                    // TRƯỜNG HỢP 1: ĐÃ CÓ TRONG GIỎ (Luôn cho phép xóa, kể cả khi đóng cửa)
+                    <Button 
+                        variant="outline" 
+                        className="flex-1 h-12 text-red-600 border-red-200 bg-red-50 hover:bg-red-100 rounded-xl font-bold" 
+                        onClick={handleCartAction}
+                    >
+                        <Trash2 className="mr-2 h-5 w-5" /> {t('restaurant_detail.remove_from_cart', 'Xóa khỏi hành trình')}
+                    </Button>
+                ) : (
+                    // TRƯỜNG HỢP 2: CHƯA CÓ TRONG GIỎ (Kiểm tra đóng/mở)
+                    <Button 
+                        // [LOGIC 1] Chặn bấm nếu đóng cửa
+                        disabled={!isOpen} 
+                        
+                        // [LOGIC 2] Đổi màu nút dựa trên trạng thái
+                        className={`flex-1 h-12 rounded-xl font-bold shadow-lg transition-all
+                            ${isOpen 
+                                ? "bg-green-600 hover:bg-green-700 text-white shadow-green-200" // Khi mở: Xanh lá, có bóng đổ
+                                : "bg-gray-200 text-gray-400 shadow-none cursor-not-allowed hover:bg-gray-200" // Khi đóng: Xám, phẳng, không bóng
+                            }
+                        `} 
+                        onClick={handleCartAction}
+                    >
+                        {/* Nếu bạn muốn đổi cả Icon khi đóng cửa thì dùng đoạn dưới, không thì giữ nguyên ShoppingCart */}
+                        {isOpen ? <ShoppingCart className="mr-2 h-5 w-5" /> : <Clock className="mr-2 h-5 w-5" />} 
+                        
+                        {/* Text hiển thị */}
+                        {isOpen 
+                            ? t('restaurant_detail.add_to_cart', 'Thêm vào hành trình') 
+                            : t('restaurant_detail.closed_btn', 'Tạm đóng cửa') // Bạn có thể hardcode text "Tạm đóng cửa" nếu chưa có key translate
+                        }
+                    </Button>
+                )}
+            </div>
          </div>
       </div>
 
@@ -374,20 +436,30 @@ const RestaurantDetailPage = () => {
 
         <div className="max-w-6xl mx-auto">
           <div className="h-96 w-full rounded-xl overflow-hidden bg-muted mb-8 shadow-sm relative group bg-gray-100">
-            {!hasError ? (
-              <>
-                <div className={`absolute inset-0 flex items-center justify-center bg-gray-200 z-10 transition-opacity duration-300 ${!imageLoaded ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-                  <ImageIcon className="h-12 w-12 text-gray-400 animate-pulse" />
-                </div>
-                <img src={displayImageSrc} alt={restaurant.name} className={`w-full h-full object-cover transition-all duration-700 ${imageLoaded ? "opacity-100 group-hover:scale-105" : "opacity-0"}`} loading="eager" onLoad={() => setImageLoaded(true)} onError={handleImageError} />
-              </>
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10">
-                  <Utensils className="h-20 w-20 mb-2 text-primary/40" />
-                  <p className="font-medium text-muted-foreground">{t('restaurant_detail.no_image', 'Chưa có hình ảnh')}</p>
+    
+          {/* 1. Luôn hiển thị Skeleton khi chưa load xong HOẶC khi có lỗi (để giữ trạng thái loading giả) */}
+          {(!imageLoaded || hasError) && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-200 z-10">
+                  {/* Hiệu ứng Skeleton Pulse */}
+                  <div className="w-full h-full bg-gray-300 animate-pulse flex items-center justify-center">
+                      <ImageIcon className="h-12 w-12 text-gray-400 opacity-50" />
+                  </div>
               </div>
-            )}
-          </div>
+          )}
+
+          {/* 2. Thẻ Img thực tế (Vẫn render để thử load) */}
+          {/* Nếu hasError = true, ta ẩn img đi để chỉ hiện Skeleton bên trên */}
+          {!hasError && (
+              <img 
+                  src={displayImageSrc} 
+                  alt={restaurant.name} 
+                  className={`w-full h-full object-cover transition-all duration-700 ${imageLoaded ? "opacity-100 group-hover:scale-105" : "opacity-0"}`} 
+                  loading="eager" 
+                  onLoad={() => setImageLoaded(true)} 
+                  onError={handleImageError} 
+              />
+          )}
+      </div>
 
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
@@ -417,7 +489,9 @@ const RestaurantDetailPage = () => {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-6 p-4 bg-secondary/20 rounded-lg">
+              <div className="flex flex-wrap items-center gap-6 p-4 bg-white border-gray-200 border-[1px] rounded-lg">
+  
+                {/* 1. Phần Đánh giá (Giữ nguyên) */}
                 {restaurant.rating && (
                   <div className="flex items-center gap-2">
                     <Star className="h-6 w-6 fill-yellow-500 text-yellow-500" />
@@ -425,7 +499,11 @@ const RestaurantDetailPage = () => {
                     <span className="text-muted-foreground text-sm">/ 5.0</span>
                   </div>
                 )}
-                <div className="h-6 w-px bg-border" />
+
+                {/* Vách ngăn 1 */}
+                <div className="h-6 w-px bg-border/60" />
+
+                {/* 2. Phần Giá tiền (Giữ nguyên) */}
                 {restaurant.price_level && (
                   <div className="flex items-center gap-2">
                     <div className="flex items-center">
@@ -436,6 +514,21 @@ const RestaurantDetailPage = () => {
                     <span className="text-base text-muted-foreground font-medium">({getPriceLabel(restaurant.price_level)})</span>
                   </div>
                 )}
+
+                {/* Vách ngăn 2 (Mới thêm) */}
+                <div className="h-6 w-px bg-border/60" />
+
+                {/* 3. Trạng thái Mở/Đóng (Đưa vào trong thanh này) */}
+                <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-sm font-medium transition-colors
+                    ${isOpen 
+                        ? "bg-white text-emerald-700 border-emerald-200 shadow-sm" 
+                        : "bg-gray-100 text-gray-500 border-gray-200"
+                    }
+                `}>
+                    <div className={`w-2 h-2 rounded-full ${isOpen ? "bg-emerald-500 animate-pulse" : "bg-gray-400"}`} />
+                    {isOpen ? t('restaurant_detail.open_now', 'Đang mở cửa') : t('restaurant_detail.closed', 'Đóng cửa')}
+                </div>
+
               </div>
 
               <Card className="p-6">
@@ -467,13 +560,34 @@ const RestaurantDetailPage = () => {
               <Card className="p-6 border-primary/20 shadow-md bg-card">
                 <h3 className="font-semibold text-lg mb-4">{t('restaurant_detail.plan_title', 'Lên kế hoạch')}</h3>
                 <div className="space-y-3">
-                    <Button className={`w-full h-12 text-base font-semibold shadow-sm transition-all ${inCart ? "bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/20" : "bg-hero-gradient hover:opacity-90 text-white"}`} onClick={handleCartAction}>
-                        {inCart ? (
-                            <><Trash2 className="mr-2 h-5 w-5" /> {t('restaurant_detail.remove_from_cart', 'Xóa khỏi hành trình')}</>
-                        ) : (
-                            <><ShoppingCart className="mr-2 h-5 w-5" /> {t('restaurant_detail.add_to_cart', 'Thêm vào hành trình')}</>
-                        )}
-                    </Button>
+                    <Button 
+                      // [LOGIC 1] Chặn bấm nếu chưa có trong giỏ VÀ quán đang đóng
+                      disabled={!inCart && !isOpen}
+
+                      // [LOGIC 2] ClassName xử lý 3 trường hợp: (1) Xóa, (2) Đóng cửa, (3) Thêm mới
+                      className={`w-full h-12 text-base font-semibold shadow-sm transition-all 
+                          ${inCart 
+                              ? "bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/20" // Case 1: Đang có trong giỏ (Màu đỏ)
+                              : (!isOpen 
+                                  ? "bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-200" // Case 2: Đóng cửa (Màu xám)
+                                  : "bg-hero-gradient hover:opacity-90 text-white" // Case 3: Mở cửa (Gradient xanh)
+                                )
+                          }
+                      `} 
+                      onClick={handleCartAction}
+                  >
+                      {inCart ? (
+                          // Nội dung khi nút là nút XÓA
+                          <><Trash2 className="mr-2 h-5 w-5" /> {t('restaurant_detail.remove_from_cart', 'Xóa khỏi hành trình')}</>
+                      ) : (
+                          // Nội dung khi nút là nút THÊM (Check tiếp Đóng hay Mở)
+                          !isOpen ? (
+                              <><Clock className="mr-2 h-5 w-5" /> {t('restaurant_detail.closed_btn', 'Tạm đóng cửa')}</>
+                          ) : (
+                              <><ShoppingCart className="mr-2 h-5 w-5" /> {t('restaurant_detail.add_to_cart', 'Thêm vào hành trình')}</>
+                          )
+                      )}
+                  </Button>
                     <Button variant="outline" className={`w-full ${isFavorite ? 'border-red-200 bg-red-50 text-red-600 hover:bg-gray-10 hover:text-black/80' : 'hover:bg-red-100 hover:text-red-600'}`} onClick={handleToggleFavorite}>
                         <Heart className={`mr-2 h-5 w-5 ${isFavorite ? "fill-red-600" : ""}`} />
                         {isFavorite ? t('restaurant_detail.favorited', 'Đã yêu thích') : t('restaurant_detail.add_favorite', 'Lưu vào yêu thích')}

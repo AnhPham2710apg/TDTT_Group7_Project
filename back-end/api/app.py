@@ -4,29 +4,16 @@ import os
 from dotenv import load_dotenv
 
 # --- 1. CẤU HÌNH ĐƯỜNG DẪN & LOAD .ENV ---
-
-# Lấy đường dẫn tuyệt đối của file app.py hiện tại (.../back-end/api/app.py)
 current_file_path = os.path.abspath(__file__)
-
-# Lấy thư mục chứa app.py (.../back-end/api)
 current_dir = os.path.dirname(current_file_path)
-
-# Lấy thư mục cha (.../back-end) -> Đây là nơi chứa file .env chung
 backend_dir = os.path.dirname(current_dir)
-
-# Tạo đường dẫn tới file .env (.../back-end/.env)
 dotenv_path = os.path.join(backend_dir, '.env')
-
-# Load file .env từ đường dẫn cụ thể vừa tạo
-# override=True để đảm bảo nếu hệ thống có biến môi trường trùng tên thì ưu tiên file .env (hoặc ngược lại tùy bạn, thường thì để default)
 load_dotenv(dotenv_path)
 
-# Thêm đường dẫn vào sys.path để import modules dễ dàng
 sys.path.append(current_dir)
 sys.path.append(backend_dir) 
 
-# --- KIỂM TRA (In ra để chắc chắn đã đọc được) ---
-# Bạn có thể xóa đoạn print này sau khi test xong
+# KIỂM TRA ENV
 db_check = os.getenv('DATABASE_URL') or os.getenv('DATABASE_URL_LOCAL')
 if db_check:
     print(f">>> ✅ Đã load cấu hình từ: {dotenv_path}")
@@ -42,7 +29,8 @@ from models import db, bcrypt, Restaurant
 from restaurant_routes import restaurant_bp
 from auth_routes import auth_bp
 from review_routes import review_bp
-from map_routes import map_bp  # <--- Blueprint Mới
+from map_routes import map_bp 
+from weather_service import weather_bp  # <--- [MỚI] Import Blueprint Thời tiết
 
 app = Flask(__name__, static_folder='../static')
 
@@ -50,8 +38,6 @@ app = Flask(__name__, static_folder='../static')
 app.config['SWAGGER'] = {'title': 'Food Tour API', 'uiversion': 3}
 swagger = Swagger(app)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret')
-
-# --- [BỔ SUNG 1] FIX LỖI FONT TIẾNG VIỆT ---
 app.config['JSON_AS_ASCII'] = False
 
 # DATABASE
@@ -66,7 +52,10 @@ app.config['SQLALCHEMY_BINDS'] = {'restaurants_db': db_url}
 # UPLOAD & KEYS
 app.config['UPLOAD_FOLDER'] = os.path.join(backend_dir, 'static', 'uploads')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# [CẤU HÌNH API KEYS]
 app.config['GOONG_API_KEY'] = os.environ.get('GOONG_API_KEY', "")
+app.config['OPEN_WEATHER_API_KEY'] = os.environ.get('OPEN_WEATHER_API_KEY', "") # <--- [MỚI] Thêm vào config
 
 # CORS
 allowed_origins = [
@@ -89,22 +78,9 @@ app.register_blueprint(auth_bp)        # Login, Register
 app.register_blueprint(restaurant_bp)  # Search, Detail
 app.register_blueprint(review_bp)      # Reviews, Favorites
 app.register_blueprint(map_bp)         # Geocode, Route, Optimize
+app.register_blueprint(weather_bp)     # Weather API <--- [MỚI] Đăng ký Blueprint
 
-# --- [BỔ SUNG 2] API THỜI TIẾT RIÊNG CHO TRANG HOME ---
-# --- [CẬP NHẬT] API THỜI TIẾT ĐỘNG ---
-from weather_service import get_weather_by_city 
-@app.route("/api/weather/current", methods=["GET"])
-def get_current_weather_api():
-    try:
-        # Lấy tham số city từ URL (VD: ?city=Hanoi), mặc định là Ho Chi Minh City
-        city_param = request.args.get('city', 'Ho Chi Minh City')
-        
-        # Gọi hàm lấy thời tiết
-        data = get_weather_by_city(city_param)
-        
-        return jsonify(data if data else {})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# (Đã xóa đoạn code route weather cũ vì đã chuyển sang weather_service.py)
 
 @app.route("/")
 def hello(): return "Backend is Running Perfectly!"

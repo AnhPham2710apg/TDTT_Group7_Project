@@ -6,7 +6,7 @@ from models import Restaurant, db
 from sqlalchemy import or_, func, text
 from recommendation_service import RecommendationService
 from datetime import datetime
-from weather_service import get_weather_by_city
+from weather_service import get_weather_helper
 
 restaurant_bp = Blueprint("restaurant_bp", __name__)
 rec_service = RecommendationService()
@@ -237,7 +237,7 @@ def search_restaurants():
         # [MỚI] 2. LẤY THÔNG TIN THỜI TIẾT
         # ======================================================================
         # Mặc định lấy HCM, sau này có thể lấy theo GPS user nếu cần
-        weather_info = get_weather_by_city("Ho Chi Minh City")
+        weather_info = get_weather_helper("Ho Chi Minh City")
         weather_desc = ""
         weather_temp = 30
         if weather_info:

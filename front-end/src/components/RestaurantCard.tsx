@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Restaurant } from "@/types";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
-import { Heart, MapPin, Star, DollarSign, Eye, Plus, Trash2, Image as ImageIcon, Sparkles } from "lucide-react";
+import { Heart, MapPin, Star, DollarSign, Eye, Plus, Trash2, Image as ImageIcon, Sparkles, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
 import { useTranslation } from 'react-i18next';
@@ -110,6 +110,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
       ${!isOpen ? "opacity-75 grayscale-[0.8]" : ""} {/* [MỚI] Hiệu ứng xám màu khi đóng cửa */}
       `}
         >
+            
             {/* NÚT TIM MOBILE */}
             {onToggleFavorite && (
                 <Button
@@ -124,17 +125,6 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
 
             {/* 1. KHUNG ẢNH */}
             <div className="relative shrink-0 overflow-hidden bg-muted/30 w-32 h-full md:w-full md:h-48">
-                {/* [FIX UI] Badge chuyển xuống góc dưới trái để không đè Score */}
-                <div className={`
-                    absolute bottom-2 left-2 z-40 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide shadow-sm backdrop-blur-md
-                    flex items-center gap-1.5
-                    ${isOpen
-                        ? "bg-emerald-600/90 text-white border border-emerald-500/50"
-                        : "bg-gray-700/90 text-white border border-gray-600/50"}
-                `}>
-                    <span className={`block w-1.5 h-1.5 rounded-full ${isOpen ? "bg-white animate-pulse" : "bg-gray-400"}`} />
-                    {isOpen ? "Mở cửa" : "Đóng cửa"}
-                </div>
 
                 {/* MATCH SCORE */}
                 {score > 0 && (
@@ -208,6 +198,9 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
                             </div>
                         )}
 
+                        {/* [NEW] THÊM ĐOẠN NÀY: Badge trạng thái cho PC (nằm cạnh ngôi sao) */}
+
+
                         {/* Dấu chấm ngăn cách (chỉ hiện trên PC hoặc khi có cả 2 thông tin) */}
                         {restaurant.rating && restaurant.price_level && (
                             <span className="text-gray-300 hidden md:inline">•</span>
@@ -237,7 +230,17 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
                                 </div>
 
                             </div>
+                            
                         )}
+                        <div className={`
+                            flex items-center gap-1 px-1.5 py-0.5 md:px-2 rounded-full font-medium border text-[10px] md:text-[11px]
+                            ${isOpen 
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
+                                : "bg-gray-100 text-gray-500 border-gray-200"}
+                        `}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${isOpen ? "bg-emerald-500 animate-pulse" : "bg-gray-400"}`} />
+                            {isOpen ? "Mở cửa" : "Đóng cửa"}
+                        </div>
                     </div>
                 </div>
 
@@ -246,10 +249,13 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
                     <Button
                         variant={inCart ? "destructive" : "secondary"}
                         size="sm"
-                        // [MỚI] Nếu muốn disable nút này khi đóng cửa thì bỏ comment dòng dưới
-                        // disabled={!isOpen} 
+                        // [NEW] Thêm dòng này để chặn bấm khi đóng cửa
+                        disabled={!isOpen} 
+                        // [UPDATE] Cập nhật className để nút bị mờ đi khi đóng cửa
                         className={`h-7 w-7 px-0 md:h-9 md:w-auto md:px-3 flex-shrink-0 shadow-sm transition-all
-              ${inCart ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-green-500 text-white hover:bg-green-600"}`}
+                        ${inCart ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-green-500 text-white hover:bg-green-600"}
+                        ${!isOpen ? "opacity-50 cursor-not-allowed bg-gray-300 text-gray-500 hover:bg-gray-300" : ""}
+                        `}
                         onClick={handleCartAction}
                     >
                         {inCart ? <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" /> : <Plus className="h-3.5 w-3.5 md:h-4 md:w-4" />}

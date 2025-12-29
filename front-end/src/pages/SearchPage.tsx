@@ -10,9 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import Navbar from "@/components/Navbar";
 // Thêm các icon cho phần Vibe
-import { Search, Check, Wallet, Scale, Sparkles, Coffee, Music, Heart, Users, Camera, CloudSun, MapPin } from "lucide-react";
+import { Search, Check, Wallet, Scale, Sparkles, Coffee, Music, Heart, Users, Camera, CloudSun, MapPin, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from 'react-i18next';
+import WeatherWidget from "@/components/WeatherWidget";
+import { API_BASE_URL } from "@/lib/api-config";
 
 const SearchPage = () => {
   const { t } = useTranslation();
@@ -96,10 +98,10 @@ const SearchPage = () => {
   const CITY_OPTIONS = [
     { id: "Ho Chi Minh City", label: "Hồ Chí Minh" },
     { id: "Hanoi", label: "Hà Nội" },
-    { id: "Da Nang", label: "Đà Nẵng" },
     { id: "Can Tho", label: "Cần Thơ" },
-    { id: "Hai Phong", label: "Hải Phòng" },
-    { id: "Dalat", label: "Đà Lạt" },
+    { id: "Thai Binh", label: "Thái Bình"},
+    { id: "Hue", label: "Huế" },
+    { id: "Khánh Hòa", label: "Khánh Hòa" },
   ];
 
   // --- [NEW] HELPER FUNCTION LOAD STATE FROM SESSION ---
@@ -138,21 +140,24 @@ const SearchPage = () => {
 
   // --- [NÂNG CẤP] LOGIC THỜI TIẾT ĐỘNG ---
   const [selectedCity, setSelectedCity] = useState("Ho Chi Minh City");
-  const [weather, setWeather] = useState<{ temp: number; desc: string; city: string } | null>(null);
+  const [weather, setWeather] = useState<{ temp: number; desc: string; city: string; humidity: number } | null>(null);
 
   useEffect(() => {
-    // Gọi API kèm theo tham số city
-    fetch(`http://127.0.0.1:5000/api/weather/current?city=${selectedCity}`)
+    // [CẬP NHẬT] Dùng biến môi trường hoặc fallback
+    const baseUrl = API_BASE_URL || "http://127.0.0.1:5000";
+    
+    // Gọi API weather
+    fetch(`${baseUrl}/api/weather/current?city=${selectedCity}`)
       .then(res => res.json())
       .then(data => {
         if (data && data.temp) {
-          setWeather(data);
+          setWeather(data); // data trả về từ API giờ đã có đủ temp, desc, humidity
         } else {
-            setWeather(null); // Reset nếu lỗi
+          setWeather(null);
         }
       })
       .catch(err => console.error("Weather err:", err));
-  }, [selectedCity]); // Chạy lại khi selectedCity thay đổi
+  }, [selectedCity]);
 
   // --- AUTO SCROLL & PARALLAX LISTENER ---
   useEffect(() => {
@@ -334,41 +339,62 @@ const SearchPage = () => {
             style={{ transform: `translateY(-${scrollY * 0.15}px)` }}
           >
             {/* Dropdown chọn thành phố (Nhỏ gọn, tinh tế) */}
-            <div className="bg-white/50 backdrop-blur-sm rounded-full border border-white/40 px-3 py-1 shadow-sm">
-                <div className="flex items-center gap-1.5">
-                    <MapPin className="w-3 h-3 text-gray-500" />
-                    <select 
-                        className="bg-transparent text-xs font-semibold text-gray-700 outline-none cursor-pointer appearance-none text-center min-w-[80px]"
-                        value={selectedCity}
-                        onChange={(e) => setSelectedCity(e.target.value)}
+            {/* [UI MỚI] LOCATION SELECTOR PILL */}
+            <div className="relative group z-20"> {/* Tăng z-index để dropdown không bị che */}
+              <Select value={selectedCity} onValueChange={setSelectedCity}>
+                <SelectTrigger 
+                  className="
+                    w-auto h-auto min-w-[180px] pl-2 pr-4 py-1.5 gap-2 
+                    rounded-full bg-white/90 backdrop-blur-md 
+                    border border-emerald-100/80 shadow-sm 
+                    hover:shadow-md hover:border-emerald-300 hover:bg-white
+                    focus:ring-0 focus:ring-offset-0 focus:outline-none
+                    transition-all duration-300
+                  "
+                >
+                  <div className="flex items-center gap-2">
+                    {/* Icon MapPin trong vòng tròn xanh */}
+                    <div className="bg-emerald-100 p-1.5 rounded-full flex-shrink-0">
+                      <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                    </div>
+                    
+                    {/* Text hiển thị giá trị đã chọn */}
+                    <span className="text-sm font-bold text-gray-700">
+                      <SelectValue placeholder="Chọn thành phố" />
+                    </span>
+                  </div>
+                </SelectTrigger>
+
+                {/* Phần danh sách xổ xuống */}
+                <SelectContent 
+                  align="center" 
+                  className="
+                    rounded-xl border border-emerald-100 
+                    bg-white/95 backdrop-blur-xl shadow-xl 
+                    min-w-[180px] mt-2 animate-in fade-in zoom-in-95 duration-200
+                  "
+                >
+                  {CITY_OPTIONS.map((c) => (
+                    <SelectItem 
+                      key={c.id} 
+                      value={c.id} 
+                      className="
+                        font-medium text-gray-600 cursor-pointer 
+                        focus:bg-emerald-50 focus:text-emerald-700 
+                        my-1 rounded-lg py-2 pl-3
+                        transition-colors
+                        [&>span.absolute]:hidden  {/* Dòng này sẽ ẩn dấu check đi */}
+                      "
                     >
-                        {CITY_OPTIONS.map(c => (
-                            <option key={c.id} value={c.id}>{c.label}</option>
-                        ))}
-                    </select>
-                </div>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Widget hiển thị thông tin */}
-            {weather && (
-                <div className="flex items-center gap-3 bg-white/70 backdrop-blur-md border border-white/60 shadow-lg rounded-full py-2 px-5 hover:bg-white/80 transition-colors cursor-default">
-                    <div className="bg-orange-100 p-1.5 rounded-full text-orange-500">
-                        <CloudSun className="w-5 h-5" />
-                    </div>
-                    <div className="flex flex-col md:flex-row md:items-center gap-0 md:gap-3">
-                        <div className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                            <span>{weather.city}</span>
-                            <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-md font-bold">
-                                {Math.round(weather.temp)}°C
-                            </span>
-                        </div>
-                        <div className="hidden md:block w-px h-4 bg-gray-300"></div>
-                        <div className="text-xs font-medium text-emerald-600 italic capitalize">
-                           {weather.desc} — {weather.temp < 20 ? "Trời lạnh, ăn đồ nướng/lẩu! 🍲" : (weather.temp > 30 ? "Nóng quá, giải khát thôi! 🍧" : "Thời tiết đẹp, đi ăn gì cũng ngon! 😋")}
-                        </div>
-                    </div>
-                </div>
-            )}
+            <WeatherWidget data={weather} />
           </div>
 
           {/* --- PARALLAX FORM CARD --- */}

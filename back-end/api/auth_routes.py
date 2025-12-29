@@ -1,4 +1,5 @@
 import os
+import uuid
 from flask import Blueprint, request, jsonify, url_for, current_app
 from werkzeug.utils import secure_filename
 from models import db, User
@@ -135,35 +136,42 @@ def update_profile():
         db.session.rollback()
         return jsonify({"message": f"Error: {str(e)}"}), 500
 
-# 5. [NEW] UPLOAD AVATAR
+# [SỬA LẠI] API UPLOAD AVATAR (LOGIC GIỐNG REVIEW)
 @auth_bp.route("/api/upload/avatar", methods=["POST"])
 def upload_avatar():
+    # 1. Kiểm tra có file không
     if 'file' not in request.files:
         return jsonify({"message": "No file part"}), 400
+    
     file = request.files['file']
+    
     if file.filename == '':
         return jsonify({"message": "No selected file"}), 400
         
+    # 2. Kiểm tra định dạng file
     if file and allowed_file(file.filename):
         try:
-            filename = secure_filename(file.filename)
-            # Tạo tên file unique để tránh cache
-            import time
-            unique_filename = f"{int(time.time())}_{filename}"
+            # 3. Tạo tên file ngẫu nhiên (UUID) để tránh trùng & cache
+            # Logic này giống hệt bên review_routes
+            ext = file.filename.rsplit('.', 1)[1].lower()
+            unique_filename = f"{uuid.uuid4().hex}.{ext}"
             
-            # Lưu vào static/uploads/avatars
-            upload_folder = os.path.join(current_app.static_folder, 'uploads', 'avatars')
-            os.makedirs(upload_folder, exist_ok=True)
+            # 4. Lấy thư mục upload từ config chung (đảm bảo đồng bộ với review)
+            upload_folder = current_app.config['UPLOAD_FOLDER']
             
+            # Lưu file vật lý
             file_path = os.path.join(upload_folder, unique_filename)
             file.save(file_path)
             
-            # Trả về đường dẫn tương đối để Frontend tự ghép với API_BASE_URL
-            relative_url = f"/static/uploads/avatars/{unique_filename}"
-            return jsonify({"url": relative_url})
+            # 5. [QUAN TRỌNG] Tạo đường dẫn tuyệt đối (Full URL)
+            # request.host_url sẽ tự động lấy domain hiện tại của server (VD: https://food-tour-api.onrender.com/)
+            full_url = request.host_url + 'static/uploads/' + unique_filename
+            
+            # Trả về full URL để frontend hiển thị ngay
+            return jsonify({"url": full_url})
             
         except Exception as e:
             print(f"Upload error: {e}")
-            return jsonify({"message": "Upload failed"}), 500
+            return jsonify({"message": "Upload failed", "error": str(e)}), 500
             
     return jsonify({"message": "File type not allowed"}), 400
