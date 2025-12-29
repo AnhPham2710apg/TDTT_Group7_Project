@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import Navbar from "@/components/Navbar";
 // Thêm các icon cho phần Vibe
-import { Search, Check, Wallet, Scale, Sparkles, Coffee, Music, Heart, Users, Camera } from "lucide-react"; 
+import { Search, Check, Wallet, Scale, Sparkles, Coffee, Music, Heart, Users, Camera, CloudSun, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from 'react-i18next';
 
@@ -93,6 +93,15 @@ const SearchPage = () => {
     { value: "Khác", label: t('search.cuisine_other', "Khác") }
   ];
 
+  const CITY_OPTIONS = [
+    { id: "Ho Chi Minh City", label: "Hồ Chí Minh" },
+    { id: "Hanoi", label: "Hà Nội" },
+    { id: "Da Nang", label: "Đà Nẵng" },
+    { id: "Can Tho", label: "Cần Thơ" },
+    { id: "Hai Phong", label: "Hải Phòng" },
+    { id: "Dalat", label: "Đà Lạt" },
+  ];
+
   // --- [NEW] HELPER FUNCTION LOAD STATE FROM SESSION ---
   function loadState<T>(key: string, defaultVal: T): T {
     try {
@@ -126,6 +135,24 @@ const SearchPage = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [scrollY, setScrollY] = useState(0);
+
+  // --- [NÂNG CẤP] LOGIC THỜI TIẾT ĐỘNG ---
+  const [selectedCity, setSelectedCity] = useState("Ho Chi Minh City");
+  const [weather, setWeather] = useState<{ temp: number; desc: string; city: string } | null>(null);
+
+  useEffect(() => {
+    // Gọi API kèm theo tham số city
+    fetch(`http://127.0.0.1:5000/api/weather/current?city=${selectedCity}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.temp) {
+          setWeather(data);
+        } else {
+            setWeather(null); // Reset nếu lỗi
+        }
+      })
+      .catch(err => console.error("Weather err:", err));
+  }, [selectedCity]); // Chạy lại khi selectedCity thay đổi
 
   // --- AUTO SCROLL & PARALLAX LISTENER ---
   useEffect(() => {
@@ -301,6 +328,49 @@ const SearchPage = () => {
             </div>
           </div>
 
+          {/* --- [NÂNG CẤP] WEATHER WIDGET + CITY SELECTOR --- */}
+          <div 
+            className="relative z-10 mx-auto max-w-fit mb-8 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-bottom-4 duration-700"
+            style={{ transform: `translateY(-${scrollY * 0.15}px)` }}
+          >
+            {/* Dropdown chọn thành phố (Nhỏ gọn, tinh tế) */}
+            <div className="bg-white/50 backdrop-blur-sm rounded-full border border-white/40 px-3 py-1 shadow-sm">
+                <div className="flex items-center gap-1.5">
+                    <MapPin className="w-3 h-3 text-gray-500" />
+                    <select 
+                        className="bg-transparent text-xs font-semibold text-gray-700 outline-none cursor-pointer appearance-none text-center min-w-[80px]"
+                        value={selectedCity}
+                        onChange={(e) => setSelectedCity(e.target.value)}
+                    >
+                        {CITY_OPTIONS.map(c => (
+                            <option key={c.id} value={c.id}>{c.label}</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
+            {/* Widget hiển thị thông tin */}
+            {weather && (
+                <div className="flex items-center gap-3 bg-white/70 backdrop-blur-md border border-white/60 shadow-lg rounded-full py-2 px-5 hover:bg-white/80 transition-colors cursor-default">
+                    <div className="bg-orange-100 p-1.5 rounded-full text-orange-500">
+                        <CloudSun className="w-5 h-5" />
+                    </div>
+                    <div className="flex flex-col md:flex-row md:items-center gap-0 md:gap-3">
+                        <div className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                            <span>{weather.city}</span>
+                            <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-md font-bold">
+                                {Math.round(weather.temp)}°C
+                            </span>
+                        </div>
+                        <div className="hidden md:block w-px h-4 bg-gray-300"></div>
+                        <div className="text-xs font-medium text-emerald-600 italic capitalize">
+                           {weather.desc} — {weather.temp < 20 ? "Trời lạnh, ăn đồ nướng/lẩu! 🍲" : (weather.temp > 30 ? "Nóng quá, giải khát thôi! 🍧" : "Thời tiết đẹp, đi ăn gì cũng ngon! 😋")}
+                        </div>
+                    </div>
+                </div>
+            )}
+          </div>
+
           {/* --- PARALLAX FORM CARD --- */}
           <div 
             className="relative z-10"
@@ -368,7 +438,7 @@ const SearchPage = () => {
                 {/* 2. CUISINE */}
                 <div className="space-y-3">
                     <Label className="text-base font-bold">{t('search.label_cuisine', 'Ẩm thực')}</Label>
-                    <Select onValueChange={handleCuisineChange}>
+                    <Select onValueChange={handleCuisineChange} value={cuisine.length > 0 ? cuisine[0] : undefined}>
                     <SelectTrigger className="h-12 text-base rounded-xl border-muted focus:ring-2 focus:ring-primary/20">
                         <SelectValue placeholder={t('search.ph_cuisine', 'Chọn nền ẩm thực')} />
                     </SelectTrigger>
