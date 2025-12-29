@@ -96,12 +96,12 @@ const SearchPage = () => {
   ];
 
   const CITY_OPTIONS = [
-    { id: "Ho Chi Minh City", label: "Hồ Chí Minh" },
-    { id: "Hanoi", label: "Hà Nội" },
-    { id: "Can Tho", label: "Cần Thơ" },
-    { id: "Thai Binh", label: "Thái Bình"},
-    { id: "Hue", label: "Huế" },
-    { id: "Khánh Hòa", label: "Khánh Hòa" },
+    { id: "Ho Chi Minh City", label: t('city.hcm', "Hồ Chí Minh") },
+    { id: "Hanoi", label: t('city.hanoi', "Hà Nội") },
+    { id: "Can Tho", label: t('city.can_tho', "Cần Thơ") },
+    { id: "Thai Binh", label: t('city.thai_binh', "Thái Bình") },
+    { id: "Hue", label: t('city.hue', "Huế") },
+    { id: "Khanh Hoa", label: t('city.khanh_hoa', "Khánh Hòa") }, // Đã sửa id thành không dấu để đồng bộ
   ];
 
   // --- [NEW] HELPER FUNCTION LOAD STATE FROM SESSION ---

@@ -47,6 +47,14 @@
     "toast_error_min": "Need at least 1 place to optimize route!",
     "toast_removed": "Removed from the list"
   },
+  "city": {
+    "can_tho": "Can Tho",
+    "hanoi": "Hanoi",
+    "hcm": "Ho Chi Minh",
+    "hue": "Hue",
+    "khanh_hoa": "Khanh Hoa",
+    "thai_binh": "Thai Binh"
+  },
   "common": {
     "app_name": "Food Tour Assistant",
     "back": "Back",
@@ -176,6 +184,7 @@
     "empty_reviews": "You haven't written any reviews yet",
     "empty_routes": "You haven't saved any routes yet",
     "error_restaurant_not_found": "Restaurant not found",
+    "error_username_taken": "Tên đăng nhập đã tồn tại",
     "loading_name": "Loading name...",
     "rename_success": "Renamed successfully!",
     "route_places_unit": "places",
@@ -223,6 +232,8 @@
     "added_to_list": "Added to list.",
     "back_to_search": "Back to search",
     "call_now": "CALL NOW",
+    "closed": "Đóng cửa",
+    "closed_btn": "Tạm đóng cửa",
     "contact_info": "Contact Information",
     "contact_title": "Phone",
     "description_title": "Description",
@@ -338,5 +349,24 @@
     "vibe_traditional": "Traditional",
     "vibe_vibrant": "Vibrant",
     "vibe_view": "View"
+  },
+  "weather": {
+    "advice": {
+      "cool_1": "Cool breeze? Perfect for street snails.",
+      "cool_2": "Nice weather! Time for a BBQ with friends.",
+      "cool_3": "Breezy day, time for riverside snacks.",
+      "cool_4": "Beautiful sky, hit a rooftop cafe now.",
+      "default_1": "Lovely day, let's go on a Food Tour!",
+      "default_2": "What to eat? Find tasty spots now.",
+      "default_3": "Don't go hungry! Explore trending spots.",
+      "hot_1": "So hot! Bingsu or ice cream to cool down.",
+      "hot_2": "Blazing sun calls for Boba full toppings.",
+      "hot_3": "Sweltering? Grab a cold draft beer.",
+      "hot_4": "Sunny out, fresh spring rolls are the best.",
+      "rain_1": "Raining? Time for spicy hotpot!",
+      "rain_2": "Rainy day, order a steaming bowl of Pho.",
+      "rain_3": "Chilly rain? Spicy noodles are true love.",
+      "rain_4": "Rain falling... Coffee and chill?"
+    }
   }
 }

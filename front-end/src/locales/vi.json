@@ -47,6 +47,14 @@
     "toast_error_min": "Cần ít nhất 1 địa điểm để tối ưu lộ trình!",
     "toast_removed": "Đã xóa khỏi danh sách"
   },
+  "city": {
+    "can_tho": "Cần Thơ",
+    "hanoi": "Hà Nội",
+    "hcm": "Hồ Chí Minh",
+    "hue": "Huế",
+    "khanh_hoa": "Khánh Hòa",
+    "thai_binh": "Thái Bình"
+  },
   "common": {
     "app_name": "Food Tour Assistant",
     "back": "Quay lại",
@@ -176,6 +184,7 @@
     "empty_reviews": "Bạn chưa viết đánh giá nào",
     "empty_routes": "Bạn chưa lưu lộ trình nào",
     "error_restaurant_not_found": "Nhà hàng không tồn tại",
+    "error_username_taken": "Tên đăng nhập đã tồn tại",
     "loading_name": "Đang tải tên...",
     "rename_success": "Đổi tên thành công!",
     "route_places_unit": "địa điểm",
@@ -223,6 +232,8 @@
     "added_to_list": "Đã thêm vào danh sách.",
     "back_to_search": "Quay lại tìm kiếm",
     "call_now": "GỌI NGAY",
+    "closed": "Đóng cửa",
+    "closed_btn": "Tạm đóng cửa",
     "contact_info": "Thông tin liên hệ",
     "contact_title": "Điện thoại",
     "description_title": "Mô tả",
@@ -338,5 +349,24 @@
     "vibe_traditional": "Truyền thống",
     "vibe_vibrant": "Nhộn nhịp",
     "vibe_view": "Cảnh đẹp"
+  },
+  "weather": {
+    "advice": {
+      "cool_1": "Trời mát, đi ăn ốc vỉa hè cực lý tưởng.",
+      "cool_2": "Trời đẹp, rủ bạn thân nướng BBQ đi.",
+      "cool_3": "Gió mát, ra bờ kè ăn vặt hóng gió.",
+      "cool_4": "Thời tiết đẹp, đi cafe rooftop ngay.",
+      "default_1": "Thời tiết đẹp, đi Food Tour thôi!",
+      "default_2": "Hôm nay ăn gì? Tìm quán ngon ngay.",
+      "default_3": "Đừng để bụng đói, khám phá quán hot.",
+      "hot_1": "Nóng quá, đi ăn kem/bingsu giải nhiệt!",
+      "hot_2": "Nắng gắt, trà sữa full topping ngay.",
+      "hot_3": "Oi bức, làm cốc bia hơi cho mát.",
+      "hot_4": "Nắng lên, ăn món cuốn thanh mát nhé.",
+      "rain_1": "Mưa rồi, làm nồi lẩu chua cay thôi!",
+      "rain_2": "Trời mưa, order phở nóng hổi nhé.",
+      "rain_3": "Mưa lạnh, mì cay là chân ái.",
+      "rain_4": "Mưa rơi, cafe ngắm cảnh cực chill."
+    }
   }
 }
