@@ -587,7 +587,12 @@ const OptimizeRoutePage = () => {
                             </div>
                             <ResultList 
                                 optimizedRoute={optimizedRoute} 
-                                handleCardClick={(i) => setFocusPoint(mapPoints[i] ? {lat: mapPoints[i].lat, lon: mapPoints[i].lon} : null)} 
+                                // SỬA DÒNG NÀY:
+                                handleCardClick={(i) => {
+                                    // Nếu mapPoints[i] tồn tại thì lấy, nếu không (trường hợp thẻ End) thì lấy mapPoints[0]
+                                    const p = mapPoints[i] || mapPoints[0];
+                                    if (p) setFocusPoint({lat: p.lat, lon: p.lon});
+                                }}
                                 routeInfo={routeInfo} 
                                 vehicle={calculatedVehicle ?? vehicle} 
                             />

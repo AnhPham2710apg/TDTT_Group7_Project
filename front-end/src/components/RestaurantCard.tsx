@@ -129,10 +129,10 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
                 {/* MATCH SCORE */}
                 {score > 0 && (
                     <div className={`
-            absolute top-0 left-0 z-30 px-2 py-1 md:px-3 md:py-1.5 
-            rounded-br-xl md:rounded-br-2xl font-bold text-[10px] md:text-xs flex items-center gap-1 shadow-sm
-            ${getScoreStyle(score)}
-          `}>
+                        absolute top-0 left-0 z-30 px-2 py-1 md:px-3 md:py-1.5 
+                        rounded-br-xl md:rounded-br-2xl font-bold text-[10px] md:text-xs flex items-center gap-1 shadow-sm
+                        ${getScoreStyle(score)}
+                    `}>
                         <Sparkles className="w-3 h-3 md:w-3.5 md:h-3.5" />
                         <span>{score}%</span>
                     </div>
