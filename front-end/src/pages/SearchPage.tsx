@@ -101,7 +101,7 @@ const SearchPage = () => {
     { id: "Can Tho", label: t('city.can_tho', "Cần Thơ") },
     { id: "Thai Binh", label: t('city.thai_binh', "Thái Bình") },
     { id: "Hue", label: t('city.hue', "Huế") },
-    { id: "Khanh Hoa", label: t('city.khanh_hoa', "Khánh Hòa") }, // Đã sửa id thành không dấu để đồng bộ
+    { id: "Khánh Hòa", label: t('city.khanh_hoa', "Khánh Hòa") }, // Đã sửa id thành không dấu để đồng bộ
   ];
 
   // --- [NEW] HELPER FUNCTION LOAD STATE FROM SESSION ---
